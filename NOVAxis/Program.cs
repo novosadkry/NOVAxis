@@ -50,7 +50,7 @@ namespace NOVAxis
                 RESTPort = 2333,
                 WebSocketHost = "localhost",
                 WebSocketPort = 2333,
-                Authorization = config.LoginToken,
+                Authorization = config.LavalinkLogin,
                 TotalShards = 1
             });
 
