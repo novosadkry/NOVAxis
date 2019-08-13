@@ -36,10 +36,17 @@ namespace NOVAxis.Modules
 
                 if (user.Id == Context.Client.CurrentUser.Id)
                 {
+                    var service = AudioModuleService[Context.Guild.Id];
+
+                    var track = service.CurrentTrack;
+                    long trackPos = service.GetPlayer().CurrentPosition;
+
+                    AudioModuleService[Context.Guild.Id].Queue.Insert(0, track);
+
                     await Services.LavalinkService.Manager.LeaveAsync(Context.Guild.Id);
                     await Services.LavalinkService.Manager.JoinAsync(channel);
 
-                    return;
+                    await service.GetPlayer().SeekAsync((int)trackPos);
                 }
 
                 await user.ModifyAsync((GuildUserProperties prop) =>
@@ -144,8 +151,17 @@ namespace NOVAxis.Modules
 
                     if (u.Id == Context.Client.CurrentUser.Id)
                     {
+                        var service = AudioModuleService[Context.Guild.Id];
+
+                        var track = service.CurrentTrack;
+                        long trackPos = service.GetPlayer().CurrentPosition;
+
+                        AudioModuleService[Context.Guild.Id].Queue.Insert(0, track);
+
                         await Services.LavalinkService.Manager.LeaveAsync(Context.Guild.Id);
                         await Services.LavalinkService.Manager.JoinAsync(channel2);
+
+                        await service.GetPlayer().SeekAsync((int)trackPos);
 
                         continue;
                     }
