@@ -25,6 +25,7 @@ namespace NOVAxis
         public LogSeverity LogSeverity { get; set; }
 
         public bool StartLavalink { get; set; }
+        public string LavalinkLogin { get; set; }
 
         public ProgramConfig()
         {
@@ -35,6 +36,7 @@ namespace NOVAxis
             Log = true;
             LogSeverity = LogSeverity.Debug;
             StartLavalink = false;
+            LavalinkLogin = "123";
         }
 
         public async static Task<ProgramConfig> LoadConfig(Func<LogMessage, Task> log)
