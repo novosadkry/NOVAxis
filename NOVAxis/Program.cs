@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using Discord.Addons.Interactive;
 
 using SharpLink;
 
@@ -58,6 +59,7 @@ namespace NOVAxis
 
             services = new ServiceCollection()
                 .AddSingleton<Services.AudioModuleService>()
+                .AddSingleton(new InteractiveService((BaseSocketClient)client))
                 .BuildServiceProvider();
 
             commandService.CommandExecuted += CommandService_CommandExecuted;

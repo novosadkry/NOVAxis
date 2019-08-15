@@ -23,6 +23,8 @@ namespace NOVAxis.Modules
     {
         private class JishoJson
         {
+            public const string API = "https://jisho.org/api/v1/search/words?keyword={0}";
+
             public string Word { get; set; }
             public string Reading { get; set; }
             public string[][] English_definitions { get; set; }
@@ -63,27 +65,28 @@ namespace NOVAxis.Modules
         }
 
         [Command, Summary("Searches through Jisho.org dictionary")]
-        public async Task Search(string text, ushort numberOfEntries = 100)
+        public async Task Search(string text, ushort limit = 100)
         {
-            if (numberOfEntries < 1)
+            if (limit < 1)
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription($"(Argument nesmí být menší nebo roven nule)")
-                    .WithTitle($"Zajímalo by mě, co zjistíš z nula a méně prvků...").Build());
+                    .WithTitle($"Mé jádro nebylo schopno příjmout daný prvek").Build());
 
                 return;
             }
 
-            string api = $"https://jisho.org/api/v1/search/words?keyword={text}";
-                
+            string api = string.Format(JishoJson.API, text);
+            api = Uri.EscapeUriString(api);
+
             using (WebClient client = new WebClient() { Encoding = Encoding.UTF8 })
             {
                 try
                 {
                     string result = await client.DownloadStringTaskAsync(api);
 
-                    List<JishoJson> collection = JishoJson.Convert(result, numberOfEntries).ToList();
+                    List<JishoJson> collection = JishoJson.Convert(result, limit).ToList();
 
                     if (collection.Count <= 0)
                         throw new Exception("Výsledek databáze neobsahuje žádný prvek");

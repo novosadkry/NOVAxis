@@ -157,6 +157,7 @@
     <Compile Include="Modules\ClearModule.cs" />
     <Compile Include="Modules\HelpModule.cs" />
     <Compile Include="Modules\JishoModule.cs" />
+    <Compile Include="Modules\MALModule.cs" />
     <Compile Include="Modules\MoveModule.cs" />
     <Compile Include="Modules\AudioModule.cs" />
     <Compile Include="Modules\MuteModule.cs" />
@@ -191,6 +192,10 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Discord.Addons.Interactive\Discord.Addons.Interactive.csproj">
+      <Project>{41a0acb6-d5e1-4c33-9163-dce817500331}</Project>
+      <Name>Discord.Addons.Interactive</Name>
+    </ProjectReference>
     <ProjectReference Include="..\SharpLink\SharpLink.csproj">
       <Project>{a058ee57-ddb2-4851-b931-d348f6776b7b}</Project>
       <Name>SharpLink</Name>
