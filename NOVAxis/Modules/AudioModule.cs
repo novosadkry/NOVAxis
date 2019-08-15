@@ -245,14 +245,14 @@ namespace NOVAxis.Modules
 
                         new EmbedFieldBuilder
                         {
-                            Name = "Vyžádal",
+                            Name = "Vyžádal:",
                             Value = service.CurrentTrack.RequestedBy.Mention,
                             IsInline = true
                         },
 
                         new EmbedFieldBuilder
                         {
-                            Name = "Hlasitost",
+                            Name = "Hlasitost:",
                             Value = $"{service.Volume}%",
                             IsInline = true
                         }
@@ -284,14 +284,14 @@ namespace NOVAxis.Modules
 
                         new EmbedFieldBuilder
                         {
-                            Name = "Vyžádal",
+                            Name = "Vyžádal:",
                             Value = service.LastTrack.RequestedBy.Mention,
                             IsInline = true
                         },
 
                         new EmbedFieldBuilder
                         {
-                            Name = "Pořadí ve frontě",
+                            Name = "Pořadí ve frontě:",
                             Value = $"`{service.Queue.Count - 1}.`",
                             IsInline = true
                         }
@@ -600,7 +600,7 @@ namespace NOVAxis.Modules
 
                         new EmbedFieldBuilder
                         {
-                            Name = "Vyžádal",
+                            Name = "Vyžádal:",
                             Value = service.CurrentTrack.RequestedBy.Mention,
                             IsInline = true
                         },
