@@ -117,14 +117,14 @@ namespace NOVAxis.Services
 
                         new EmbedFieldBuilder
                         {
-                            Name = "Vyžádal",
+                            Name = "Vyžádal:",
                             Value = service.Queue.First().RequestedBy.Mention,
                             IsInline = true
                         },
 
                         new EmbedFieldBuilder
                         {
-                            Name = "Hlasitost",
+                            Name = "Hlasitost:",
                             Value = $"{service.Volume}%",
                             IsInline = true
                         }
