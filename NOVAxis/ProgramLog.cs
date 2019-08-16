@@ -34,7 +34,7 @@ namespace NOVAxis
                     break;
 
                 case LogSeverity.Debug:
-                    Console.ForegroundColor = ConsoleColor.DarkMagenta;
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
                     break;
 
                 default:
