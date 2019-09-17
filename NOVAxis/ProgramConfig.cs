@@ -49,10 +49,9 @@ namespace NOVAxis
             catch (FileNotFoundException)
             {
                 await log(new LogMessage(LogSeverity.Warning, "Program", $"Config file ({configPath}) not found"));
-
-                await ResetConfig();
                 await log(new LogMessage(LogSeverity.Info, "Program", "Forcing config reset"));
 
+                await ResetConfig();
                 return await LoadConfig(log);
             }
         }

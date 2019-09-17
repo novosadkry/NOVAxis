@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using Discord.Addons.Interactive;
 
 using SharpLink;
 
@@ -58,6 +59,7 @@ namespace NOVAxis
 
             services = new ServiceCollection()
                 .AddSingleton<Services.AudioModuleService>()
+                .AddSingleton(new InteractiveService((BaseSocketClient)client))
                 .BuildServiceProvider();
 
             commandService.CommandExecuted += CommandService_CommandExecuted;
@@ -124,9 +126,15 @@ namespace NOVAxis
 
         private static async Task Client_Log(LogMessage arg)
         {
+            ProgramConfig config =
+                Program.config ?? new ProgramConfig();
+
+            if (arg.Severity > config.LogSeverity)
+                return;
+
             await ProgramLog.ToConsole(arg);
 
-            if (config?.Log ?? true)
+            if (config.Log)
                 await ProgramLog.ToFile(arg);
         }
 
