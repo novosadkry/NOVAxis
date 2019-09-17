@@ -126,9 +126,15 @@ namespace NOVAxis
 
         private static async Task Client_Log(LogMessage arg)
         {
+            ProgramConfig config =
+                Program.config ?? new ProgramConfig();
+
+            if (arg.Severity > config.LogSeverity)
+                return;
+
             await ProgramLog.ToConsole(arg);
 
-            if (config?.Log ?? true)
+            if (config.Log)
                 await ProgramLog.ToFile(arg);
         }
 
