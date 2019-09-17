@@ -33,7 +33,7 @@ namespace NOVAxis
             Activity = "pohyb atomů";
             ActivityType = ActivityType.Listening;
             UserStatus = UserStatus.Online;
-            Log = true;
+            Log = false;
             LogSeverity = LogSeverity.Debug;
             StartLavalink = false;
             LavalinkLogin = "123";
