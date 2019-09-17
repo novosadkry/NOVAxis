@@ -33,7 +33,7 @@ namespace NOVAxis
             Activity = "pohyb atomů";
             ActivityType = ActivityType.Listening;
             UserStatus = UserStatus.Online;
-            Log = false;
+            Log = true;
             LogSeverity = LogSeverity.Debug;
             StartLavalink = false;
             LavalinkLogin = "123";
@@ -49,10 +49,9 @@ namespace NOVAxis
             catch (FileNotFoundException)
             {
                 await log(new LogMessage(LogSeverity.Warning, "Program", $"Config file ({configPath}) not found"));
-
-                await ResetConfig();
                 await log(new LogMessage(LogSeverity.Info, "Program", "Forcing config reset"));
 
+                await ResetConfig();
                 return await LoadConfig(log);
             }
         }
