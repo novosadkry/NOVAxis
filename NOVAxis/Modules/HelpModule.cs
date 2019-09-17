@@ -19,7 +19,7 @@ namespace NOVAxis.Modules
             await Context.Message.DeleteAsync();
 
             IMessage _message = await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(150, 0, 150)
+                .WithColor(new Color(52, 231, 231))
                 .WithTitle($"Seznam příkazů byl úspěšně poslán do přímé zprávy").Build());
 
             await Context.User.SendMessageAsync(embed: embed);
@@ -43,15 +43,8 @@ namespace NOVAxis.Modules
                     {
                         IsInline = false,
                         Name = "Příkaz `Help`",
-                        Value = "(Použití -> `~help commandName`)"
-                    },
-                    
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = false,
-                        Name = "Příkaz `Translate`",
-                        Value = "(Použití -> `~translate \"text\" \"slang\" \"tlang\"`)"
-                    },
+                        Value = "(Použití -> `~help ___`)"
+                    },                  
 
                     new EmbedFieldBuilder
                     {
@@ -86,6 +79,13 @@ namespace NOVAxis.Modules
                         IsInline = false,
                         Name = "Příkaz `Audio`",
                         Value = "(Nápověda -> `~help audio`)"
+                    },
+
+                    new EmbedFieldBuilder
+                    {
+                        IsInline = false,
+                        Name = "Příkaz `MAL`",
+                        Value = "(Nápověda -> `~help mal`)"
                     }
                 )
                 .WithFooter(new EmbedFooterBuilder
@@ -110,14 +110,14 @@ namespace NOVAxis.Modules
                     new EmbedFieldBuilder
                     {
                         IsInline = false,
-                        Name = "Použití -> `~jisho \"text\"`",
+                        Name = "Použití -> `~jisho {\"text\"}`",
                         Value = "(Prohledá databázi Jisho s limitem sto prvků)"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = false,
-                        Name = "Použití -> `~jisho \"text\" LIMIT`",
+                        Name = "Použití -> `~jisho {\"text\"} {limit}`",
                         Value = "(Prohledá databázi Jisho s nastaveným limitem prvků)"
                     }
                 )
@@ -143,35 +143,35 @@ namespace NOVAxis.Modules
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~move @user \"channel\"`",
+                        Name = "Použití -> `~move {@user} {\"channel\"}`",
                         Value = "(Přesune uživatele `user` do `channel1`)"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~move everyone \"channel\"`",
+                        Name = "Použití -> `~move everyone {\"channel\"}`",
                         Value = "(Přesune všechny uživatele ze současného kanálu do `channel1`)"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~move everyone \"channel1\" \"channel2\"`",
+                        Name = "Použití -> `~move everyone {\"channel1\"} {\"channel2\"}`",
                         Value = "(Přesune všechny uživatele z `channel1` do `channel2`)"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~move message ID \"channel\"`",
+                        Name = "Použití -> `~move message {ID} {\"channel\"}`",
                         Value = "(Přesune vybranou zprávu z `channel1` do `channel2`)"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~move message @user \"channel\" LIMIT`",
+                        Name = "Použití -> `~move message {@user} {\"channel\"} {limit}`",
                         Value = "(Přesune poslední zprávu uživatele `@user` z `channel1` do `channel2`)"
                     }
                 )
@@ -225,7 +225,7 @@ namespace NOVAxis.Modules
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio play URL/Title`",
+                        Name = "Použití -> `~audio play {URL/Název}`",
                         Value = "(Přehraje vybranou zvukovou stopu)"
                     },
 
@@ -253,35 +253,35 @@ namespace NOVAxis.Modules
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio remove INDEX`",
+                        Name = "Použití -> `~audio remove {index}`",
                         Value = "(Odstraní z fronty vybranou stopu)"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio forward SECONDS`",
+                        Name = "Použití -> `~audio forward {seconds}`",
                         Value = "(Posune pozici stopy dopředu o `seconds`)"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio volume VALUE`",
+                        Name = "Použití -> `~audio volume {value}`",
                         Value = "(Nastaví hlasitost stopy na `value`)"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio backward SECONDS`",
+                        Name = "Použití -> `~audio backward {seconds}`",
                         Value = "(Posune pozici stopy dozadu o `seconds`)"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio seek SECONDS`",
+                        Name = "Použití -> `~audio seek {seconds}`",
                         Value = "(Nastaví pozici stopy na `seconds`)"
                     }     
                 )
@@ -307,8 +307,8 @@ namespace NOVAxis.Modules
                     new EmbedFieldBuilder
                     {
                         IsInline = false,
-                        Name = "Použití -> `~clear X`",
-                        Value = "(Vymaže posledních `X` zpráv z daného kanálu)"
+                        Name = "Použití -> `~clear {x}`",
+                        Value = "(Vymaže posledních `x` zpráv z daného kanálu)"
                     },
 
                     new EmbedFieldBuilder
@@ -316,6 +316,53 @@ namespace NOVAxis.Modules
                         IsInline = false,
                         Name = "Použití -> `~clear all`",
                         Value = "(Vymaže všechny zprávy z daného kanálu)"
+                    }
+                )
+                .WithFooter(new EmbedFooterBuilder
+                {
+                    IconUrl = "https://cdn.discordapp.com/avatars/269182357704015873/3a88a302762e87d012e02665674cfe58.webp?size=1024",
+                    Text = $"© Kryštof Novosad | {DateTime.Now}"
+                });
+
+
+            await ReplyAsync(embed: embed.Build());
+        }
+
+        [Command("mal"), Alias("Mal", "MyAnimeList", "myanimelist"), Summary("Shows command list for MAL")]
+        public async Task ShowMALHelp()
+        {
+            EmbedBuilder embed = new EmbedBuilder()
+                .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
+                .WithColor(new Color(52, 231, 231))
+                .WithTitle("Příručka pro telekomunikaci s jádrem NOVAxis")
+                .WithDescription("(Seznam příkazů pro `~mal`)")
+                .WithFields(
+                    new EmbedFieldBuilder
+                    {
+                        IsInline = false,
+                        Name = "Použití -> `~mal anime {\"název\"}`",
+                        Value = "(Prohledá databázi MyAnimeList s limitem pěti prvků)"
+                    },
+
+                    new EmbedFieldBuilder
+                    {
+                        IsInline = false,
+                        Name = "Použití -> `~mal anime {\"název\"} {limit}`",
+                        Value = "(Prohledá databázi MyAnimeList s nastaveným limitem prvků)"
+                    },
+
+                    new EmbedFieldBuilder
+                    {
+                        IsInline = false,
+                        Name = "Použití -> `~mal manga {\"název\"}`",
+                        Value = "(Prohledá databázi MyAnimeList s limitem pěti prvků)"
+                    },
+
+                    new EmbedFieldBuilder
+                    {
+                        IsInline = false,
+                        Name = "Použití -> `~mal manga {\"název\"} {limit}`",
+                        Value = "(Prohledá databázi MyAnimeList s nastaveným limitem prvků)"
                     }
                 )
                 .WithFooter(new EmbedFooterBuilder
