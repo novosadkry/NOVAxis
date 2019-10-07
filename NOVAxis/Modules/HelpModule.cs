@@ -90,11 +90,10 @@ namespace NOVAxis.Modules
                 )
                 .WithFooter(new EmbedFooterBuilder
                 {
-                    IconUrl = "https://cdn.discordapp.com/avatars/269182357704015873/3a88a302762e87d012e02665674cfe58.webp?size=1024",
+                    IconUrl = Context.Client.GetUser("novosadkry", "8045").GetAvatarUrl(),
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
                 });
 
-            
             await ReplyAsync(embed: embed.Build());
         }
 
@@ -123,7 +122,7 @@ namespace NOVAxis.Modules
                 )
                 .WithFooter(new EmbedFooterBuilder
                 {
-                    IconUrl = "https://cdn.discordapp.com/avatars/269182357704015873/3a88a302762e87d012e02665674cfe58.webp?size=1024",
+                    IconUrl = Context.Client.GetUser("novosadkry", "8045").GetAvatarUrl(),
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
                 });
 
@@ -171,16 +170,15 @@ namespace NOVAxis.Modules
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~move message {@user} {\"channel\"} {limit}`",
+                        Name = "Použití -> `~move message {@user} {\"channel\"}`",
                         Value = "(Přesune poslední zprávu uživatele `@user` z `channel1` do `channel2`)"
                     }
                 )
                 .WithFooter(new EmbedFooterBuilder
                 {
-                    IconUrl = "https://cdn.discordapp.com/avatars/269182357704015873/3a88a302762e87d012e02665674cfe58.webp?size=1024",
+                    IconUrl = Context.Client.GetUser("novosadkry", "8045").GetAvatarUrl(),
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
                 });
-
 
             await ReplyAsync(embed: embed.Build());
         }
@@ -287,7 +285,7 @@ namespace NOVAxis.Modules
                 )
                 .WithFooter(new EmbedFooterBuilder
                 {
-                    IconUrl = "https://cdn.discordapp.com/avatars/269182357704015873/3a88a302762e87d012e02665674cfe58.webp?size=1024",
+                    IconUrl = Context.Client.GetUser("novosadkry", "8045").GetAvatarUrl(),
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
                 });
 
@@ -320,7 +318,7 @@ namespace NOVAxis.Modules
                 )
                 .WithFooter(new EmbedFooterBuilder
                 {
-                    IconUrl = "https://cdn.discordapp.com/avatars/269182357704015873/3a88a302762e87d012e02665674cfe58.webp?size=1024",
+                    IconUrl = Context.Client.GetUser("novosadkry", "8045").GetAvatarUrl(),
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
                 });
 
@@ -341,33 +339,19 @@ namespace NOVAxis.Modules
                     {
                         IsInline = false,
                         Name = "Použití -> `~mal anime {\"název\"}`",
-                        Value = "(Prohledá databázi MyAnimeList s limitem pěti prvků)"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = false,
-                        Name = "Použití -> `~mal anime {\"název\"} {limit}`",
-                        Value = "(Prohledá databázi MyAnimeList s nastaveným limitem prvků)"
+                        Value = "(Prohledá databázi MyAnimeList)"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = false,
                         Name = "Použití -> `~mal manga {\"název\"}`",
-                        Value = "(Prohledá databázi MyAnimeList s limitem pěti prvků)"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = false,
-                        Name = "Použití -> `~mal manga {\"název\"} {limit}`",
-                        Value = "(Prohledá databázi MyAnimeList s nastaveným limitem prvků)"
+                        Value = "(Prohledá databázi MyAnimeList)"
                     }
                 )
                 .WithFooter(new EmbedFooterBuilder
                 {
-                    IconUrl = "https://cdn.discordapp.com/avatars/269182357704015873/3a88a302762e87d012e02665674cfe58.webp?size=1024",
+                    IconUrl = Context.Client.GetUser("novosadkry", "8045").GetAvatarUrl(),
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
                 });
 
