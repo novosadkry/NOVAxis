@@ -178,17 +178,9 @@ namespace NOVAxis.Modules
         }
 
         [Command("anime"), Summary("Searches for anime in MyAnimeList.net database")]
-        public async Task SearchAnime(string name, ushort limit = 5)
+        public async Task SearchAnime(string name)
         {
-            if (limit < 1)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription($"(Argument nesmí být menší nebo roven nule)")
-                    .WithTitle($"Mé jádro nebylo schopno příjmout daný prvek").Build());
-
-                return;
-            }
+            ushort limit = 5;
 
             if (name.Length < 3)
             {
@@ -316,17 +308,9 @@ namespace NOVAxis.Modules
         }
 
         [Command("manga"), Summary("Searches for manga in MyAnimeList.net database")]
-        public async Task SearchManga(string name, ushort limit = 5)
+        public async Task SearchManga(string name)
         {
-            if (limit < 1)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription($"(Argument nesmí být menší nebo roven nule)")
-                    .WithTitle($"Mé jádro nebylo schopno příjmout daný prvek").Build());
-
-                return;
-            }
+            ushort limit = 5;
 
             if (name.Length < 3)
             {
