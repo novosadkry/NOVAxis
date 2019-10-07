@@ -215,12 +215,17 @@ namespace NOVAxis.Modules
 
             ITextChannel channel1 = (ITextChannel)msg.Channel;
 
-            await channel2.SendMessageAsync(embed: new EmbedBuilder()
+            if (msg.Embeds.FirstOrDefault() is Embed embed)
+                await channel2.SendMessageAsync($"Zpráva přesunuta z kanálu #{channel1}", 
+                    embed: embed);
+
+            else
+                await channel2.SendMessageAsync($"Zpráva přesunuta z kanálu #{channel1}", 
+                    embed: new EmbedBuilder()
                     .WithColor(150, 0, 150)
                     .WithAuthor(msg.Author.Username, msg.Author.GetAvatarUrl())
                     .WithDescription(msg.Content)
                     .WithImageUrl(msg.Attachments.FirstOrDefault()?.Url ?? "")
-                    .WithFooter($"Zpráva přesunuta z kanálu #{channel1}")
                     .Build());
 
             await msg.DeleteAsync();
