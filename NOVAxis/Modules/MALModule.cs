@@ -178,7 +178,7 @@ namespace NOVAxis.Modules
         }
 
         [Command("anime"), Summary("Searches for anime in MyAnimeList.net database")]
-        public async Task SearchAnime(string name)
+        public async Task SearchAnime([Remainder]string name)
         {
             ushort limit = 5;
 
@@ -308,7 +308,7 @@ namespace NOVAxis.Modules
         }
 
         [Command("manga"), Summary("Searches for manga in MyAnimeList.net database")]
-        public async Task SearchManga(string name)
+        public async Task SearchManga([Remainder]string name)
         {
             ushort limit = 5;
 
