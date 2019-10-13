@@ -561,7 +561,7 @@ namespace NOVAxis.Modules
             AudioModuleService[Context.Guild.Id].Volume = percentage;      
         }
 
-        [Command("status"), Summary("Shows active audio transmissions")]
+        [Command("status"), Alias("np", "info"), Summary("Shows active audio transmissions")]
         public async Task AudioStatus()
         {
             LavalinkPlayer player = Services.LavalinkService.Manager.GetPlayer(Context.Guild.Id);
