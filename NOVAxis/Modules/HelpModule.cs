@@ -202,8 +202,8 @@ namespace NOVAxis.Modules
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio stop`",
-                        Value = "(Zastaví aktivní zvukovou stopu)"
+                        Name = "Použití -> `~audio seek {seconds}`",
+                        Value = "(Nastaví pozici stopy na `seconds`)"
                     },
 
                     new EmbedFieldBuilder
@@ -216,8 +216,8 @@ namespace NOVAxis.Modules
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio pause`",
-                        Value = "(Pozastaví aktivní zvukovou stopu)"
+                        Name = "Použití -> `~audio stop`",
+                        Value = "(Zastaví aktivní zvukovou stopu)"
                     },
 
                     new EmbedFieldBuilder
@@ -225,6 +225,20 @@ namespace NOVAxis.Modules
                         IsInline = true,
                         Name = "Použití -> `~audio play {URL/Název}`",
                         Value = "(Přehraje vybranou zvukovou stopu)"
+                    },
+
+                    new EmbedFieldBuilder
+                    {
+                        IsInline = true,
+                        Name = "Použití -> `~audio pause`",
+                        Value = "(Pozastaví aktivní zvukovou stopu)"
+                    },
+
+                    new EmbedFieldBuilder
+                    {
+                        IsInline = true,
+                        Name = "Použití -> `~audio status`",
+                        Value = "(Zobrazí aktivní zvukovou stopu)"
                     },
 
                     new EmbedFieldBuilder
@@ -274,14 +288,7 @@ namespace NOVAxis.Modules
                         IsInline = true,
                         Name = "Použití -> `~audio backward {seconds}`",
                         Value = "(Posune pozici stopy dozadu o `seconds`)"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = "Použití -> `~audio seek {seconds}`",
-                        Value = "(Nastaví pozici stopy na `seconds`)"
-                    }     
+                    }                                  
                 )
                 .WithFooter(new EmbedFooterBuilder
                 {
