@@ -63,6 +63,7 @@ namespace NOVAxis
                 .BuildServiceProvider();
 
             commandService.CommandExecuted += CommandService_CommandExecuted;
+            commandService.AddTypeReader(typeof(TimeSpan), new TypeReaders.AudioModuleTypeReader());
             await commandService.AddModulesAsync(Assembly.GetEntryAssembly(), services);
 
             client.MessageReceived += Client_MessageReceived;

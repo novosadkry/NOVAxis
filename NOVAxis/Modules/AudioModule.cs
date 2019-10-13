@@ -98,7 +98,7 @@ namespace NOVAxis.Modules
                 .WithTitle($"Připojuji se ke kanálu `{voiceChannel.Name}`").Build());
         }
 
-        [Command("leave"), Summary("Leaves a voice channel")]
+        [Command("leave"), Alias("quit", "disconnect"), Summary("Leaves a voice channel")]
         public async Task LeaveChannel()
         {
             if (!Services.LavalinkService.IsConnected)
@@ -406,9 +406,7 @@ namespace NOVAxis.Modules
         }
 
         [Command("seek"), Summary("Seeks a position in the audio transmissions")]
-        public async Task SeekAudio(int position) => await SeekAudio(TimeSpan.FromSeconds(position));
-
-        private async Task SeekAudio(TimeSpan time)
+        public async Task SeekAudio(TimeSpan time)
         {
             LavalinkPlayer player = Services.LavalinkService.Manager.GetPlayer(Context.Guild.Id);
 
@@ -432,12 +430,12 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            if (time <= TimeSpan.Zero)
+            if (time < TimeSpan.Zero)
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný argument)")
-                    .WithTitle($"Nelze nastavit zápornou nebo nulovou hodnotu").Build());
+                    .WithTitle($"Nelze nastavit zápornou hodnotu").Build());
 
                 return;
             }
@@ -450,9 +448,7 @@ namespace NOVAxis.Modules
         }
 
         [Command("forward"), Summary("Forwards to a position in the audio transmissions")]
-        public async Task ForwardAudio(int seconds) => await ForwardAudio(TimeSpan.FromSeconds(seconds));
-
-        private async Task ForwardAudio(TimeSpan time)
+        public async Task ForwardAudio(TimeSpan time)
         {
             LavalinkPlayer player = Services.LavalinkService.Manager.GetPlayer(Context.Guild.Id);
 
@@ -489,9 +485,7 @@ namespace NOVAxis.Modules
         }
 
         [Command("backward"), Summary("Backwards to a position in the audio transmissions")]
-        public async Task BackwardAudio(int seconds) => await BackwardAudio(TimeSpan.FromSeconds(seconds));
-
-        private async Task BackwardAudio(TimeSpan time)
+        public async Task BackwardAudio(TimeSpan time)
         {
             LavalinkPlayer player = Services.LavalinkService.Manager.GetPlayer(Context.Guild.Id);
 
