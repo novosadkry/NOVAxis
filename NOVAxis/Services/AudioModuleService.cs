@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
+using System.Timers;
 using Discord;
 using Discord.Commands;
 
@@ -29,24 +29,44 @@ namespace NOVAxis.Services
                 GuildId = id;
             }
 
-            public class Track
+            public class ContextTrack
             {
                 public LavalinkTrack Value { get; set; }
                 public IUser RequestedBy { get; set; }
                 public string ThumbnailUrl { get => Value.GetThumbnailUrl(); }
 
-                public static implicit operator LavalinkTrack(Track track)
+                public static implicit operator LavalinkTrack(ContextTrack track)
                 {    
                     return track.Value;
                 }
             }
 
+            public class ContextTimer
+            {
+                private Timer timer;
+                public bool IsSet { get; set; } = false;
+
+                public void Set(double interval, ElapsedEventHandler elapsedEvent)
+                {
+                    timer = new Timer(interval);
+                    timer.Elapsed += elapsedEvent;
+
+                    IsSet = true;
+                }
+
+                public void Start() => timer.Start();
+                public void Stop() => timer.Stop();
+                public void Dispose() { timer.Dispose(); IsSet = false; }
+            }
+
             public LavalinkPlayer GetPlayer() => LavalinkService.Manager.GetPlayer(GuildId);
 
-            public List<Track> Queue { get; set; } = new List<Track>();
+            public List<ContextTrack> Queue { get; set; } = new List<ContextTrack>();
 
-            public Track CurrentTrack { get => Queue.First(); }
-            public Track LastTrack { get => Queue.Last(); }
+            public ContextTimer Timer { get; set; } = new ContextTimer();
+
+            public ContextTrack CurrentTrack { get => Queue.First(); }
+            public ContextTrack LastTrack { get => Queue.Last(); }
 
             public uint Volume { get; set; } = 100;
             public ulong GuildId { get; }
@@ -137,6 +157,9 @@ namespace NOVAxis.Services
                     .WithColor(150, 0, 150)
                     .WithTitle($"Stream audia byl úspěšně dokončen").Build());
             }
+
+            service.Timer.Stop();
+            service.Timer.Start();
         }
     }
 }
