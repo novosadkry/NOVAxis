@@ -24,7 +24,16 @@ namespace NOVAxis.Modules
 
         protected override void BeforeExecute(CommandInfo command)
         {
-            AudioModuleService[Context.Guild.Id].BoundChannel = Context.Channel;
+            var service = AudioModuleService[Context.Guild.Id];
+
+            service.BoundChannel = Context.Channel;
+
+            if (!service.Timer.IsSet)
+                service.Timer.Set(30000, Timer_Elapsed);
+
+            service.Timer.Stop();
+            service.Timer.Start();
+
             base.BeforeExecute(command);
         }
 
@@ -101,6 +110,8 @@ namespace NOVAxis.Modules
         [Command("leave"), Alias("quit", "disconnect"), Summary("Leaves a voice channel")]
         public async Task LeaveChannel()
         {
+            var service = AudioModuleService[Context.Guild.Id];
+
             if (!Services.LavalinkService.IsConnected)
             {
                 await ReplyAsync(embed: new EmbedBuilder()
@@ -127,7 +138,9 @@ namespace NOVAxis.Modules
                 .WithColor(150, 0, 150)
                 .WithTitle($"Odpojuji se od kanálu `{player.VoiceChannel.Name}`").Build());
 
-            AudioModuleService[Context.Guild.Id].Queue.Clear();
+            service.Queue.Clear();
+            service.Timer.Stop();
+            service.Timer.Dispose();
 
             await player.StopAsync();
             await player.DisconnectAsync();
@@ -190,7 +203,7 @@ namespace NOVAxis.Modules
                 LoadTracksResponse tracks = await Services.LavalinkService.Manager.GetTracksAsync(search);
                 LavalinkTrack track = tracks.Tracks.First();
 
-                service.Queue.Add(new Services.AudioModuleService.Context.Track
+                service.Queue.Add(new Services.AudioModuleService.Context.ContextTrack
                 {
                     Value = track,
                     RequestedBy = Context.User
@@ -674,6 +687,16 @@ namespace NOVAxis.Modules
             await ReplyAsync(embed: new EmbedBuilder()
                 .WithColor(150, 0, 150)
                 .WithTitle($"Požadovaná stopa byla úspěšně odebrána z fronty").Build());
+        }
+
+        public async void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            var service = AudioModuleService[Context.Guild.Id];
+
+            if (service.Queue.Count > 0 && service.GetPlayer().Playing)
+                return;
+
+            await LeaveChannel();
         }
     }
 }
