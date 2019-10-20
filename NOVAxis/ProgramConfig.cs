@@ -11,7 +11,7 @@ using Newtonsoft.Json;
 
 namespace NOVAxis
 {
-    class ProgramConfig
+    public class ProgramConfig
     {
         private const string configPath = @"config.json";
 
@@ -27,6 +27,8 @@ namespace NOVAxis
         public bool StartLavalink { get; set; }
         public string LavalinkLogin { get; set; }
 
+        public long AudioTimeout { get; set; }
+
         public ProgramConfig()
         {
             LoginToken = "INSERT_LOGINTOKEN_HERE";
@@ -37,6 +39,7 @@ namespace NOVAxis
             LogSeverity = LogSeverity.Debug;
             StartLavalink = false;
             LavalinkLogin = "123";
+            AudioTimeout = 30000;
         }
 
         public async static Task<ProgramConfig> LoadConfig(Func<LogMessage, Task> log)
@@ -50,8 +53,8 @@ namespace NOVAxis
             {
                 await log(new LogMessage(LogSeverity.Warning, "Program", $"Config file ({configPath}) not found"));
                 await log(new LogMessage(LogSeverity.Info, "Program", "Forcing config reset"));
-
                 await ResetConfig();
+
                 return await LoadConfig(log);
             }
         }

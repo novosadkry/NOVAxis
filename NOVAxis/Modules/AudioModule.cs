@@ -28,11 +28,11 @@ namespace NOVAxis.Modules
 
             service.BoundChannel = Context.Channel;
 
-            if (!service.Timer.IsSet)
-                service.Timer.Set(30000, Timer_Elapsed);
-
-            service.Timer.Stop();
-            service.Timer.Start();
+            if (service.Timer.IsSet)
+            {
+                service.Timer.Stop();
+                service.Timer.Start();
+            }
 
             base.BeforeExecute(command);
         }
@@ -57,6 +57,8 @@ namespace NOVAxis.Modules
 
         private async Task JoinChannel(IVoiceChannel voiceChannel)
         {
+            var service = AudioModuleService[Context.Guild.Id];
+
             if (!Services.LavalinkService.IsConnected)
             {
                 await ReplyAsync(embed: new EmbedBuilder()
@@ -77,7 +79,7 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            LavalinkPlayer player = Services.LavalinkService.Manager.GetPlayer(voiceChannel.GuildId);
+            LavalinkPlayer player = service.GetPlayer();
 
             if (player != null)
             {
@@ -105,6 +107,12 @@ namespace NOVAxis.Modules
             await ReplyAsync(embed: new EmbedBuilder()
                 .WithColor(150, 0, 150)
                 .WithTitle($"Připojuji se ke kanálu `{voiceChannel.Name}`").Build());
+
+            if (!service.Timer.IsSet)
+                service.Timer.Set(AudioModuleService.AudioTimeout, Timer_Elapsed);
+
+            service.Timer.Stop();
+            service.Timer.Start();
         }
 
         [Command("leave"), Alias("quit", "disconnect"), Summary("Leaves a voice channel")]
