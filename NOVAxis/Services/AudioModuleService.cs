@@ -44,7 +44,7 @@ namespace NOVAxis.Services
             public class ContextTimer
             {
                 private Timer timer;
-                public bool IsSet { get; set; } = false;
+                public bool IsSet { get; private set; } = false;
 
                 public void Set(double interval, ElapsedEventHandler elapsedEvent)
                 {
@@ -74,13 +74,16 @@ namespace NOVAxis.Services
             public IMessageChannel BoundChannel { get; set; }
         }
 
-        public AudioModuleService()
+        public AudioModuleService(ProgramConfig config)
         {
+            AudioTimeout = config.AudioTimeout;
             guilds = new Dictionary<ulong, Context>();
 
             LavalinkService.Manager.TrackEnd -= AudioModuleService_TrackEnd;
             LavalinkService.Manager.TrackEnd += AudioModuleService_TrackEnd;
         }
+
+        public long AudioTimeout { get; }
 
         private IDictionary<ulong, Context> guilds;
 

@@ -58,7 +58,7 @@ namespace NOVAxis
             Services.LavalinkService.Manager.Log += Client_Log;
 
             services = new ServiceCollection()
-                .AddSingleton<Services.AudioModuleService>()
+                .AddSingleton(new Services.AudioModuleService(config))
                 .AddSingleton(new InteractiveService((BaseSocketClient)client))
                 .BuildServiceProvider();
 
