@@ -26,12 +26,19 @@ namespace NOVAxis
 
         private static ProgramConfig config;
 
+        public static string Version
+        {
+            get => Assembly.GetExecutingAssembly().GetName().Version.ToString().Substring(0, 5);
+        }
+
         public static void Main(string[] args)
             => MainAsync().GetAwaiter().GetResult();
 
         private static async Task MainAsync()
         {
             config = await ProgramConfig.LoadConfig(Client_Log);
+
+            await Client_Log(new LogMessage(LogSeverity.Info, "Program", "NOVAxis v" + Version));
 
             client = new DiscordSocketClient(new DiscordSocketConfig
             {
