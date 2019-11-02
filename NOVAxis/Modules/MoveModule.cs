@@ -13,6 +13,7 @@ using SharpLink;
 namespace NOVAxis.Modules
 {
     [Group("move"), Alias("mv")]
+    [RequireContext(ContextType.Guild)]
     [RequireUserPermission(GuildPermission.MoveMembers)]
     public class MoveModule : ModuleBase<SocketCommandContext>
     {

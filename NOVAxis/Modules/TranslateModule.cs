@@ -7,6 +7,8 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
 
+using NOVAxis.Preconditions;
+
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
@@ -14,7 +16,6 @@ using Discord.WebSocket;
 namespace NOVAxis.Modules
 {
     [Group("translate")]
-    [RequireUserPermission(GuildPermission.CreateInstantInvite)]
     public class TranslateModule : ModuleBase<SocketCommandContext>
     {
         [Command, Summary("Translates text to selected language")]
