@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using NOVAxis.Preconditions;
+
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
@@ -11,23 +13,29 @@ using Discord.WebSocket;
 namespace NOVAxis.Modules
 {
     [Group("help"), Alias("?")]
-    [RequireUserPermission(GuildPermission.CreateInstantInvite)]
     public class HelpModule : ModuleBase<SocketCommandContext>
     {
         private async Task SendHelp(Embed embed)
         {
-            await Context.Message.DeleteAsync();
+            if (Context.User is IGuildUser)
+            {
+                await Context.Message.DeleteAsync();
 
-            IMessage _message = await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(new Color(52, 231, 231))
-                .WithTitle($"Seznam příkazů byl úspěšně poslán do přímé zprávy").Build());
+                IMessage _message = await ReplyAsync(embed: new EmbedBuilder()
+                    .WithAuthor(Context.User.Username, Context.User.GetAvatarUrl())
+                    .WithColor(new Color(52, 231, 231))
+                    .WithTitle($"Seznam příkazů byl úspěšně poslán do přímé zprávy").Build());
 
-            await Context.User.SendMessageAsync(embed: embed);
+                await Context.User.SendMessageAsync(embed: embed);
 
-            await Task.Delay(5000);
+                await Task.Delay(5000);
 
-            try { await _message.DeleteAsync(); }
-            catch (Discord.Net.HttpException) { }
+                try { await _message.DeleteAsync(); }
+                catch (Discord.Net.HttpException) { }
+            }
+
+            else
+                await Context.User.SendMessageAsync(embed: embed);
         }
 
         [Command, Summary("Shows command list")]
@@ -94,7 +102,7 @@ namespace NOVAxis.Modules
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
                 });
 
-            await ReplyAsync(embed: embed.Build());
+            await SendHelp(embed: embed.Build());
         }
 
         [Command("jisho"), Alias("Jisho"), Summary("Shows command list for Jisho")]
@@ -127,7 +135,7 @@ namespace NOVAxis.Modules
                 });
 
 
-            await ReplyAsync(embed: embed.Build());
+            await SendHelp(embed: embed.Build());
         }
 
         [Command("move"), Alias("Move"), Summary("Shows command list for Move")]
@@ -180,7 +188,7 @@ namespace NOVAxis.Modules
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
                 });
 
-            await ReplyAsync(embed: embed.Build());
+            await SendHelp(embed: embed.Build());
         }
 
         [Command("audio"), Alias("Audio"), Summary("Shows command list for Audio")]
@@ -297,7 +305,7 @@ namespace NOVAxis.Modules
                 });
 
 
-            await ReplyAsync(embed: embed.Build());
+            await SendHelp(embed: embed.Build());
         }
 
         [Command("clear"), Alias("Clear"), Summary("Shows command list for Clear")]
@@ -330,7 +338,7 @@ namespace NOVAxis.Modules
                 });
 
 
-            await ReplyAsync(embed: embed.Build());
+            await SendHelp(embed: embed.Build());
         }
 
         [Command("mal"), Alias("Mal", "MyAnimeList", "myanimelist"), Summary("Shows command list for MAL")]
@@ -363,7 +371,7 @@ namespace NOVAxis.Modules
                 });
 
 
-            await ReplyAsync(embed: embed.Build());
+            await SendHelp(embed: embed.Build());
         }
     }
 }

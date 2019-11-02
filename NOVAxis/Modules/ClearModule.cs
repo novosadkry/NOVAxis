@@ -11,6 +11,7 @@ using Discord.WebSocket;
 namespace NOVAxis.Modules
 {
     [Group("clear")]
+    [RequireContext(ContextType.Guild)]
     [RequireUserPermission(GuildPermission.ManageMessages)]
     public class ClearModule : ModuleBase<SocketCommandContext>
     {

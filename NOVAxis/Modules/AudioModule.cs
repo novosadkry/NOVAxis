@@ -7,6 +7,8 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
+using NOVAxis.Preconditions;
+
 using Discord;
 using Discord.Audio;
 using Discord.Commands;
@@ -17,7 +19,9 @@ using SharpLink;
 namespace NOVAxis.Modules
 {
     [Group("audio")]
-    [RequireUserPermission(GuildPermission.CreateInstantInvite)]
+    [RequireContext(ContextType.Guild)]
+    [RequireOwner(Group = "Permission")]
+    [RequireRole("DJ", Group = "Permission")]
     public class AudioModule : ModuleBase<SocketCommandContext>
     {
         public Services.AudioModuleService AudioModuleService { get; set; }

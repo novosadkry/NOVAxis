@@ -11,6 +11,7 @@ using Discord.WebSocket;
 namespace NOVAxis.Modules
 {
     [Group("mute")]
+    [RequireContext(ContextType.Guild)]
     [RequireUserPermission(GuildPermission.MuteMembers)]
     public class MuteModule : ModuleBase<SocketCommandContext>
     {

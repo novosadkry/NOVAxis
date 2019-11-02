@@ -162,6 +162,7 @@
     <Compile Include="Modules\AudioModule.cs" />
     <Compile Include="Modules\MuteModule.cs" />
     <Compile Include="Modules\TranslateModule.cs" />
+    <Compile Include="Preconditions\RequireRoleAttribute.cs" />
     <Compile Include="ProgramConfig.cs" />
     <Compile Include="ProgramLog.cs" />
     <Compile Include="Services\LavalinkService.cs" />

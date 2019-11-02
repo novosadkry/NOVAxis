@@ -166,16 +166,6 @@ namespace NOVAxis
                 context.Message.HasMentionPrefix(client.CurrentUser, ref argPos)))
                 return;
 
-            if (context.Channel is SocketDMChannel channel)
-            {
-                await channel.SendMessageAsync(embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription($"(Příkazy nelze vyvolávat přímou zprávou)")
-                    .WithTitle($"Má verze jádra ještě není schopna téhle funkce").Build());
-
-                return;
-            }
-
             switch (client.Status)
             {
                 case UserStatus.DoNotDisturb:
@@ -225,15 +215,21 @@ namespace NOVAxis
                         break;
 
                     case CommandError.UnmetPrecondition:
-                        await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
-                            .WithColor(220, 20, 60)
-                            .WithDescription("(Přístup odepřen)")
-                            .WithTitle($"Pro operaci s tímto modulem nemáš dodatečnou kvalifikaci").Build());
+                        if (result.ErrorReason.StartsWith("Invalid context for command"))
+                        {
+                            await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
+                                .WithColor(220, 20, 60)
+                                .WithDescription("(Přístup odepřen)")
+                                .WithTitle($"Tento příkaz nelze vyvolat přímou zprávou").Build());
+                        }
 
-                        await Client_Log(new LogMessage(
-                            LogSeverity.Info,
-                            "Command",
-                            $"User {context.User.Username}#{context.User.Discriminator} was unable to execute command '{context.Message.Content}' Reason: 'Insufficient permissions'"));
+                        else
+                        {
+                            await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
+                                .WithColor(220, 20, 60)
+                                .WithDescription("(Přístup odepřen)")
+                                .WithTitle($"Pro operaci s tímto modulem nemáš dodatečnou kvalifikaci").Build());
+                        }
                         break;
 
                     default:

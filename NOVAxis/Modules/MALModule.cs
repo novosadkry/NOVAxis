@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using System.Web;
 using System.Net;
 
+using NOVAxis.Preconditions;
+
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
@@ -13,12 +15,10 @@ using Discord.Addons.Interactive;
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System.Collections;
 
 namespace NOVAxis.Modules
 {
     [Group("mal")]
-    [RequireUserPermission(GuildPermission.CreateInstantInvite)]
     public class MALModule : InteractiveBase<SocketCommandContext>
     {
         private static class MALJson

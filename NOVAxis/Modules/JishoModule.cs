@@ -8,6 +8,8 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
 
+using NOVAxis.Preconditions;
+
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
@@ -18,7 +20,6 @@ using Newtonsoft.Json.Linq;
 namespace NOVAxis.Modules
 {
     [Group("jisho")]
-    [RequireUserPermission(GuildPermission.CreateInstantInvite)]
     public class JishoModule : ModuleBase<SocketCommandContext>
     {
         private class JishoJson
@@ -100,12 +101,7 @@ namespace NOVAxis.Modules
                         for (int j = 0; j < json.English_definitions.Length; j++)
                         {
                             sb.Append($"{j + 1}: ");
-
-                            for (int k = 0; k < json.English_definitions[j].Length; k++)
-                            {
-                                sb.Append($"{json.English_definitions[j][k]}" +
-                                    (k + 1 != json.English_definitions[j].Length ? ", " : "\n"));
-                            }
+                            sb.Append($"{string.Join(", ", json.English_definitions[j])}" + "\n");
                         }
 
                         embedFields[i] = new EmbedFieldBuilder
