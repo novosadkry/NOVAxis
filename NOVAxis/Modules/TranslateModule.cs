@@ -31,7 +31,7 @@ namespace NOVAxis.Modules
                     result = result.Substring(4, result.IndexOf('"', 4) - 4);
 
                     await ReplyAsync(embed: new EmbedBuilder()
-                        .WithColor(150, 0, 150)
+                        .WithColor(52, 231, 231)
                         .WithFields(
                             new EmbedFieldBuilder
                             {

@@ -118,7 +118,7 @@ namespace NOVAxis.Services
             if (service.Queue.Count != 0)
             {
                 await service.BoundChannel.SendMessageAsync(embed: new EmbedBuilder()
-                    .WithColor(150, 0, 150)
+                    .WithColor(52, 231, 231)
                     .WithAuthor("Právě přehrávám:")
                     .WithTitle($"{new Emoji("\u25B6")} {service.LastTrack.Value.Title}")
                     .WithUrl(service.Queue.First().Value.Url)
@@ -157,7 +157,7 @@ namespace NOVAxis.Services
             else
             {
                 await service.BoundChannel.SendMessageAsync(embed: new EmbedBuilder()
-                    .WithColor(150, 0, 150)
+                    .WithColor(52, 231, 231)
                     .WithTitle($"Stream audia byl úspěšně dokončen").Build());
             }
 

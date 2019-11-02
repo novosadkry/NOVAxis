@@ -29,7 +29,7 @@ namespace NOVAxis.Modules
                                          select ch).Single();
 
                 await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(150, 0, 150)
+                    .WithColor(52, 231, 231)
                     .WithTitle($"Odštěpuji **{user.Username}** a spojuji ho s kanálem `{channel.Name}`").Build());
 
                 if (user.VoiceChannel == channel)
@@ -87,7 +87,7 @@ namespace NOVAxis.Modules
                 }
 
                 await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(150, 0, 150)
+                    .WithColor(52, 231, 231)
                     .WithTitle($"Odštěpuji **všechny** a spojuji je s kanálem `{channel2.Name}`").Build());
 
                 foreach (IGuildUser u in ((SocketVoiceChannel)channel1).Users)
@@ -142,7 +142,7 @@ namespace NOVAxis.Modules
                                           select ch).Single();
 
                 await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(150, 0, 150)
+                    .WithColor(52, 231, 231)
                     .WithTitle($"Odštěpuji **všechny** z kanálu `{channel1.Name}` a spojuji je s kanálem `{channel2.Name}`").Build());
 
                 foreach (IGuildUser u in ((SocketGuildChannel)channel1).Users)
@@ -223,7 +223,7 @@ namespace NOVAxis.Modules
             else
                 await channel2.SendMessageAsync($"Zpráva přesunuta z kanálu #{channel1}", 
                     embed: new EmbedBuilder()
-                    .WithColor(150, 0, 150)
+                    .WithColor(52, 231, 231)
                     .WithAuthor(msg.Author.Username, msg.Author.GetAvatarUrl())
                     .WithDescription(msg.Content)
                     .WithImageUrl(msg.Attachments.FirstOrDefault()?.Url ?? "")

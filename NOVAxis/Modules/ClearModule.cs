@@ -34,7 +34,7 @@ namespace NOVAxis.Modules
                 await ((ITextChannel)Context.Channel).DeleteMessagesAsync(messages);
 
                 IMessage _message = await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(150, 0, 150)
+                    .WithColor(52, 231, 231)
                     .WithTitle($"Mé jádro úspěšně vymazalo z existence **{_messagesCount}** zpráv" +
                         ((_messagesCount == 1) ? "u" : (Enumerable.Range(1, 4).Contains(_messagesCount) ? "y" : ""))).Build());
 

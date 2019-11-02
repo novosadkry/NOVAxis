@@ -114,7 +114,7 @@ namespace NOVAxis.Modules
 
                     await ReplyAsync(embed: new EmbedBuilder()
                         .WithTitle($"**Výsledek databáze serveru Jisho.org** (počet výsledků: {collection.Count})")
-                        .WithColor(150, 0, 150)
+                        .WithColor(255, 26, 117)
                         .WithFields(embedFields).Build());
                 }
 
