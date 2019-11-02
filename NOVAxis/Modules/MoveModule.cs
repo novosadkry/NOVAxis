@@ -37,17 +37,26 @@ namespace NOVAxis.Modules
 
                 if (user.Id == Context.Client.CurrentUser.Id)
                 {
-                    var service = AudioModuleService[Context.Guild.Id];
+                    try
+                    {
+                        var service = AudioModuleService[Context.Guild.Id];
 
-                    var track = service.CurrentTrack;
-                    long trackPos = service.GetPlayer().CurrentPosition;
+                        var track = service.CurrentTrack;
+                        long trackPos = service.GetPlayer().CurrentPosition;
 
-                    AudioModuleService[Context.Guild.Id].Queue.Insert(0, track);
+                        AudioModuleService[Context.Guild.Id].Queue.Insert(0, track);
 
-                    await Services.LavalinkService.Manager.LeaveAsync(Context.Guild.Id);
-                    await Services.LavalinkService.Manager.JoinAsync(channel);
+                        await Services.LavalinkService.Manager.LeaveAsync(Context.Guild.Id);
+                        await Services.LavalinkService.Manager.JoinAsync(channel);
 
-                    await service.GetPlayer().SeekAsync((int)trackPos);
+                        await service.GetPlayer().SeekAsync((int)trackPos);
+                    }
+
+                    catch (InvalidOperationException)
+                    {
+                        await Services.LavalinkService.Manager.LeaveAsync(Context.Guild.Id);
+                        await Services.LavalinkService.Manager.JoinAsync(channel);
+                    }
                 }
 
                 await user.ModifyAsync((GuildUserProperties prop) =>
@@ -99,15 +108,24 @@ namespace NOVAxis.Modules
                     {
                         var service = AudioModuleService[Context.Guild.Id];
 
-                        var track = service.CurrentTrack;
-                        long trackPos = service.GetPlayer().CurrentPosition;
+                        try
+                        {
+                            var track = service.CurrentTrack;
+                            long trackPos = service.GetPlayer().CurrentPosition;
 
-                        AudioModuleService[Context.Guild.Id].Queue.Insert(0, track);
+                            AudioModuleService[Context.Guild.Id].Queue.Insert(0, track);
 
-                        await Services.LavalinkService.Manager.LeaveAsync(Context.Guild.Id);
-                        await Services.LavalinkService.Manager.JoinAsync(channel2);
+                            await Services.LavalinkService.Manager.LeaveAsync(Context.Guild.Id);
+                            await Services.LavalinkService.Manager.JoinAsync(channel2);
 
-                        await service.GetPlayer().SeekAsync((int)trackPos);
+                            await service.GetPlayer().SeekAsync((int)trackPos);
+                        }
+
+                        catch (InvalidOperationException)
+                        {
+                            await Services.LavalinkService.Manager.LeaveAsync(Context.Guild.Id);
+                            await Services.LavalinkService.Manager.JoinAsync(channel2);
+                        }
 
                         continue;
                     }
@@ -152,17 +170,26 @@ namespace NOVAxis.Modules
 
                     if (u.Id == Context.Client.CurrentUser.Id)
                     {
-                        var service = AudioModuleService[Context.Guild.Id];
+                        try
+                        {
+                            var service = AudioModuleService[Context.Guild.Id];
 
-                        var track = service.CurrentTrack;
-                        long trackPos = service.GetPlayer().CurrentPosition;
+                            var track = service.CurrentTrack;
+                            long trackPos = service.GetPlayer().CurrentPosition;
 
-                        AudioModuleService[Context.Guild.Id].Queue.Insert(0, track);
+                            AudioModuleService[Context.Guild.Id].Queue.Insert(0, track);
 
-                        await Services.LavalinkService.Manager.LeaveAsync(Context.Guild.Id);
-                        await Services.LavalinkService.Manager.JoinAsync(channel2);
+                            await Services.LavalinkService.Manager.LeaveAsync(Context.Guild.Id);
+                            await Services.LavalinkService.Manager.JoinAsync(channel2);
 
-                        await service.GetPlayer().SeekAsync((int)trackPos);
+                            await service.GetPlayer().SeekAsync((int)trackPos);
+                        }
+
+                        catch (InvalidOperationException)
+                        {
+                            await Services.LavalinkService.Manager.LeaveAsync(Context.Guild.Id);
+                            await Services.LavalinkService.Manager.JoinAsync(channel2);
+                        }
 
                         continue;
                     }
@@ -217,11 +244,11 @@ namespace NOVAxis.Modules
             ITextChannel channel1 = (ITextChannel)msg.Channel;
 
             if (msg.Embeds.FirstOrDefault() is Embed embed)
-                await channel2.SendMessageAsync($"Zpráva přesunuta z kanálu #{channel1}", 
+                await channel2.SendMessageAsync($"Zpráva přesunuta z kanálu #{channel1}",
                     embed: embed);
 
             else
-                await channel2.SendMessageAsync($"Zpráva přesunuta z kanálu #{channel1}", 
+                await channel2.SendMessageAsync($"Zpráva přesunuta z kanálu #{channel1}",
                     embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithAuthor(msg.Author.Username, msg.Author.GetAvatarUrl())
