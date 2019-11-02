@@ -25,7 +25,7 @@ namespace NOVAxis.Modules
                 await user.AddRoleAsync(role);
 
                 await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(150, 0, 150)
+                    .WithColor(52, 231, 231)
                     .WithDescription($"(Přidělena role {role.Mention})")
                     .WithTitle($"Uživatel **{user.Username}** byl odpojen od textového protokolu").Build());
             }
@@ -35,7 +35,7 @@ namespace NOVAxis.Modules
                 await user.RemoveRoleAsync(role);
 
                 await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(150, 0, 150)
+                    .WithColor(52, 231, 231)
                     .WithDescription($"(Odebrána role {role.Mention})")
                     .WithTitle($"Uživatel **{user.Username}** byl připojen k textovému protokolu").Build());
             }
@@ -55,7 +55,7 @@ namespace NOVAxis.Modules
                 }
 
                 await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(150, 0, 150)
+                    .WithColor(52, 231, 231)
                     .WithDescription($"(Vytvoření role {role.Mention})")
                     .WithTitle($"Mé jádro úspěšně nakonfigurovalo textový protokol").Build());
             }

@@ -109,7 +109,7 @@ namespace NOVAxis.Modules
             }
 
             await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(150, 0, 150)
+                .WithColor(52, 231, 231)
                 .WithTitle($"Připojuji se ke kanálu `{voiceChannel.Name}`").Build());
 
             if (!service.Timer.IsSet)
@@ -147,7 +147,7 @@ namespace NOVAxis.Modules
             }
 
             await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(150, 0, 150)
+                .WithColor(52, 231, 231)
                 .WithTitle($"Odpojuji se od kanálu `{player.VoiceChannel.Name}`").Build());
 
             service.Queue.Clear();
@@ -248,7 +248,7 @@ namespace NOVAxis.Modules
             if (service.Queue.Count == 1)
             {             
                 await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(150, 0, 150)
+                    .WithColor(52, 231, 231)
                     .WithAuthor("Právě přehrávám:")
                     .WithTitle($"{new Emoji("\u25B6")} {service.LastTrack.Value.Title}")
                     .WithUrl(player.CurrentTrack.Url)
@@ -287,7 +287,7 @@ namespace NOVAxis.Modules
             else
             {
                 await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(150, 0, 150)
+                    .WithColor(52, 231, 231)
                     .WithAuthor("Přidáno do fronty:")
                     .WithTitle($"{new Emoji("\u23ED")} {service.LastTrack.Value.Title}")
                     .WithUrl(service.LastTrack.Value.Url)
@@ -362,7 +362,7 @@ namespace NOVAxis.Modules
             await player.StopAsync();
 
             await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(150, 0, 150)
+                .WithColor(52, 231, 231)
                 .WithTitle($"Stream audia byl úspěšně zastaven").Build());
         }
 
@@ -394,7 +394,7 @@ namespace NOVAxis.Modules
             await player.PauseAsync();
 
             await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(150, 0, 150)
+                .WithColor(52, 231, 231)
                 .WithTitle($"Stream audia byl úspěšně pozastaven").Build());
         }
 
@@ -426,7 +426,7 @@ namespace NOVAxis.Modules
             await player.ResumeAsync();
 
             await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(150, 0, 150)
+                .WithColor(52, 231, 231)
                 .WithTitle($"Stream audia byl úspěšně obnoven").Build());
         }
 
@@ -466,7 +466,7 @@ namespace NOVAxis.Modules
             }
 
             await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(150, 0, 150)
+                .WithColor(52, 231, 231)
                 .WithTitle($"Pozice audia byla úspěšně nastavena na `{time}`").Build());
 
             await player.SeekAsync((int)time.TotalMilliseconds);
@@ -503,7 +503,7 @@ namespace NOVAxis.Modules
                 newTime = player.CurrentTrack.Length;
 
             await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(150, 0, 150)
+                .WithColor(52, 231, 231)
                 .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime}`").Build());
 
             await player.SeekAsync((int)newTime.TotalMilliseconds);
@@ -540,7 +540,7 @@ namespace NOVAxis.Modules
                 newTime = TimeSpan.Zero;
 
             await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(150, 0, 150)
+                .WithColor(52, 231, 231)
                 .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime}`").Build());
 
             await player.SeekAsync((int)newTime.TotalMilliseconds);
@@ -572,7 +572,7 @@ namespace NOVAxis.Modules
             }
 
             await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(150, 0, 150)
+                .WithColor(52, 231, 231)
                 .WithTitle($"Hlasitost audia byla úspěšně nastavena na {percentage}%").Build());
 
             await player.SetVolumeAsync(percentage);
@@ -597,7 +597,7 @@ namespace NOVAxis.Modules
             }
 
             await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(150, 0, 150)
+                    .WithColor(52, 231, 231)
                     .WithAuthor("Právě přehrávám:")
                     .WithTitle($"{(player.Playing ? new Emoji("\u25B6") : new Emoji("\u23F8"))} {player.CurrentTrack.Title}")
                     .WithUrl(player.CurrentTrack.Url)
@@ -663,7 +663,7 @@ namespace NOVAxis.Modules
             }
 
             await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(150, 0, 150)
+                .WithColor(52, 231, 231)
                 .WithTitle($"Stopy ve frontě ({service.Queue.Count - 1}):")
                 .WithFields(embedFields)
                 .Build());
@@ -697,7 +697,7 @@ namespace NOVAxis.Modules
             service.Queue.RemoveAt(index);
 
             await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(150, 0, 150)
+                .WithColor(52, 231, 231)
                 .WithTitle($"Požadovaná stopa byla úspěšně odebrána z fronty").Build());
         }
 

@@ -173,7 +173,7 @@ namespace NOVAxis.Modules
             await ReplyAsync(embed: new EmbedBuilder()
                 .WithTitle($"**Výsledek databáze serveru MyAnimeList.net** (počet výsledků: {results.Count})")
                 .WithDescription("(Proveďte výběr pro více informací)")
-                .WithColor(150, 0, 150)
+                .WithColor(255, 26, 117)
                 .WithFields(embedFields).Build());
         }
 
@@ -225,7 +225,7 @@ namespace NOVAxis.Modules
                                     .WithTitle(mal.info.title_japanese)
                                     .WithThumbnailUrl(mal.image_url)
                                     .WithDescription(mal.synopsis)
-                                    .WithColor(150, 0, 150)
+                                    .WithColor(255, 26, 117)
                                     .WithFields(
                                         new EmbedFieldBuilder
                                         {
@@ -355,7 +355,7 @@ namespace NOVAxis.Modules
                                     .WithTitle(mal.info.title_japanese)
                                     .WithThumbnailUrl(mal.image_url)
                                     .WithDescription(mal.synopsis)
-                                    .WithColor(150, 0, 150)
+                                    .WithColor(255, 26, 117)
                                     .WithFields(
                                         new EmbedFieldBuilder
                                         {
