@@ -371,7 +371,7 @@ namespace NOVAxis.Modules
         {
             LavalinkPlayer player = Services.LavalinkService.Manager.GetPlayer(Context.Guild.Id);
 
-            if (player == null)
+            if (player?.CurrentTrack == null)
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
@@ -403,7 +403,7 @@ namespace NOVAxis.Modules
         {
             LavalinkPlayer player = Services.LavalinkService.Manager.GetPlayer(Context.Guild.Id);
 
-            if (player == null)
+            if (player?.CurrentTrack == null)
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
