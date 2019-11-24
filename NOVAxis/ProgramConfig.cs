@@ -25,6 +25,7 @@ namespace NOVAxis
         public LogSeverity LogSeverity { get; set; }
 
         public bool StartLavalink { get; set; }
+        public string LavalinkHost { get; set; }
         public string LavalinkLogin { get; set; }
 
         public long AudioTimeout { get; set; }
@@ -38,6 +39,7 @@ namespace NOVAxis
             Log = true;
             LogSeverity = LogSeverity.Debug;
             StartLavalink = false;
+            LavalinkHost = "localhost";
             LavalinkLogin = "123";
             AudioTimeout = 30000;
         }
