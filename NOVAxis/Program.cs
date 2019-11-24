@@ -54,9 +54,9 @@ namespace NOVAxis
 
             Services.LavalinkService.Manager = new LavalinkManager(client, new LavalinkManagerConfig
             {
-                RESTHost = "localhost",
+                RESTHost = config.LavalinkHost,
                 RESTPort = 2333,
-                WebSocketHost = "localhost",
+                WebSocketHost = config.LavalinkHost,
                 WebSocketPort = 2333,
                 Authorization = config.LavalinkLogin,
                 TotalShards = 1
