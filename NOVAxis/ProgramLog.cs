@@ -13,11 +13,14 @@ namespace NOVAxis
 {
     static class ProgramLog
     {
-        private const string logPathFormat = @"log\log_{0}.txt";
-
-        private static string logPath
+        private static string LogPathFormat
         {
-            get => string.Format(logPathFormat, DateTime.Now.ToShortDateString());
+            get => Path.Combine(".", "log", "log_{0}.txt");
+        }
+
+        private static string LogPath
+        {
+            get => string.Format(LogPathFormat, DateTime.Now.ToShortDateString());
         }
 
         public static Task ToConsole(LogMessage arg)
@@ -50,10 +53,10 @@ namespace NOVAxis
 
         public static async Task ToFile(LogMessage arg)
         {
-            if (!Directory.Exists(Directory.GetParent(logPath).FullName))
-                Directory.CreateDirectory(Directory.GetParent(logPath).FullName);
+            if (!Directory.Exists(Directory.GetParent(LogPath).FullName))
+                Directory.CreateDirectory(Directory.GetParent(LogPath).FullName);
 
-            using (StreamWriter s = new StreamWriter(logPath, true, Encoding.UTF8))
+            using (StreamWriter s = new StreamWriter(LogPath, true, Encoding.UTF8))
                 await s.WriteLineAsync($"[{DateTime.Now}] {arg.Source} | <{arg.Severity}> {arg.Message}");
         }
     }
