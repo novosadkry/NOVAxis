@@ -141,7 +141,17 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle($"Mé jádro musí být před odpojením k nečemu připojeno").Build());
+                    .WithTitle($"Mé jádro musí být před odpojením naladěno na správnou frekvenci").Build());
+
+                return;
+            }
+
+            if (player.VoiceChannel != ((IGuildUser)Context.User).VoiceChannel)
+            {
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(220, 20, 60)
+                    .WithDescription("(Neplatný příkaz)")
+                    .WithTitle($"Pro komunikaci s jádrem musíš být naladěn na stejnou frekvenci").Build());
 
                 return;
             }
