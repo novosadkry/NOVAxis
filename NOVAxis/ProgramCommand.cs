@@ -129,8 +129,22 @@ namespace NOVAxis
 
             new ProgramCommand("lavalink", null, async (context) => 
             {
-                Process.Start(new ProcessStartInfo { WorkingDirectory = "Lavalink\\", FileName = "Lavalink.bat" });
-                await context.Client_Log(new LogMessage(LogSeverity.Info, "Lavalink", "Launching Lavalink node"));
+                switch (Environment.OSVersion.Platform)
+                {
+                    case PlatformID.Win32NT:
+                        Process.Start(new ProcessStartInfo { FileName = Path.Combine(".", "Lavalink", "Lavalink.bat"), UseShellExecute = true });
+                        await context.Client_Log(new LogMessage(LogSeverity.Info, "Lavalink", "Launching Lavalink node (command prompt)"));
+                        break;
+
+                    case PlatformID.Unix:
+                        Process.Start(new ProcessStartInfo { FileName = Path.Combine(".", "Lavalink", "Lavalink.sh") });
+                        await context.Client_Log(new LogMessage(LogSeverity.Info, "Lavalink", "Launching Lavalink node (screen)"));
+                        break;
+
+                    default:
+                        await context.Client_Log(new LogMessage(LogSeverity.Info, "Program", $"This command isn't supported on your OS ({Environment.OSVersion.Platform})"));
+                        return;
+                }        
             }),
 
             new ProgramCommand("lavalink_stats", null, async (context) =>
