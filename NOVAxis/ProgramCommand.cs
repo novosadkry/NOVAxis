@@ -109,21 +109,21 @@ namespace NOVAxis
             new ProgramCommand("offline", null, async (context) => 
             {
                 await context.Client.SetStatusAsync(UserStatus.DoNotDisturb);
-                await context.Client.SetGameAsync("repair/reboot jádra", type: ActivityType.Watching);
+                await context.Client.SetGameAsync(context.Config.Activity.Offline, type: ActivityType.Watching);
                 await context.Client_Log(new LogMessage(LogSeverity.Info, "Discord", "UserStatus set to 'DoNotDisturb'"));
             }),
 
             new ProgramCommand("online", null, async (context) => 
             {
                 await context.Client.SetStatusAsync(UserStatus.Online);
-                await context.Client.SetGameAsync(context.Config.Activity, type: context.Config.ActivityType);
+                await context.Client.SetGameAsync(context.Config.Activity.Online, type: context.Config.ActivityType);
                 await context.Client_Log(new LogMessage(LogSeverity.Info, "Discord", "UserStatus set to 'Online'"));
             }),
 
             new ProgramCommand("afk", null, async (context) => 
             {
                 await context.Client.SetStatusAsync(UserStatus.AFK);
-                await context.Client.SetGameAsync("ochlazování jádra", type: ActivityType.Watching);
+                await context.Client.SetGameAsync(context.Config.Activity.Afk, type: ActivityType.Watching);
                 await context.Client_Log(new LogMessage(LogSeverity.Info, "Discord", "UserStatus set to 'AFK'"));
             }),
 
