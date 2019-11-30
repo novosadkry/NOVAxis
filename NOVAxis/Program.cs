@@ -149,7 +149,7 @@ namespace NOVAxis
         private async static Task Client_Ready()
         {
             await Services.LavalinkService.Manager.StartAsync();
-            await client.SetGameAsync(config.Activity, type: config.ActivityType);
+            await client.SetGameAsync(config.Activity.Online, type: config.ActivityType);
             await client.SetStatusAsync(config.UserStatus);
         }
 

@@ -13,11 +13,18 @@ namespace NOVAxis
 {
     public class ProgramConfig
     {
+        public class ActivityObject
+        {
+            public string Online { get; set; }
+            public string Afk { get; set; }
+            public string Offline { get; set; }
+        }
+
         private const string configPath = @"config.json";
 
         public string LoginToken { get; set; }
 
-        public string Activity { get; set; }
+        public ActivityObject Activity { get; set; }
         public ActivityType ActivityType { get; set; }
         public UserStatus UserStatus { get; set; }
 
@@ -33,7 +40,12 @@ namespace NOVAxis
         public ProgramConfig()
         {
             LoginToken = "INSERT_LOGINTOKEN_HERE";
-            Activity = "pohyb atomů";
+            Activity = new ActivityObject
+            {
+                Online = "pohyb atomů",
+                Afk = "ochlazování jádra",
+                Offline = "repair/reboot jádra"
+            };
             ActivityType = ActivityType.Listening;
             UserStatus = UserStatus.Online;
             Log = true;
