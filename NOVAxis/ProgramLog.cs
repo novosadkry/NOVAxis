@@ -20,7 +20,7 @@ namespace NOVAxis
 
         private static string LogPath
         {
-            get => string.Format(LogPathFormat, DateTime.Now.ToShortDateString());
+            get => string.Format(LogPathFormat, string.Format("{0}.{1}.{2}", DateTime.Now.Day, DateTime.Now.Month, DateTime.Now.Year));
         }
 
         public static Task ToConsole(LogMessage arg)
