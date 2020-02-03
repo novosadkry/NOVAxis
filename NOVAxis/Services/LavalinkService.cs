@@ -4,11 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using Discord;
-using Discord.Commands;
-using Discord.WebSocket;
-
 using SharpLink;
+using SharpLink.Stats;
 
 namespace NOVAxis.Services
 {
@@ -29,9 +26,9 @@ namespace NOVAxis.Services
             }
         }
 
-        public static SharpLink.Stats.LavalinkStats ManagerStats { get; private set; }
+        public static LavalinkStats ManagerStats { get; private set; }
         
-        private static Task Manager_Stats(SharpLink.Stats.LavalinkStats stats)
+        private static Task Manager_Stats(LavalinkStats stats)
         {
             ManagerStats = stats;
             return Task.CompletedTask;
