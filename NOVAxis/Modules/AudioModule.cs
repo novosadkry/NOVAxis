@@ -10,9 +10,7 @@ using System.Threading.Tasks;
 using NOVAxis.Preconditions;
 
 using Discord;
-using Discord.Audio;
 using Discord.Commands;
-using Discord.WebSocket;
 
 using SharpLink;
 
@@ -135,6 +133,7 @@ namespace NOVAxis.Modules
             }
 
             LavalinkPlayer player = Services.LavalinkService.Manager.GetPlayer(Context.Guild.Id);
+            IVoiceChannel voiceChannel = ((IGuildUser)Context.User).VoiceChannel;
 
             if (player == null)
             {
@@ -146,7 +145,7 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            if (player.VoiceChannel != ((IGuildUser)Context.User).VoiceChannel)
+            if (player.VoiceChannel != voiceChannel)
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
