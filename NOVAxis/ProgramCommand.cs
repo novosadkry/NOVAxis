@@ -132,12 +132,20 @@ namespace NOVAxis
                 switch (Environment.OSVersion.Platform)
                 {
                     case PlatformID.Win32NT:
-                        Process.Start(new ProcessStartInfo { FileName = Path.Combine(".", "Lavalink", "Lavalink.bat"), UseShellExecute = true });
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = "cmd.exe",
+                            Arguments = "/C java -jar " + Path.Combine(".", "Lavalink", "Lavalink.jar")      
+                        });
                         await context.Client_Log(new LogMessage(LogSeverity.Info, "Lavalink", "Launching Lavalink node (command prompt)"));
                         break;
 
                     case PlatformID.Unix:
-                        Process.Start(new ProcessStartInfo { FileName = Path.Combine(".", "Lavalink", "Lavalink.sh") });
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = "/bin/bash",
+                            Arguments = "-c \"screen -dmS novaxis-lavalink java -jar " + Path.Combine(".", "Lavalink", "Lavalink.jar") + "\""
+                        });
                         await context.Client_Log(new LogMessage(LogSeverity.Info, "Lavalink", "Launching Lavalink node (screen)"));
                         break;
 
