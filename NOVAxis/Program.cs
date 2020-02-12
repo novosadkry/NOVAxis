@@ -19,12 +19,12 @@ using SharpLink;
 namespace NOVAxis
 {
     class Program
-    {
-        private static DiscordSocketClient client;
+    {  
         private static CommandService commandService;
         private static IServiceProvider services;
 
-        private static ProgramConfig config;
+        public static DiscordSocketClient Client { get; private set; }
+        public static ProgramConfig Config { get; private set; }
 
         public static string Version
         {
@@ -36,62 +36,62 @@ namespace NOVAxis
 
         private static async Task MainAsync()
         {
-            config = await ProgramConfig.LoadConfig(Client_Log);
+            ProgramConfig.LogEvent += Client_Log;
+            Config = await ProgramConfig.LoadConfig();
 
             await Client_Log(new LogMessage(LogSeverity.Info, "Program", "NOVAxis v" + Version));
 
-            client = new DiscordSocketClient(new DiscordSocketConfig
+            Client = new DiscordSocketClient(new DiscordSocketConfig
             {
-                LogLevel = config.Log.Severity
+                LogLevel = Config.Log.Severity
             });
 
             commandService = new CommandService(new CommandServiceConfig
             {
                 CaseSensitiveCommands = false,
                 DefaultRunMode = RunMode.Async,
-                LogLevel = config.Log.Severity
+                LogLevel = Config.Log.Severity
             });
 
-            Services.LavalinkService.Manager = new LavalinkManager(client, new LavalinkManagerConfig
+            Services.LavalinkService.Manager = new LavalinkManager(Client, new LavalinkManagerConfig
             {
-                RESTHost = config.Lavalink.Host,
+                RESTHost = Config.Lavalink.Host,
                 RESTPort = 2333,
-                WebSocketHost = config.Lavalink.Host,
+                WebSocketHost = Config.Lavalink.Host,
                 WebSocketPort = 2333,
-                Authorization = config.Lavalink.Login,
+                Authorization = Config.Lavalink.Login,
                 TotalShards = 1
             });
 
             Services.LavalinkService.Manager.Log += Client_Log;
+            Services.DatabaseService.LogEvent += Client_Log;
 
             services = new ServiceCollection()
-                .AddSingleton(new Services.AudioModuleService(config))
-                .AddSingleton(new Services.DatabaseService(config))
-                .AddSingleton(new Services.PrefixService(config))
-                .AddSingleton(new InteractiveService((BaseSocketClient)client))
+                .AddSingleton(new Services.AudioModuleService())
+                .AddSingleton(new Services.DatabaseService())
+                .AddSingleton(new Services.PrefixService())
+                .AddSingleton(new InteractiveService((BaseSocketClient)Client))
                 .BuildServiceProvider();
 
             commandService.CommandExecuted += CommandService_CommandExecuted;
             commandService.AddTypeReader(typeof(TimeSpan), new TypeReaders.AudioModuleTypeReader());
             await commandService.AddModulesAsync(Assembly.GetEntryAssembly(), services);
+            
+            Client.MessageReceived += Client_MessageReceived;
+            Client.Ready += Client_Ready;
+            Client.Log += Client_Log;
 
-            client.MessageReceived += Client_MessageReceived;
-            client.Ready += Client_Ready;
-            client.Log += Client_Log;
-
-            if (config.Lavalink.Start)
+            if (Config.Lavalink.Start)
             {
-                await ProgramCommand.ProgramCommandList.First((x) => x.Name == "lavalink")
-                    .Execute(new ProgramCommand.Context
-                    {
-                        Client_Log = Client_Log
-                    });
+                await ProgramCommand.ProgramCommandList
+                    .First((x) => x.Name == "lavalink")
+                    .Execute();
             }
 
             try
             {
-                await client.LoginAsync(TokenType.Bot, config.LoginToken);
-                await client.StartAsync();
+                await Client.LoginAsync(TokenType.Bot, Config.LoginToken);
+                await Client.StartAsync();
             }
 
             catch (Exception e)
@@ -105,7 +105,7 @@ namespace NOVAxis
 
             await Task.Run(async () =>
             {
-                while (client.LoginState == LoginState.LoggedIn)
+                while (Client.LoginState == LoginState.LoggedIn)
                 {
                     string input = Console.ReadLine();
 
@@ -115,13 +115,7 @@ namespace NOVAxis
 
                         if (input == c.Name || c.Alias.Contains(input) && input != "")
                         {
-                            await c.Execute(new ProgramCommand.Context
-                            {
-                                Client = client,
-                                Config = config,
-                                Client_Log = Client_Log
-                            });
-
+                            await c.Execute();                     
                             break;
                         }
 
@@ -134,10 +128,10 @@ namespace NOVAxis
             Console.Read();
         }
 
-        private static async Task Client_Log(LogMessage arg)
+        public static async Task Client_Log(LogMessage arg)
         {
             ProgramConfig config =
-                Program.config ?? new ProgramConfig();
+                Config ?? new ProgramConfig();
 
             if (arg.Severity > config.Log.Severity)
                 return;
@@ -151,14 +145,14 @@ namespace NOVAxis
         private async static Task Client_Ready()
         {
             await Services.LavalinkService.Manager.StartAsync();
-            await client.SetGameAsync(config.Activity.Online, type: config.Activity.ActivityType);
-            await client.SetStatusAsync(config.Activity.UserStatus);
+            await Client.SetGameAsync(Config.Activity.Online, type: Config.Activity.ActivityType);
+            await Client.SetStatusAsync(Config.Activity.UserStatus);
         }
 
         private async static Task Client_MessageReceived(SocketMessage arg)
         {
             SocketUserMessage message = (SocketUserMessage)arg;
-            SocketCommandContext context = new SocketCommandContext(client, message);   
+            SocketCommandContext context = new SocketCommandContext(Client, message);   
 
             if (context.Message == null) return;
             if (context.User.IsBot) return;
@@ -166,14 +160,14 @@ namespace NOVAxis
             string prefix = "~";
 
             if (context.User is IGuildUser)
-                prefix = await new Services.PrefixService(config).GetPrefix(context.Guild.Id) ?? "~";
+                prefix = await new Services.PrefixService().GetPrefix(context.Guild.Id) ?? "~";
 
             int argPos = 0;
             if (!(context.Message.HasStringPrefix(prefix, ref argPos) || 
-                context.Message.HasMentionPrefix(client.CurrentUser, ref argPos)))
+                context.Message.HasMentionPrefix(Client.CurrentUser, ref argPos)))
                 return;
 
-            switch (client.Status)
+            switch (Client.Status)
             {
                 case UserStatus.DoNotDisturb:
                     await context.Channel.SendMessageAsync(embed: new EmbedBuilder()

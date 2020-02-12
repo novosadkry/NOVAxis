@@ -95,7 +95,9 @@ namespace NOVAxis
             AudioTimeout = 30000;
         }
 
-        public async static Task<ProgramConfig> LoadConfig(Func<LogMessage, Task> log)
+        public static event Func<LogMessage, Task> LogEvent;
+
+        public async static Task<ProgramConfig> LoadConfig()
         {
             try
             {
@@ -104,11 +106,11 @@ namespace NOVAxis
 
             catch (FileNotFoundException)
             {
-                await log(new LogMessage(LogSeverity.Warning, "Program", $"Config file ({configPath}) not found"));
-                await log(new LogMessage(LogSeverity.Info, "Program", "Forcing config reset"));
+                await LogEvent(new LogMessage(LogSeverity.Warning, "Program", $"Config file ({configPath}) not found"));
+                await LogEvent(new LogMessage(LogSeverity.Info, "Program", "Forcing config reset"));
                 await ResetConfig();
 
-                return await LoadConfig(log);
+                return await LoadConfig();
             }
         }
 

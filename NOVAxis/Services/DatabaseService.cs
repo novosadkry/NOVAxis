@@ -6,10 +6,14 @@ using System.Threading.Tasks;
 
 using MySql.Data.MySqlClient;
 
+using Discord;
+
 namespace NOVAxis.Services
 {
     public class DatabaseService
     {
+        public static event Func<LogMessage, Task> LogEvent;
+
         private ProgramConfig.DatabaseObject config;
 
         private string ConnectionString
@@ -22,9 +26,9 @@ namespace NOVAxis.Services
                 config.DbPassword);
         }
 
-        public DatabaseService(ProgramConfig config)
+        public DatabaseService()
         {
-            this.config = config.Database;
+            config = Program.Config.Database;
         }
 
         public async Task<object> GetValue(string query, params MySqlParameter[] arg)

@@ -14,9 +14,9 @@ namespace NOVAxis.Services
 
         private DatabaseService db;
 
-        public PrefixService(ProgramConfig config)
+        public PrefixService()
         {
-            db = new DatabaseService(config);
+            db = new DatabaseService();
         }
 
         public async Task<string> GetPrefix(ulong id)
