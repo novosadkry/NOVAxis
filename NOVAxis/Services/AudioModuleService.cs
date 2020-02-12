@@ -75,9 +75,9 @@ namespace NOVAxis.Services
             public IMessageChannel BoundChannel { get; set; }
         }
 
-        public AudioModuleService(ProgramConfig config)
+        public AudioModuleService()
         {
-            AudioTimeout = config.AudioTimeout;
+            AudioTimeout = Program.Config.AudioTimeout;
             guilds = new Dictionary<ulong, Context>();
 
             LavalinkService.Manager.TrackEnd -= AudioModuleService_TrackEnd;
