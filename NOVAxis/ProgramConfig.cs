@@ -24,6 +24,7 @@ namespace NOVAxis
 
         public class DatabaseObject
         {
+            public bool Active { get; set; }
             public string DbHost { get; set; }
             public ushort DbPort { get; set; }
             public string DbUsername { get; set; }
@@ -47,20 +48,17 @@ namespace NOVAxis
         private const string configPath = @"config.json";
 
         public string LoginToken { get; set; }
-
+        public string DefaultPrefix { get; set; }
         public ActivityObject Activity { get; set; }
-
         public LogObject Log { get; set; }
-
         public LavalinkObject Lavalink { get; set; }
-
         public DatabaseObject Database { get; set; }
-
         public long AudioTimeout { get; set; }
 
         public ProgramConfig()
         {
             LoginToken = "INSERT_LOGINTOKEN_HERE";
+            DefaultPrefix = "~";
 
             Activity = new ActivityObject
             {
@@ -86,6 +84,7 @@ namespace NOVAxis
 
             Database = new DatabaseObject
             {
+                Active = true,
                 DbHost = "localhost",
                 DbUsername = "novaxis",
                 DbPassword = "123",
