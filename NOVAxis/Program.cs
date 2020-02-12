@@ -66,6 +66,8 @@ namespace NOVAxis
 
             services = new ServiceCollection()
                 .AddSingleton(new Services.AudioModuleService(config))
+                .AddSingleton(new Services.DatabaseService(config))
+                .AddSingleton(new Services.PrefixService(config))
                 .AddSingleton(new InteractiveService((BaseSocketClient)client))
                 .BuildServiceProvider();
 
@@ -161,8 +163,13 @@ namespace NOVAxis
             if (context.Message == null) return;
             if (context.User.IsBot) return;
 
+            string prefix = "~";
+
+            if (context.User is IGuildUser)
+                prefix = await new Services.PrefixService(config).GetPrefix(context.Guild.Id) ?? "~";
+
             int argPos = 0;
-            if (!(context.Message.HasStringPrefix("~", ref argPos) || 
+            if (!(context.Message.HasStringPrefix(prefix, ref argPos) || 
                 context.Message.HasMentionPrefix(client.CurrentUser, ref argPos)))
                 return;
 

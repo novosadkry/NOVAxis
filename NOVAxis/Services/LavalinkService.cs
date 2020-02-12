@@ -9,7 +9,7 @@ using SharpLink.Stats;
 
 namespace NOVAxis.Services
 {
-    internal static class LavalinkService
+    public static class LavalinkService
     {
         private static LavalinkManager _manager;
         public static LavalinkManager Manager
