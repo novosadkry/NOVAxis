@@ -42,23 +42,23 @@ namespace NOVAxis
 
             client = new DiscordSocketClient(new DiscordSocketConfig
             {
-                LogLevel = config.LogSeverity
+                LogLevel = config.Log.Severity
             });
 
             commandService = new CommandService(new CommandServiceConfig
             {
                 CaseSensitiveCommands = false,
                 DefaultRunMode = RunMode.Async,
-                LogLevel = config.LogSeverity
+                LogLevel = config.Log.Severity
             });
 
             Services.LavalinkService.Manager = new LavalinkManager(client, new LavalinkManagerConfig
             {
-                RESTHost = config.LavalinkHost,
+                RESTHost = config.Lavalink.Host,
                 RESTPort = 2333,
-                WebSocketHost = config.LavalinkHost,
+                WebSocketHost = config.Lavalink.Host,
                 WebSocketPort = 2333,
-                Authorization = config.LavalinkLogin,
+                Authorization = config.Lavalink.Login,
                 TotalShards = 1
             });
 
@@ -77,7 +77,7 @@ namespace NOVAxis
             client.Ready += Client_Ready;
             client.Log += Client_Log;
 
-            if (config.StartLavalink)
+            if (config.Lavalink.Start)
             {
                 await ProgramCommand.ProgramCommandList.First((x) => x.Name == "lavalink")
                     .Execute(new ProgramCommand.Context
@@ -137,20 +137,20 @@ namespace NOVAxis
             ProgramConfig config =
                 Program.config ?? new ProgramConfig();
 
-            if (arg.Severity > config.LogSeverity)
+            if (arg.Severity > config.Log.Severity)
                 return;
 
             await ProgramLog.ToConsole(arg);
 
-            if (config.Log)
+            if (config.Log.Active)
                 await ProgramLog.ToFile(arg);
         }
 
         private async static Task Client_Ready()
         {
             await Services.LavalinkService.Manager.StartAsync();
-            await client.SetGameAsync(config.Activity.Online, type: config.ActivityType);
-            await client.SetStatusAsync(config.UserStatus);
+            await client.SetGameAsync(config.Activity.Online, type: config.Activity.ActivityType);
+            await client.SetStatusAsync(config.Activity.UserStatus);
         }
 
         private async static Task Client_MessageReceived(SocketMessage arg)
