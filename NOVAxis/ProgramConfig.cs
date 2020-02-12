@@ -18,6 +18,30 @@ namespace NOVAxis
             public string Online { get; set; }
             public string Afk { get; set; }
             public string Offline { get; set; }
+            public ActivityType ActivityType { get; set; }
+            public UserStatus UserStatus { get; set; }
+        }
+
+        public class DatabaseObject
+        {
+            public string DbHost { get; set; }
+            public ushort DbPort { get; set; }
+            public string DbUsername { get; set; }
+            public string DbPassword { get; set; }
+            public string DbName { get; set; }
+        }
+
+        public class LavalinkObject
+        {
+            public bool Start { get; set; }
+            public string Host { get; set; }
+            public string Login { get; set; }
+        }
+
+        public class LogObject
+        {
+            public bool Active { get; set; }
+            public LogSeverity Severity { get; set; }
         }
 
         private const string configPath = @"config.json";
@@ -25,34 +49,49 @@ namespace NOVAxis
         public string LoginToken { get; set; }
 
         public ActivityObject Activity { get; set; }
-        public ActivityType ActivityType { get; set; }
-        public UserStatus UserStatus { get; set; }
 
-        public bool Log { get; set; }
-        public LogSeverity LogSeverity { get; set; }
+        public LogObject Log { get; set; }
 
-        public bool StartLavalink { get; set; }
-        public string LavalinkHost { get; set; }
-        public string LavalinkLogin { get; set; }
+        public LavalinkObject Lavalink { get; set; }
+
+        public DatabaseObject Database { get; set; }
 
         public long AudioTimeout { get; set; }
 
         public ProgramConfig()
         {
             LoginToken = "INSERT_LOGINTOKEN_HERE";
+
             Activity = new ActivityObject
             {
                 Online = "pohyb atomů",
                 Afk = "ochlazování jádra",
-                Offline = "repair/reboot jádra"
+                Offline = "repair/reboot jádra",
+                ActivityType = ActivityType.Listening,
+                UserStatus = UserStatus.Online,
             };
-            ActivityType = ActivityType.Listening;
-            UserStatus = UserStatus.Online;
-            Log = true;
-            LogSeverity = LogSeverity.Debug;
-            StartLavalink = false;
-            LavalinkHost = "localhost";
-            LavalinkLogin = "123";
+
+            Log = new LogObject
+            {
+                Active = true,
+                Severity = LogSeverity.Debug,
+            };
+
+            Lavalink = new LavalinkObject
+            {
+                Start = false,
+                Host = "localhost",
+                Login = "123",
+            };
+
+            Database = new DatabaseObject
+            {
+                DbHost = "localhost",
+                DbUsername = "novaxis",
+                DbPassword = "123",
+                DbName = "novaxis",
+            };
+
             AudioTimeout = 30000;
         }
 

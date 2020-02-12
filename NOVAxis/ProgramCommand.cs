@@ -116,7 +116,7 @@ namespace NOVAxis
             new ProgramCommand("online", null, async (context) => 
             {
                 await context.Client.SetStatusAsync(UserStatus.Online);
-                await context.Client.SetGameAsync(context.Config.Activity.Online, type: context.Config.ActivityType);
+                await context.Client.SetGameAsync(context.Config.Activity.Online, type: context.Config.Activity.ActivityType);
                 await context.Client_Log(new LogMessage(LogSeverity.Info, "Discord", "UserStatus set to 'Online'"));
             }),
 
