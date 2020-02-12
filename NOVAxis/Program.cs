@@ -157,10 +157,10 @@ namespace NOVAxis
             if (context.Message == null) return;
             if (context.User.IsBot) return;
 
-            string prefix = "~";
+            string prefix = Config.DefaultPrefix;
 
-            if (context.User is IGuildUser)
-                prefix = await new Services.PrefixService().GetPrefix(context.Guild.Id) ?? "~";
+            if (context.User is IGuildUser && Config.Database.Active)
+                prefix = await new Services.PrefixService().GetPrefix(context.Guild.Id) ?? Config.DefaultPrefix;
 
             int argPos = 0;
             if (!(context.Message.HasStringPrefix(prefix, ref argPos) || 
