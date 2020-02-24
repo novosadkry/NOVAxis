@@ -1,12 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
 
+using NOVAxis.Services;
+using NOVAxis.Extensions;
 using NOVAxis.Preconditions;
 
 using Discord;
@@ -22,7 +20,7 @@ namespace NOVAxis.Modules
     [RequireRole("DJ", Group = "Permission")]
     public class AudioModule : ModuleBase<SocketCommandContext>
     {
-        public Services.AudioModuleService AudioModuleService { get; set; }
+        public AudioModuleService AudioModuleService { get; set; }
 
         protected override void BeforeExecute(CommandInfo command)
         {
@@ -31,10 +29,7 @@ namespace NOVAxis.Modules
             service.BoundChannel = Context.Channel;
 
             if (service.Timer.IsSet)
-            {
-                service.Timer.Stop();
-                service.Timer.Start();
-            }
+                service.Timer.Reset();
 
             base.BeforeExecute(command);
         }
@@ -61,7 +56,7 @@ namespace NOVAxis.Modules
         {
             var service = AudioModuleService[Context.Guild.Id];
 
-            if (!Services.LavalinkService.IsConnected)
+            if (!LavalinkService.IsConnected)
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
@@ -97,13 +92,13 @@ namespace NOVAxis.Modules
 
                 AudioModuleService[Context.Guild.Id].Queue.Clear();
 
-                await Services.LavalinkService.Manager.LeaveAsync(voiceChannel.GuildId);
-                await Services.LavalinkService.Manager.JoinAsync(voiceChannel);
+                await LavalinkService.Manager.LeaveAsync(voiceChannel.GuildId);
+                await LavalinkService.Manager.JoinAsync(voiceChannel);
             }
 
             else
             {
-                await Services.LavalinkService.Manager.JoinAsync(voiceChannel);
+                await LavalinkService.Manager.JoinAsync(voiceChannel);
             }
 
             await ReplyAsync(embed: new EmbedBuilder()
@@ -113,8 +108,7 @@ namespace NOVAxis.Modules
             if (!service.Timer.IsSet)
                 service.Timer.Set(AudioModuleService.AudioTimeout, Timer_Elapsed);
 
-            service.Timer.Stop();
-            service.Timer.Start();
+            service.Timer.Reset();
         }
 
         [Command("leave"), Alias("quit", "disconnect"), Summary("Leaves a voice channel")]
@@ -122,7 +116,7 @@ namespace NOVAxis.Modules
         {
             var service = AudioModuleService[Context.Guild.Id];
 
-            if (!Services.LavalinkService.IsConnected)
+            if (!LavalinkService.IsConnected)
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
@@ -132,7 +126,7 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            LavalinkPlayer player = Services.LavalinkService.Manager.GetPlayer(Context.Guild.Id);
+            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(Context.Guild.Id);
             IVoiceChannel voiceChannel = ((IGuildUser)Context.User).VoiceChannel;
 
             if (player == null)
@@ -145,7 +139,7 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            if (player.VoiceChannel != voiceChannel)
+            if (player.VoiceChannel != voiceChannel && await player.VoiceChannel.GetHumanUsers().Count() > 0)
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
@@ -155,7 +149,12 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            await ReplyAsync(embed: new EmbedBuilder()
+            await LeaveChannel(service, player);
+        }
+
+        private async Task LeaveChannel(AudioModuleService.Context service, LavalinkPlayer player)
+        {
+            await service.BoundChannel.SendMessageAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
                 .WithTitle($"Odpojuji se od kanálu `{player.VoiceChannel.Name}`").Build());
 
@@ -170,7 +169,7 @@ namespace NOVAxis.Modules
         [Command("play"), Summary("Plays an audio transmission")]
         public async Task PlayAudio([Remainder]string input)
         {
-            if (!Services.LavalinkService.IsConnected)
+            if (!LavalinkService.IsConnected)
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
@@ -192,22 +191,22 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            LavalinkPlayer player = Services.LavalinkService.Manager.GetPlayer(voiceChannel.GuildId);
+            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(voiceChannel.GuildId);
 
             if (player == null)
             {
                 await JoinChannel(voiceChannel);
-                player = Services.LavalinkService.Manager.GetPlayer(voiceChannel.GuildId);
+                player = LavalinkService.Manager.GetPlayer(voiceChannel.GuildId);
             }
 
             if (player.VoiceChannel != voiceChannel)
             {
                 AudioModuleService[Context.Guild.Id].Queue.Clear();
 
-                await Services.LavalinkService.Manager.LeaveAsync(voiceChannel.GuildId);
+                await LavalinkService.Manager.LeaveAsync(voiceChannel.GuildId);
                 await JoinChannel(voiceChannel);
 
-                player = Services.LavalinkService.Manager.GetPlayer(voiceChannel.GuildId);
+                player = LavalinkService.Manager.GetPlayer(voiceChannel.GuildId);
             }
 
             await PlayAudio(player, input);
@@ -221,10 +220,10 @@ namespace NOVAxis.Modules
             {
                 string search = (Uri.IsWellFormedUriString(input, 0) ? "" : "ytsearch:") + input;
 
-                LoadTracksResponse tracks = await Services.LavalinkService.Manager.GetTracksAsync(search);
+                LoadTracksResponse tracks = await LavalinkService.Manager.GetTracksAsync(search);
                 LavalinkTrack track = tracks.Tracks.First();
 
-                service.Queue.Add(new Services.AudioModuleService.Context.ContextTrack
+                service.Queue.Add(new AudioModuleService.Context.ContextTrack
                 {
                     Value = track,
                     RequestedBy = Context.User
@@ -336,8 +335,7 @@ namespace NOVAxis.Modules
         [Command("skip"), Alias("next"), Summary("Skips to the next audio transmission")]
         public async Task SkipAudio()
         {
-            LavalinkPlayer player = Services.LavalinkService.Manager.GetPlayer(Context.Guild.Id);
-            var service = AudioModuleService[Context.Guild.Id];
+            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(Context.Guild.Id);
 
             if (player?.CurrentTrack == null)
             {
@@ -355,7 +353,7 @@ namespace NOVAxis.Modules
         [Command("stop"), Summary("Stops the audio transmission")]
         public async Task StopAudio()
         {
-            LavalinkPlayer player = Services.LavalinkService.Manager.GetPlayer(Context.Guild.Id);
+            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(Context.Guild.Id);
 
             if (player?.CurrentTrack == null)
             {
@@ -378,7 +376,7 @@ namespace NOVAxis.Modules
         [Command("pause"), Summary("Pauses the audio transmission")]
         public async Task PauseAudio()
         {
-            LavalinkPlayer player = Services.LavalinkService.Manager.GetPlayer(Context.Guild.Id);
+            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(Context.Guild.Id);
 
             if (player?.CurrentTrack == null)
             {
@@ -410,7 +408,7 @@ namespace NOVAxis.Modules
         [Command("resume"), Summary("Resumes the audio transmission")]
         public async Task ResumeAudio()
         {
-            LavalinkPlayer player = Services.LavalinkService.Manager.GetPlayer(Context.Guild.Id);
+            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(Context.Guild.Id);
 
             if (player?.CurrentTrack == null)
             {
@@ -442,7 +440,7 @@ namespace NOVAxis.Modules
         [Command("seek"), Summary("Seeks a position in the audio transmissions")]
         public async Task SeekAudio(TimeSpan time)
         {
-            LavalinkPlayer player = Services.LavalinkService.Manager.GetPlayer(Context.Guild.Id);
+            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(Context.Guild.Id);
 
             if (player?.CurrentTrack == null)
             {
@@ -484,7 +482,7 @@ namespace NOVAxis.Modules
         [Command("forward"), Summary("Forwards to a position in the audio transmissions")]
         public async Task ForwardAudio(TimeSpan time)
         {
-            LavalinkPlayer player = Services.LavalinkService.Manager.GetPlayer(Context.Guild.Id);
+            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(Context.Guild.Id);
 
             if (player?.CurrentTrack == null)
             {
@@ -521,7 +519,7 @@ namespace NOVAxis.Modules
         [Command("backward"), Summary("Backwards to a position in the audio transmissions")]
         public async Task BackwardAudio(TimeSpan time)
         {
-            LavalinkPlayer player = Services.LavalinkService.Manager.GetPlayer(Context.Guild.Id);
+            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(Context.Guild.Id);
 
             if (player?.CurrentTrack == null)
             {
@@ -558,7 +556,8 @@ namespace NOVAxis.Modules
         [Command("volume"), Summary("Sets a volume of the audio transmissions")]
         public async Task AudioVolume(uint percentage)
         {
-            LavalinkPlayer player = Services.LavalinkService.Manager.GetPlayer(Context.Guild.Id);
+            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(Context.Guild.Id);
+            var service = AudioModuleService[Context.Guild.Id];
 
             if (player?.CurrentTrack == null)
             {
@@ -585,14 +584,13 @@ namespace NOVAxis.Modules
                 .WithTitle($"Hlasitost audia byla úspěšně nastavena na {percentage}%").Build());
 
             await player.SetVolumeAsync(percentage);
-
-            AudioModuleService[Context.Guild.Id].Volume = percentage;      
+            service.Volume = percentage;
         }
 
         [Command("status"), Alias("np", "info"), Summary("Shows active audio transmissions")]
         public async Task AudioStatus()
         {
-            LavalinkPlayer player = Services.LavalinkService.Manager.GetPlayer(Context.Guild.Id);
+            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(Context.Guild.Id);
             var service = AudioModuleService[Context.Guild.Id];
 
             if (player?.CurrentTrack == null)
@@ -717,7 +715,10 @@ namespace NOVAxis.Modules
             if (service.Queue.Count > 0 && service.GetPlayer().Playing)
                 return;
 
-            await LeaveChannel();
+            if (LavalinkService.IsConnected)
+                await LeaveChannel(service, LavalinkService.Manager.GetPlayer(Context.Guild.Id));
+            else
+                await ((IGuildUser)Context.User).VoiceChannel.DisconnectAsync();
         }
     }
 }

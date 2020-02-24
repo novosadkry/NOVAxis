@@ -1,26 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Timers;
 
-using Discord;
-using Discord.Commands;
+using NOVAxis.Extensions;
 
+using Discord;
 using SharpLink;
 
 namespace NOVAxis.Services
 {
-    public static class AudioModuleExtensions
-    {
-        public static string GetThumbnailUrl(this LavalinkTrack track)
-        {
-            string id = System.Web.HttpUtility.ParseQueryString(track.Url)[0];
-            return $"https://img.youtube.com/vi/{id}/hqdefault.jpg";
-        }
-    }
-
     public class AudioModuleService
     {
         public class Context
@@ -46,18 +35,32 @@ namespace NOVAxis.Services
             {
                 private Timer timer;
                 public bool IsSet { get; private set; } = false;
+                public bool Elapsed { get; private set; } = false;
 
                 public void Set(double interval, ElapsedEventHandler elapsedEvent)
                 {
                     timer = new Timer(interval);
+                    timer.Elapsed += (sender, e) => Elapsed = true;
                     timer.Elapsed += elapsedEvent;
-
                     IsSet = true;
+                }
+
+                public void Reset()
+                {
+                    timer.Stop();
+                    timer.Start();
+                    Elapsed = false;
                 }
 
                 public void Start() => timer.Start();
                 public void Stop() => timer.Stop();
-                public void Dispose() { timer.Dispose(); IsSet = false; }
+
+                public void Dispose() 
+                { 
+                    timer.Dispose(); 
+                    IsSet = false; 
+                    Elapsed = false; 
+                }
             }
 
             public LavalinkPlayer GetPlayer() => LavalinkService.Manager.GetPlayer(GuildId);
@@ -112,37 +115,37 @@ namespace NOVAxis.Services
                 return;
 
             service.Queue.RemoveAt(0);
+            Context.ContextTrack nextTrack = service.Queue.First();
 
             if (service.Queue.Count > 0)
-                await player.PlayAsync(service.Queue.First().Value);
-
-            if (service.Queue.Count != 0)
             {
+                await player.PlayAsync(nextTrack.Value);
+
                 await service.BoundChannel.SendMessageAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithAuthor("Právě přehrávám:")
                     .WithTitle($"{new Emoji("\u25B6")} {service.LastTrack.Value.Title}")
-                    .WithUrl(service.Queue.First().Value.Url)
-                    .WithThumbnailUrl(service.Queue.First().ThumbnailUrl)
+                    .WithUrl(nextTrack.Value.Url)
+                    .WithThumbnailUrl(nextTrack.ThumbnailUrl)
                     .WithFields(
                         new EmbedFieldBuilder
                         {
                             Name = "Autor:",
-                            Value = service.Queue.First().Value.Author,
+                            Value = nextTrack.Value.Author,
                             IsInline = true
                         },
 
                         new EmbedFieldBuilder
                         {
                             Name = "Délka:",
-                            Value = $"`{service.Queue.First().Value.Length}`",
+                            Value = $"`{nextTrack.Value.Length}`",
                             IsInline = true
                         },
 
                         new EmbedFieldBuilder
                         {
                             Name = "Vyžádal:",
-                            Value = service.Queue.First().RequestedBy.Mention,
+                            Value = nextTrack.RequestedBy.Mention,
                             IsInline = true
                         },
 
@@ -162,8 +165,7 @@ namespace NOVAxis.Services
                     .WithTitle($"Stream audia byl úspěšně dokončen").Build());
             }
 
-            service.Timer.Stop();
-            service.Timer.Start();
+            service.Timer.Reset();
         }
     }
 }
