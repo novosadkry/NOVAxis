@@ -49,6 +49,7 @@ namespace NOVAxis
 
         public string LoginToken { get; set; }
         public string DefaultPrefix { get; set; }
+        public int TotalShards { get; set; }
         public ActivityObject Activity { get; set; }
         public LogObject Log { get; set; }
         public LavalinkObject Lavalink { get; set; }
@@ -59,6 +60,7 @@ namespace NOVAxis
         {
             LoginToken = "INSERT_LOGINTOKEN_HERE";
             DefaultPrefix = "~";
+            TotalShards = 1;
 
             Activity = new ActivityObject
             {

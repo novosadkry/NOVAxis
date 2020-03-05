@@ -23,8 +23,10 @@ namespace NOVAxis
         private static CommandService commandService;
         private static IServiceProvider services;
 
-        public static DiscordSocketClient Client { get; private set; }
+        public static DiscordShardedClient Client { get; private set; }
         public static ProgramConfig Config { get; private set; }
+
+        public static short ShardsReady { get; private set; } = 0;
 
         public static string Version
         {
@@ -41,9 +43,10 @@ namespace NOVAxis
 
             await Client_Log(new LogMessage(LogSeverity.Info, "Program", "NOVAxis v" + Version));
 
-            Client = new DiscordSocketClient(new DiscordSocketConfig
+            Client = new DiscordShardedClient(new DiscordSocketConfig
             {
-                LogLevel = Config.Log.Severity
+                LogLevel = Config.Log.Severity,
+                TotalShards = Config.TotalShards
             });
 
             commandService = new CommandService(new CommandServiceConfig
@@ -60,8 +63,8 @@ namespace NOVAxis
                 WebSocketHost = Config.Lavalink.Host,
                 WebSocketPort = 2333,
                 Authorization = Config.Lavalink.Login,
-                TotalShards = 1
-            });
+                TotalShards = Config.TotalShards
+            }); 
 
             Services.LavalinkService.Manager.Log += Client_Log;
             Services.DatabaseService.LogEvent += Client_Log;
@@ -78,7 +81,7 @@ namespace NOVAxis
             await commandService.AddModulesAsync(Assembly.GetEntryAssembly(), services);
             
             Client.MessageReceived += Client_MessageReceived;
-            Client.Ready += Client_Ready;
+            Client.ShardReady += Client_Ready;
             Client.Log += Client_Log;
 
             if (Config.Lavalink.Start)
@@ -92,6 +95,9 @@ namespace NOVAxis
             {
                 await Client.LoginAsync(TokenType.Bot, Config.LoginToken);
                 await Client.StartAsync();
+
+                await Client.SetGameAsync(Config.Activity.Online, type: Config.Activity.ActivityType);
+                await Client.SetStatusAsync(Config.Activity.UserStatus);
             }
 
             catch (Exception e)
@@ -142,17 +148,21 @@ namespace NOVAxis
                 await ProgramLog.ToFile(arg);
         }
 
-        private async static Task Client_Ready()
+        private async static Task Client_Ready(DiscordSocketClient shard)
         {
-            await Services.LavalinkService.Manager.StartAsync();
-            await Client.SetGameAsync(Config.Activity.Online, type: Config.Activity.ActivityType);
-            await Client.SetStatusAsync(Config.Activity.UserStatus);
+            await Client_Log(new LogMessage(LogSeverity.Info, "Shard #" + shard.ShardId, "Ready"));
+            
+            if (++ShardsReady == Config.TotalShards)
+            {
+                await Client_Log(new LogMessage(LogSeverity.Info, "Lavalink", "Start"));
+                await Services.LavalinkService.Manager.StartAsync();
+            }
         }
 
         private async static Task Client_MessageReceived(SocketMessage arg)
         {
             SocketUserMessage message = (SocketUserMessage)arg;
-            SocketCommandContext context = new SocketCommandContext(Client, message);   
+            ShardedCommandContext context = new ShardedCommandContext(Client, message);   
 
             if (context.Message == null) return;
             if (context.User.IsBot) return;
