@@ -46,7 +46,8 @@ namespace NOVAxis
             Client = new DiscordShardedClient(new DiscordSocketConfig
             {
                 LogLevel = Config.Log.Severity,
-                TotalShards = Config.TotalShards
+                TotalShards = Config.TotalShards,
+                ExclusiveBulkDelete = true
             });
 
             commandService = new CommandService(new CommandServiceConfig
