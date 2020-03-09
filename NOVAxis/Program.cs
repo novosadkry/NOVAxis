@@ -215,7 +215,7 @@ namespace NOVAxis
                         await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
                             .WithColor(220, 20, 60)
                             .WithDescription("(Neplatný počet argumentů)")
-                            .WithTitle($"Pokud má být atom neutrální, musí být počet elektronů v elektronovém obalu roven počtu protonů v atomovém jádře").Build());
+                            .WithTitle($"Počet elektronů v elektronovém obale není roven počtu protonů v atomovém jádře").Build());
                         break;
 
                     case CommandError.ObjectNotFound:
@@ -228,20 +228,16 @@ namespace NOVAxis
 
                     case CommandError.UnmetPrecondition:
                         if (result.ErrorReason.StartsWith("Invalid context for command"))
-                        {
                             await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
                                 .WithColor(220, 20, 60)
                                 .WithDescription("(Přístup odepřen)")
                                 .WithTitle($"Tento příkaz nelze vyvolat přímou zprávou").Build());
-                        }
 
                         else
-                        {
                             await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
                                 .WithColor(220, 20, 60)
                                 .WithDescription("(Přístup odepřen)")
                                 .WithTitle($"Pro operaci s tímto modulem nemáš dodatečnou kvalifikaci").Build());
-                        }
                         break;
 
                     default:
