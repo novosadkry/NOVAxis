@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using NOVAxis.Preconditions;
+using NOVAxis.Services;
 
 using Discord;
 using Discord.Commands;
@@ -15,6 +15,8 @@ namespace NOVAxis.Modules
     [Group("help"), Alias("?")]
     public class HelpModule : ModuleBase<SocketCommandContext>
     {
+        public PrefixService PrefixService { get; set; }
+
         private async Task SendHelp(Embed embed)
         {
             if (Context.User is IGuildUser)
@@ -41,6 +43,8 @@ namespace NOVAxis.Modules
         [Command, Summary("Shows command list")]
         public async Task ShowHelp()
         {
+            string prefix = await PrefixService.GetPrefix(Context);
+
             EmbedBuilder embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
                 .WithColor(new Color(52, 231, 231))
@@ -49,51 +53,51 @@ namespace NOVAxis.Modules
                 .WithFields(
                     new EmbedFieldBuilder
                     {
-                        IsInline = false,
-                        Name = "Příkaz `Help`",
-                        Value = "(Použití -> `~help ___`)"
+                        IsInline = true,
+                        Name = "**Help**",
+                        Value = $"*{prefix}help ___*"
                     },                  
 
                     new EmbedFieldBuilder
                     {
-                        IsInline = false,
-                        Name = "Příkaz `Jisho`",
-                        Value = "(Nápověda -> `~help jisho`)"
+                        IsInline = true,
+                        Name = "**Jisho**",
+                        Value = $"*{prefix}help jisho*"
                     },
 
                     new EmbedFieldBuilder
                     {
-                        IsInline = false,
-                        Name = "Příkaz `Clear`",
-                        Value = "(Nápověda -> `~help clear`)"
+                        IsInline = true,
+                        Name = "**Clear**",
+                        Value = $"*{prefix}help clear*"
                     },
 
                     new EmbedFieldBuilder
                     {
-                        IsInline = false,
-                        Name = "Příkaz `Mute`",
-                        Value = "(Použití -> `~mute @user`)"
+                        IsInline = true,
+                        Name = "**Mute**",
+                        Value = $"*{prefix}mute @user*"
                     },
 
                     new EmbedFieldBuilder
                     {
-                        IsInline = false,
-                        Name = "Příkaz `Move`",
-                        Value = "(Nápověda -> `~help move`)"
+                        IsInline = true,
+                        Name = "**Move**",
+                        Value = $"*{prefix}help move*"
                     },
 
                     new EmbedFieldBuilder
                     {
-                        IsInline = false,
-                        Name = "Příkaz `Audio`",
-                        Value = "(Nápověda -> `~help audio`)"
+                        IsInline = true,
+                        Name = "**Audio**",
+                        Value = $"*{prefix}help audio*"
                     },
 
                     new EmbedFieldBuilder
                     {
-                        IsInline = false,
-                        Name = "Příkaz `MAL`",
-                        Value = "(Nápověda -> `~help mal`)"
+                        IsInline = true,
+                        Name = "**MAL**",
+                        Value = $"*{prefix}help mal*"
                     }
                 )
                 .WithFooter(new EmbedFooterBuilder
@@ -108,24 +112,26 @@ namespace NOVAxis.Modules
         [Command("jisho"), Alias("Jisho"), Summary("Shows command list for Jisho")]
         public async Task ShowJishoHelp()
         {
+            string prefix = await PrefixService.GetPrefix(Context);
+
             EmbedBuilder embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
                 .WithColor(new Color(52, 231, 231))
                 .WithTitle("Příručka pro telekomunikaci s jádrem NOVAxis")
-                .WithDescription("(Seznam příkazů pro `~jisho`)")
+                .WithDescription("(Seznam příkazů pro **jisho**)")
                 .WithFields(
                     new EmbedFieldBuilder
                     {
                         IsInline = false,
-                        Name = "Použití -> `~jisho {\"text\"}`",
-                        Value = "(Prohledá databázi Jisho s limitem sto prvků)"
+                        Name = $"**{prefix}jisho** text",
+                        Value = "*Prohledá databázi Jisho s limitem sto prvků*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = false,
-                        Name = "Použití -> `~jisho {\"text\"} {limit}`",
-                        Value = "(Prohledá databázi Jisho s nastaveným limitem prvků)"
+                        Name = $"**{prefix}jisho** text limit",
+                        Value = "*Prohledá databázi Jisho s nastaveným limitem prvků*"
                     }
                 )
                 .WithFooter(new EmbedFooterBuilder
@@ -141,45 +147,47 @@ namespace NOVAxis.Modules
         [Command("move"), Alias("Move"), Summary("Shows command list for Move")]
         public async Task ShowMoveHelp()
         {
+            string prefix = await PrefixService.GetPrefix(Context);
+
             EmbedBuilder embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
                 .WithColor(new Color(52, 231, 231))
                 .WithTitle("Příručka pro telekomunikaci s jádrem NOVAxis")
-                .WithDescription("(Seznam příkazů pro `~move`)")
+                .WithDescription("(Seznam příkazů pro **move**)")
                 .WithFields(
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~move {@user} {\"channel\"}`",
-                        Value = "(Přesune uživatele `user` do `channel1`)"
+                        Name = $"**{prefix}move** @user \"channel\"",
+                        Value = "*Přesune uživatele user do channel*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~move everyone {\"channel\"}`",
-                        Value = "(Přesune všechny uživatele ze současného kanálu do `channel1`)"
+                        Name = $"**{prefix}move everyone** \"channel\"",
+                        Value = "*Přesune všechny uživatele ze současného kanálu do channel*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~move everyone {\"channel1\"} {\"channel2\"}`",
-                        Value = "(Přesune všechny uživatele z `channel1` do `channel2`)"
+                        Name = $"**{prefix}move everyone** \"channel1\" \"channel2\"",
+                        Value = "*Přesune všechny uživatele z channel1 do channel2*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~move message {ID} {\"channel\"}`",
-                        Value = "(Přesune vybranou zprávu z `channel1` do `channel2`)"
+                        Name = $"**{prefix}move message** ID \"channel\"",
+                        Value = "*Přesune vybranou zprávu z channel1 do channel2*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~move message {@user} {\"channel\"}`",
-                        Value = "(Přesune poslední zprávu uživatele `@user` z `channel1` do `channel2`)"
+                        Name = $"**{prefix}move message** @user \"channel\"",
+                        Value = "*Přesune poslední zprávu uživatele user do channel*"
                     }
                 )
                 .WithFooter(new EmbedFooterBuilder
@@ -194,108 +202,110 @@ namespace NOVAxis.Modules
         [Command("audio"), Alias("Audio"), Summary("Shows command list for Audio")]
         public async Task ShowAudioHelp()
         {
+            string prefix = await PrefixService.GetPrefix(Context);
+
             EmbedBuilder embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
                 .WithColor(new Color(52, 231, 231))
                 .WithTitle("Příručka pro telekomunikaci s jádrem NOVAxis")
-                .WithDescription("(Seznam příkazů pro `~audio`)")
+                .WithDescription("(Seznam příkazů pro **audio**)")
                 .WithFields(
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio join`",
-                        Value = "(Připojí jádro k současnému kanálu)"
+                        Name = $"**{prefix}audio join**",
+                        Value = "*Připojí jádro k současnému kanálu*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio seek {seconds}`",
-                        Value = "(Nastaví pozici stopy na `seconds`)"
+                        Name = $"**{prefix}audio seek** pozice",
+                        Value = "*Nastaví novou pozici aktivní zvukové stopy*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio leave`",
-                        Value = "(Odpojí jádro od připojeného kanálu)"
+                        Name = $"**{prefix}audio leave**",
+                        Value = "*Odpojí jádro od připojeného kanálu*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio stop`",
-                        Value = "(Zastaví aktivní zvukovou stopu)"
+                        Name = $"**{prefix}audio stop**",
+                        Value = "*Zastaví aktivní zvukovou stopu*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio play {URL/Název}`",
-                        Value = "(Přehraje vybranou zvukovou stopu)"
+                        Name = $"**{prefix}audio play** URL/název",
+                        Value = "*Přehraje vybranou zvukovou stopu*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio pause`",
-                        Value = "(Pozastaví aktivní zvukovou stopu)"
+                        Name = $"**{prefix}audio pause**",
+                        Value = "*Pozastaví aktivní zvukovou stopu*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio status`",
-                        Value = "(Zobrazí aktivní zvukovou stopu)"
+                        Name = $"**{prefix}audio status**",
+                        Value = "*Zobrazí aktivní zvukovou stopu*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio resume`",
-                        Value = "(Spustí pozastavenou zvukovou stopu)"
+                        Name = $"**{prefix}audio resume**",
+                        Value = "*Spustí pozastavenou zvukovou stopu*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio queue`",
-                        Value = "(Zobrazí frontu zvukových stop)"
+                        Name = $"**{prefix}audio queue**",
+                        Value = "*Zobrazí frontu zvukových stop*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio skip`",
-                        Value = "(Přeskočí aktivní zvukovou stopu)"
+                        Name = $"**{prefix}audio skip**",
+                        Value = "*Přeskočí aktivní zvukovou stopu*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio remove {index}`",
-                        Value = "(Odstraní z fronty vybranou stopu)"
+                        Name = $"**{prefix}audio remove**",
+                        Value = "*Odstraní z fronty vybranou stopu*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio forward {seconds}`",
-                        Value = "(Posune pozici stopy dopředu o `seconds`)"
+                        Name = $"**{prefix}audio forward** n",
+                        Value = "*Posune pozici stopy dopředu o n sekund*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio volume {value}`",
-                        Value = "(Nastaví hlasitost stopy na `value`)"
+                        Name = $"**{prefix}audio volume** n",
+                        Value = "*Nastaví hlasitost stopy na n procent*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = "Použití -> `~audio backward {seconds}`",
-                        Value = "(Posune pozici stopy dozadu o `seconds`)"
+                        Name = $"**{prefix}audio backward** n",
+                        Value = "*Posune pozici stopy dozadu o n sekund*"
                     }                                  
                 )
                 .WithFooter(new EmbedFooterBuilder
@@ -311,24 +321,26 @@ namespace NOVAxis.Modules
         [Command("clear"), Alias("Clear"), Summary("Shows command list for Clear")]
         public async Task ShowChatHelp()
         {
+            string prefix = await PrefixService.GetPrefix(Context);
+
             EmbedBuilder embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
                 .WithColor(new Color(52, 231, 231))
                 .WithTitle("Příručka pro telekomunikaci s jádrem NOVAxis")
-                .WithDescription("(Seznam příkazů pro `~clear`)")
+                .WithDescription("(Seznam příkazů pro **clear**)")
                 .WithFields(
                     new EmbedFieldBuilder
                     {
                         IsInline = false,
-                        Name = "Použití -> `~clear {x}`",
-                        Value = "(Vymaže posledních `x` zpráv z daného kanálu)"
+                        Name = $"**{prefix}clear** x",
+                        Value = "*Vymaže posledních x zpráv z daného kanálu*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = false,
-                        Name = "Použití -> `~clear all`",
-                        Value = "(Vymaže všechny zprávy z daného kanálu)"
+                        Name = $"**{prefix}clear all**",
+                        Value = "*Vymaže všechny zprávy z daného kanálu*"
                     }
                 )
                 .WithFooter(new EmbedFooterBuilder
@@ -344,24 +356,26 @@ namespace NOVAxis.Modules
         [Command("mal"), Alias("Mal", "MyAnimeList", "myanimelist"), Summary("Shows command list for MAL")]
         public async Task ShowMALHelp()
         {
+            string prefix = await PrefixService.GetPrefix(Context);
+
             EmbedBuilder embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
                 .WithColor(new Color(52, 231, 231))
                 .WithTitle("Příručka pro telekomunikaci s jádrem NOVAxis")
-                .WithDescription("(Seznam příkazů pro `~mal`)")
+                .WithDescription("(Seznam příkazů pro **mal**)")
                 .WithFields(
                     new EmbedFieldBuilder
                     {
                         IsInline = false,
-                        Name = "Použití -> `~mal anime {\"název\"}`",
-                        Value = "(Prohledá databázi MyAnimeList)"
+                        Name = $"**{prefix}mal anime** název",
+                        Value = "*Prohledá databázi MyAnimeList*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = false,
-                        Name = "Použití -> `~mal manga {\"název\"}`",
-                        Value = "(Prohledá databázi MyAnimeList)"
+                        Name = $"**{prefix}mal manga** název",
+                        Value = "*Prohledá databázi MyAnimeList*"
                     }
                 )
                 .WithFooter(new EmbedFooterBuilder
