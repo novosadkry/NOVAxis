@@ -14,21 +14,21 @@ namespace NOVAxis.Services
     {
         public static event Func<LogMessage, Task> LogEvent;
 
-        private ProgramConfig.DatabaseObject config;
+        public ProgramConfig.DatabaseObject Config { get; }
 
         private string ConnectionString
         {
-            get => string.Format("Data Source={0},{1};Initial Catalog={2};User ID={3};Password={4}", 
-                config.DbHost,
-                config.DbPort,
-                config.DbName, 
-                config.DbUsername,
-                config.DbPassword);
+            get => string.Format("Data Source={0},{1};Initial Catalog={2};User ID={3};Password={4}",
+                Config.DbHost,
+                Config.DbPort,
+                Config.DbName,
+                Config.DbUsername,
+                Config.DbPassword);
         }
 
         public DatabaseService()
         {
-            config = Program.Config.Database;
+            Config = Program.Config.Database;
         }
 
         public async Task<object> GetValue(string query, params MySqlParameter[] arg)

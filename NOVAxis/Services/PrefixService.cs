@@ -4,37 +4,66 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using Discord;
+using Discord.Commands;
+
 using MySql.Data.MySqlClient;
 
 namespace NOVAxis.Services
 {
-    class PrefixService
+    public class PrefixService
     {
-        private static Dictionary<ulong, string> cache = new Dictionary<ulong, string>();
+        public static Dictionary<ulong, string> Cache { get; } = new Dictionary<ulong, string>();
 
-        private DatabaseService db;
+        public string DefaultPrefix { get; }
+
+        private DatabaseService database;
 
         public PrefixService()
         {
-            db = new DatabaseService();
+            database = new DatabaseService();
+            DefaultPrefix = Program.Config.DefaultPrefix;
+        }
+
+        public async Task<string> GetPrefix(ICommandContext context)
+        {
+            if (context.User is IGuildUser && database.Config.Active)
+                return await GetPrefix(context.Guild.Id);
+
+            else
+                return DefaultPrefix;
         }
 
         public async Task<string> GetPrefix(ulong id)
         {
-            if (!cache.ContainsKey(id))
-                cache[id] = (string) await db.GetValue("SELECT Prefix FROM Guilds WHERE Id=@id", 
+            if (!database.Config.Active)
+                throw new InvalidOperationException("Database service is not active");
+
+            if (!Cache.ContainsKey(id))
+                Cache[id] = (string)await database.GetValue("SELECT Prefix FROM Guilds WHERE Id=@id",
                     new MySqlParameter("id", id));
 
-            return cache[id];
+            return Cache[id];
+        }
+
+        public async Task SetPrefix(ICommandContext context, string prefix)
+        {
+            if (context.User.GetType() != typeof(IGuildUser))
+                throw new InvalidCastException("Context user is not a type of IGuildUser");
+
+            await SetPrefix(context.Guild.Id, prefix);
         }
 
         public async Task SetPrefix(ulong id, string prefix)
         {
-            await db.Execute("REPLACE INTO Guilds (Id, Prefix) VALUES (@id, @prefix)",
+            if (!database.Config.Active)
+                throw new InvalidOperationException("Database service is not active");
+
+            await database.Execute("REPLACE INTO Guilds (Id, Prefix) VALUES (@id, @prefix)",
                 new MySqlParameter("id", id),
                 new MySqlParameter("prefix", prefix));
 
-            cache[id] = prefix;
+            Cache[id] = prefix;
         }
     }
 }
