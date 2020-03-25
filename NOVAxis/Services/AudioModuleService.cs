@@ -115,10 +115,11 @@ namespace NOVAxis.Services
                 return;
 
             service.Queue.RemoveAt(0);
-            Context.ContextTrack nextTrack = service.Queue.First();
 
             if (service.Queue.Count > 0)
             {
+                Context.ContextTrack nextTrack = service.Queue.First();
+
                 await player.PlayAsync(nextTrack.Value);
 
                 await service.BoundChannel.SendMessageAsync(embed: new EmbedBuilder()
