@@ -128,7 +128,8 @@ namespace NOVAxis
                         Process.Start(new ProcessStartInfo
                         {
                             FileName = "cmd.exe",
-                            Arguments = "/C java -jar " + Path.Combine(".", "Lavalink", "Lavalink.jar"),
+                            Arguments = "/C java -jar Lavalink.jar",
+                            WorkingDirectory = Path.Combine(".", "Lavalink"),
                             UseShellExecute = true
                         });
                         await Program.Client_Log(new LogMessage(LogSeverity.Info, "Lavalink", "Launching Lavalink node (command prompt)"));
@@ -138,7 +139,8 @@ namespace NOVAxis
                         Process.Start(new ProcessStartInfo
                         {
                             FileName = "/bin/bash",
-                            Arguments = "-c \"screen -dmS novaxis-lavalink java -jar " + Path.Combine(".", "Lavalink", "Lavalink.jar") + "\""
+                            Arguments = "-c \"screen -dmS novaxis-lavalink java -jar Lavalink.jar\"",
+                            WorkingDirectory = Path.Combine(".", "Lavalink")
                         });
                         await Program.Client_Log(new LogMessage(LogSeverity.Info, "Lavalink", "Launching Lavalink node (screen)"));
                         break;
