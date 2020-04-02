@@ -223,10 +223,16 @@ namespace NOVAxis.Modules
         {
             IEnumerable<IMessage> messages = await Context.Channel.GetMessagesAsync(limit).FlattenAsync();
 
-            IMessage msg = (from m in messages
-                            where m.Author == user
-                            orderby m.Timestamp descending
-                            select m).FirstOrDefault();
+            IMessage msg = (user == Context.User) 
+                ? (from m in messages
+                   where m.Author == user
+                   orderby m.Timestamp descending
+                   select m).Skip(1).FirstOrDefault()
+
+                : (from m in messages
+                   where m.Author == user
+                   orderby m.Timestamp descending
+                   select m).FirstOrDefault();
 
             await MoveMessageTo(msg, channel2);
         }
