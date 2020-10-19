@@ -26,7 +26,10 @@ namespace NOVAxis.Modules
             {
                 IVoiceChannel channel = (from ch in Context.Guild.VoiceChannels
                                          where ch.Name.Contains(channelname)
-                                         select ch).Single();
+                                         select ch).FirstOrDefault();
+
+                if (channel == null)
+                    throw new InvalidOperationException();
 
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
@@ -59,7 +62,7 @@ namespace NOVAxis.Modules
                     }
                 }
 
-                await user.ModifyAsync((GuildUserProperties prop) =>
+                await user.ModifyAsync(prop =>
                 {
                     prop.ChannelId = channel.Id;
                 });
@@ -83,7 +86,7 @@ namespace NOVAxis.Modules
 
                 IVoiceChannel channel2 = (from ch in Context.Guild.VoiceChannels
                                           where ch.Name.Contains(channelname)
-                                          select ch).Single();
+                                          select ch).FirstOrDefault();
 
                 if (channel1 == null)
                 {
@@ -94,6 +97,9 @@ namespace NOVAxis.Modules
 
                     return;
                 }
+
+                if (channel2 == null)
+                    throw new InvalidOperationException();
 
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
@@ -130,7 +136,7 @@ namespace NOVAxis.Modules
                         continue;
                     }
 
-                    await u.ModifyAsync((GuildUserProperties prop) =>
+                    await u.ModifyAsync(prop =>
                     {
                         prop.ChannelId = channel2.Id;
                     });
@@ -153,11 +159,14 @@ namespace NOVAxis.Modules
             {
                 IVoiceChannel channel1 = (from ch in Context.Guild.VoiceChannels
                                           where ch.Name.Contains(channelname1)
-                                          select ch).Single();
+                                          select ch).FirstOrDefault();
 
                 IVoiceChannel channel2 = (from ch in Context.Guild.VoiceChannels
                                           where ch.Name.Contains(channelname2)
-                                          select ch).Single();
+                                          select ch).FirstOrDefault();
+
+                if (channel1 == null || channel2 == null)
+                    throw new InvalidOperationException();
 
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
@@ -194,7 +203,7 @@ namespace NOVAxis.Modules
                         continue;
                     }
 
-                    await u.ModifyAsync((GuildUserProperties prop) =>
+                    await u.ModifyAsync(prop =>
                     {
                         prop.ChannelId = channel2.Id;
                     });
