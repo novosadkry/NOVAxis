@@ -1,12 +1,7 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using System.Diagnostics;
-
 using Microsoft.Extensions.DependencyInjection;
 
 using Discord;
@@ -27,6 +22,7 @@ namespace NOVAxis
         public static ProgramConfig Config { get; private set; }
 
         public static short ShardsReady { get; private set; } = 0;
+        public static ulong OwnerId => 269182357704015873L;
 
         public static string Version
         {
