@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 
 using Discord;
+using Discord.Addons.Interactive;
 using Discord.Commands;
 
 namespace NOVAxis.Modules
@@ -10,7 +11,7 @@ namespace NOVAxis.Modules
     [Group("clear")]
     [RequireContext(ContextType.Guild)]
     [RequireUserPermission(GuildPermission.ManageMessages)]
-    public class ClearModule : ModuleBase<SocketCommandContext>
+    public class ClearModule : InteractiveBase<SocketCommandContext>
     {
         [Command, Summary("Clears a number of the last sent messages")]
         public async Task Purge(int numberOfMessages)
@@ -26,15 +27,11 @@ namespace NOVAxis.Modules
 
                 await ((ITextChannel)Context.Channel).DeleteMessagesAsync(messages);
 
-                IMessage message = await ReplyAsync(embed: new EmbedBuilder()
+                await ReplyAndDeleteAsync(null, embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithTitle($"Mé jádro úspěšně vymazalo z existence **{messages.Count}** zpráv" +
-                        (messages.Count == 1 ? "u" : Enumerable.Range(1, 4).Contains(messages.Count) ? "y" : "")).Build());
-
-                await Task.Delay(5000);
-
-                try { await message.DeleteAsync(); }
-                catch (Discord.Net.HttpException) { }
+                        (messages.Count == 1 ? "u" : Enumerable.Range(1, 4).Contains(messages.Count) ? "y" : "")).Build(),
+                    timeout: TimeSpan.FromSeconds(5));
             }
 
             catch (Exception e)

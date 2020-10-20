@@ -4,12 +4,13 @@ using System.Threading.Tasks;
 using NOVAxis.Services;
 
 using Discord;
+using Discord.Addons.Interactive;
 using Discord.Commands;
 
 namespace NOVAxis.Modules
 {
     [Group("help"), Alias("?")]
-    public class HelpModule : ModuleBase<SocketCommandContext>
+    public class HelpModule : InteractiveBase<SocketCommandContext>
     {
         public PrefixService PrefixService { get; set; }
 
@@ -19,17 +20,13 @@ namespace NOVAxis.Modules
             {
                 await Context.Message.DeleteAsync();
 
-                IMessage message = await ReplyAsync(embed: new EmbedBuilder()
+                await ReplyAndDeleteAsync(null, embed: new EmbedBuilder()
                     .WithAuthor(Context.User.Username, Context.User.GetAvatarUrl())
                     .WithColor(new Color(52, 231, 231))
-                    .WithTitle($"Seznam příkazů byl úspěšně poslán do přímé zprávy").Build());
+                    .WithTitle("Seznam příkazů byl úspěšně poslán do přímé zprávy").Build(), 
+                    timeout: TimeSpan.FromSeconds(5));
 
                 await Context.User.SendMessageAsync(embed: embed);
-
-                await Task.Delay(5000);
-
-                try { await message.DeleteAsync(); }
-                catch (Discord.Net.HttpException) { }
             }
 
             else
