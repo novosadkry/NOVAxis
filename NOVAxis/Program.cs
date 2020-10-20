@@ -162,7 +162,7 @@ namespace NOVAxis
             if (context.Message == null) return;
             if (context.User.IsBot) return;
 
-            string prefix = await new Services.PrefixService().GetPrefix(context);
+            string prefix = await _services.GetService<Services.PrefixService>().GetPrefix(context);
 
             int argPos = 0;
             if (!(context.Message.HasStringPrefix(prefix, ref argPos) || 
