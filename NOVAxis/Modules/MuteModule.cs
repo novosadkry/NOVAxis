@@ -1,12 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Linq;
 using System.Threading.Tasks;
 
 using Discord;
 using Discord.Commands;
-using Discord.WebSocket;
 
 namespace NOVAxis.Modules
 {
@@ -50,9 +46,7 @@ namespace NOVAxis.Modules
                 role = await Context.Guild.CreateRoleAsync("Muted", new GuildPermissions(), new Color(0x818386));
 
                 foreach (ITextChannel channel in Context.Guild.TextChannels)
-                {
                     await channel.AddPermissionOverwriteAsync(role, new OverwritePermissions(sendMessages: PermValue.Deny));
-                }
 
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
