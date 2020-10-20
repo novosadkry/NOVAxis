@@ -1,14 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 using NOVAxis.Services;
 
 using Discord;
 using Discord.Commands;
-using Discord.WebSocket;
 
 namespace NOVAxis.Modules
 {
@@ -23,7 +19,7 @@ namespace NOVAxis.Modules
             {
                 await Context.Message.DeleteAsync();
 
-                IMessage _message = await ReplyAsync(embed: new EmbedBuilder()
+                IMessage message = await ReplyAsync(embed: new EmbedBuilder()
                     .WithAuthor(Context.User.Username, Context.User.GetAvatarUrl())
                     .WithColor(new Color(52, 231, 231))
                     .WithTitle($"Seznam příkazů byl úspěšně poslán do přímé zprávy").Build());
@@ -32,7 +28,7 @@ namespace NOVAxis.Modules
 
                 await Task.Delay(5000);
 
-                try { await _message.DeleteAsync(); }
+                try { await message.DeleteAsync(); }
                 catch (Discord.Net.HttpException) { }
             }
 
@@ -102,7 +98,7 @@ namespace NOVAxis.Modules
                 )
                 .WithFooter(new EmbedFooterBuilder
                 {
-                    IconUrl = Context.Client.GetUser("novosadkry", "8045").GetAvatarUrl(),
+                    IconUrl = Context.Client.GetUser(Program.OwnerId).GetAvatarUrl(),
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
                 });
 
@@ -136,7 +132,7 @@ namespace NOVAxis.Modules
                 )
                 .WithFooter(new EmbedFooterBuilder
                 {
-                    IconUrl = Context.Client.GetUser("novosadkry", "8045").GetAvatarUrl(),
+                    IconUrl = Context.Client.GetUser(Program.OwnerId).GetAvatarUrl(),
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
                 });
 
@@ -192,7 +188,7 @@ namespace NOVAxis.Modules
                 )
                 .WithFooter(new EmbedFooterBuilder
                 {
-                    IconUrl = Context.Client.GetUser("novosadkry", "8045").GetAvatarUrl(),
+                    IconUrl = Context.Client.GetUser(Program.OwnerId).GetAvatarUrl(),
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
                 });
 
@@ -310,7 +306,7 @@ namespace NOVAxis.Modules
                 )
                 .WithFooter(new EmbedFooterBuilder
                 {
-                    IconUrl = Context.Client.GetUser("novosadkry", "8045").GetAvatarUrl(),
+                    IconUrl = Context.Client.GetUser(Program.OwnerId).GetAvatarUrl(),
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
                 });
 
@@ -345,7 +341,7 @@ namespace NOVAxis.Modules
                 )
                 .WithFooter(new EmbedFooterBuilder
                 {
-                    IconUrl = Context.Client.GetUser("novosadkry", "8045").GetAvatarUrl(),
+                    IconUrl = Context.Client.GetUser(Program.OwnerId).GetAvatarUrl(),
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
                 });
 
@@ -380,7 +376,7 @@ namespace NOVAxis.Modules
                 )
                 .WithFooter(new EmbedFooterBuilder
                 {
-                    IconUrl = Context.Client.GetUser("novosadkry", "8045").GetAvatarUrl(),
+                    IconUrl = Context.Client.GetUser(Program.OwnerId).GetAvatarUrl(),
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
                 });
 
