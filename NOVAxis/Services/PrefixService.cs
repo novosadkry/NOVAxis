@@ -25,7 +25,7 @@ namespace NOVAxis.Services
 
         public async Task<string> GetPrefix(ICommandContext context)
         {
-            if (context.User is IGuildUser && db.Config.Active)
+            if (context.User is IGuildUser)
                 return await GetPrefix(context.Guild.Id);
 
             return DefaultPrefix;
@@ -33,12 +33,14 @@ namespace NOVAxis.Services
 
         public async Task<string> GetPrefix(ulong id)
         {
-            if (!db.Config.Active)
-                throw new InvalidOperationException("Database service is not active");
-
             if (!Cache.ContainsKey(id))
-                Cache[id] = (string)await db.GetValue("SELECT Prefix FROM Guilds WHERE Id=@id",
-                    new MySqlParameter("id", id));
+            {
+                Cache[id] = db.Config.Active
+                    ? Cache[id] = (string) await db.GetValue(
+                        "SELECT Prefix FROM Guilds WHERE Id=@id", 
+                        new MySqlParameter("id", id))
+                    : DefaultPrefix;
+            }
 
             return Cache[id];
         }
@@ -53,12 +55,12 @@ namespace NOVAxis.Services
 
         public async Task SetPrefix(ulong id, string prefix)
         {
-            if (!db.Config.Active)
-                throw new InvalidOperationException("Database service is not active");
-
-            await db.Execute("REPLACE INTO Guilds (Id, Prefix) VALUES (@id, @prefix)",
-                new MySqlParameter("id", id),
-                new MySqlParameter("prefix", prefix));
+            if (db.Config.Active)
+            {
+                await db.Execute("REPLACE INTO Guilds (Id, Prefix) VALUES (@id, @prefix)", 
+                    new MySqlParameter("id", id),
+                    new MySqlParameter("prefix", prefix));
+            }
 
             Cache[id] = prefix;
         }
