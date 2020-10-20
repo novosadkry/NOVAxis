@@ -3,17 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Web;
 using System.Net;
-
-using NOVAxis.Preconditions;
 
 using Discord;
 using Discord.Commands;
-using Discord.WebSocket;
 using Discord.Addons.Interactive;
 
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace NOVAxis.Modules
@@ -50,49 +45,35 @@ namespace NOVAxis.Modules
                 public class Anime : MALResult
                 {
                     public bool airing { get; set; }
-                    public string aired
-                    {
-                        get => base.published;
-                    }
+                    public string aired => base.published;
 
                     public int episodes { get; set; }
                     public string rated { get; set; }
 
-                    protected override string api
-                    {
-                        get => string.Format(API, "anime/{0}");
-                    }
+                    protected override string api => string.Format(API, "anime/{0}");
                 }
 
                 public class Manga : MALResult
                 {
                     public bool publishing { get; set; }
-                    public new string published
-                    {
-                        get => base.published;
-                    }
+                    public new string published => base.published;
 
                     public int chapters { get; set; }
                     public int volumes { get; set; }
 
-                    protected override string api
-                    {
-                        get => string.Format(API, "manga/{0}");
-                    }
+                    protected override string api => string.Format(API, "manga/{0}");
                 }
 
-                protected virtual string published
-                {
-                    get => $"from `{start_date?.ToShortDateString() ?? "?"}`\n" +
-                        $"to `{end_date?.ToShortDateString() ?? "?"}`";
-                }
+                protected virtual string published =>
+                    $"from `{start_date?.ToShortDateString() ?? "?"}`\n" +
+                    $"to `{end_date?.ToShortDateString() ?? "?"}`";
 
                 public virtual async Task<Info> GetInfo()
                 {
                     string api = string.Format(this.api, mal_id);
                     api = Uri.EscapeUriString(api);
 
-                    using (WebClient client = new WebClient() { Encoding = Encoding.UTF8 })
+                    using (WebClient client = new WebClient { Encoding = Encoding.UTF8 })
                     {
                         Task<string> result = client.DownloadStringTaskAsync(api);
                         return JObject.Parse(await result).ToObject<Info>();
@@ -136,33 +117,29 @@ namespace NOVAxis.Modules
             {
                 T element = results[i];
 
-                if (element is MALJson.MALResult.Anime)
+                if (element is MALJson.MALResult.Anime anime)
                 {
-                    var mal = element as MALJson.MALResult.Anime;
-
                     embedFields[i] = new EmbedFieldBuilder
                     {
-                        Name = $"**[{i + 1}]** {mal.title}",
+                        Name = $"**[{i + 1}]** {anime.title}",
                         IsInline = false,
-                        Value = $"*({mal.start_date?.Year.ToString() ?? "?"})* " +
-                        $"{mal.type} : {(mal.airing ? "Airing" : "Finished")} " +
-                        $"| Episodes: {mal.episodes} " +
-                        $"| Score: {mal.score}/10"
+                        Value = $"*({anime.start_date?.Year.ToString() ?? "?"})* " +
+                        $"{anime.type} : {(anime.airing ? "Airing" : "Finished")} " +
+                        $"| Episodes: {anime.episodes} " +
+                        $"| Score: {anime.score}/10"
                     };
                 }
 
-                else if (element is MALJson.MALResult.Manga)
+                else if (element is MALJson.MALResult.Manga manga)
                 {
-                    var mal = element as MALJson.MALResult.Manga;
-
                     embedFields[i] = new EmbedFieldBuilder
                     {
-                        Name = $"**[{i + 1}]** {mal.title}",
+                        Name = $"**[{i + 1}]** {manga.title}",
                         IsInline = false,
-                        Value = $"*({mal.start_date?.Year.ToString() ?? "?"})* " +
-                        $"{mal.type} : {(mal.publishing ? "Publishing" : "Finished")} " +
-                        $"| Volumes: {mal.volumes} " +
-                        $"| Score: {mal.score}/10"
+                        Value = $"*({manga.start_date?.Year.ToString() ?? "?"})* " +
+                        $"{manga.type} : {(manga.publishing ? "Publishing" : "Finished")} " +
+                        $"| Volumes: {manga.volumes} " +
+                        $"| Score: {manga.score}/10"
                     };
                 }
 
@@ -186,8 +163,8 @@ namespace NOVAxis.Modules
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
-                    .WithDescription($"(Argument musí být delší než tři znaky)")
-                    .WithTitle($"Mé jádro nebylo schopno příjmout daný prvek").Build());
+                    .WithDescription("(Argument musí být delší než tři znaky)")
+                    .WithTitle("Mé jádro nebylo schopno příjmout daný prvek").Build());
 
                 return;
             }
@@ -196,7 +173,7 @@ namespace NOVAxis.Modules
             api = string.Format(api, name, limit);
             api = Uri.EscapeUriString(api);
 
-            using (WebClient client = new WebClient() { Encoding = Encoding.UTF8 })
+            using (WebClient client = new WebClient { Encoding = Encoding.UTF8 })
             {
                 try
                 {
@@ -293,7 +270,7 @@ namespace NOVAxis.Modules
                             embed: new EmbedBuilder()
                             .WithColor(220, 20, 60)
                             .WithDescription($"({e.Message})")
-                            .WithTitle($"Mé jádro přerušilo čekání na lidský vstup").Build());
+                            .WithTitle("Mé jádro přerušilo čekání na lidský vstup").Build());
                     }              
                 }
 
@@ -302,7 +279,7 @@ namespace NOVAxis.Modules
                     await ReplyAsync(embed: new EmbedBuilder()
                         .WithColor(220, 20, 60)
                         .WithDescription($"({e.Message})")
-                        .WithTitle($"V databázi serveru MyAnimeList.net nebyla nalezena shoda").Build());
+                        .WithTitle("V databázi serveru MyAnimeList.net nebyla nalezena shoda").Build());
                 }
             }
         }
@@ -316,8 +293,8 @@ namespace NOVAxis.Modules
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
-                    .WithDescription($"(Argument musí být delší než tři znaky)")
-                    .WithTitle($"Mé jádro nebylo schopno příjmout daný prvek").Build());
+                    .WithDescription("(Argument musí být delší než tři znaky)")
+                    .WithTitle("Mé jádro nebylo schopno příjmout daný prvek").Build());
 
                 return;
             }
@@ -326,7 +303,7 @@ namespace NOVAxis.Modules
             api = string.Format(api, name, limit);
             api = Uri.EscapeUriString(api);
 
-            using (WebClient client = new WebClient() { Encoding = Encoding.UTF8 })
+            using (WebClient client = new WebClient { Encoding = Encoding.UTF8 })
             {
                 try
                 {
@@ -423,7 +400,7 @@ namespace NOVAxis.Modules
                             embed: new EmbedBuilder()
                             .WithColor(220, 20, 60)
                             .WithDescription($"({e.Message})")
-                            .WithTitle($"Mé jádro přerušilo čekání na lidský vstup").Build());
+                            .WithTitle("Mé jádro přerušilo čekání na lidský vstup").Build());
                     }
                 }
 
@@ -432,7 +409,7 @@ namespace NOVAxis.Modules
                     await ReplyAsync(embed: new EmbedBuilder()
                         .WithColor(220, 20, 60)
                         .WithDescription($"({e.Message})")
-                        .WithTitle($"V databázi serveru MyAnimeList.net nebyla nalezena shoda").Build());
+                        .WithTitle("V databázi serveru MyAnimeList.net nebyla nalezena shoda").Build());
                 }
             }
         }

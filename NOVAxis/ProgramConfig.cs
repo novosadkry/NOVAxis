@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 using Discord;
@@ -45,7 +42,7 @@ namespace NOVAxis
             public LogSeverity Severity { get; set; }
         }
 
-        private const string configPath = @"config.json";
+        private const string ConfigPath = @"config.json";
 
         public string LoginToken { get; set; }
         public string DefaultPrefix { get; set; }
@@ -98,16 +95,16 @@ namespace NOVAxis
 
         public static event Func<LogMessage, Task> LogEvent;
 
-        public async static Task<ProgramConfig> LoadConfig()
+        public static async Task<ProgramConfig> LoadConfig()
         {
             try
             {
-                return JsonConvert.DeserializeObject<ProgramConfig>(File.ReadAllText(configPath));
+                return JsonConvert.DeserializeObject<ProgramConfig>(await File.ReadAllTextAsync(ConfigPath));
             }
 
             catch (FileNotFoundException)
             {
-                await LogEvent(new LogMessage(LogSeverity.Warning, "Program", $"Config file ({configPath}) not found"));
+                await LogEvent(new LogMessage(LogSeverity.Warning, "Program", $"Config file ({ConfigPath}) not found"));
                 await LogEvent(new LogMessage(LogSeverity.Info, "Program", "Forcing config reset"));
                 await ResetConfig();
 
@@ -115,12 +112,12 @@ namespace NOVAxis
             }
         }
 
-        public async static Task SaveConfig(ProgramConfig config)
+        public static async Task SaveConfig(ProgramConfig config)
         {
-            await Task.Run(() => File.WriteAllText(configPath, JsonConvert.SerializeObject(config, Formatting.Indented)));
+            await Task.Run(() => File.WriteAllText(ConfigPath, JsonConvert.SerializeObject(config, Formatting.Indented)));
         }
 
-        public async static Task ResetConfig()
+        public static async Task ResetConfig()
         {
             await SaveConfig(new ProgramConfig());
         }

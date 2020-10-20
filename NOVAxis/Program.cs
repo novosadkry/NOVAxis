@@ -15,19 +15,17 @@ namespace NOVAxis
 {
     class Program
     {  
-        private static CommandService commandService;
-        private static IServiceProvider services;
+        private static CommandService _commandService;
+        private static IServiceProvider _services;
 
         public static DiscordShardedClient Client { get; private set; }
         public static ProgramConfig Config { get; private set; }
 
-        public static short ShardsReady { get; private set; } = 0;
+        public static short ShardsReady { get; private set; }
         public static ulong OwnerId => 269182357704015873L;
 
-        public static string Version
-        {
-            get => Assembly.GetExecutingAssembly().GetName().Version.ToString().Substring(0, 5);
-        }
+        public static string Version 
+            => Assembly.GetExecutingAssembly().GetName().Version.ToString().Substring(0, 5);
 
         public static void Main(string[] args)
             => MainAsync().GetAwaiter().GetResult();
@@ -46,7 +44,7 @@ namespace NOVAxis
                 ExclusiveBulkDelete = true
             });
 
-            commandService = new CommandService(new CommandServiceConfig
+            _commandService = new CommandService(new CommandServiceConfig
             {
                 CaseSensitiveCommands = false,
                 DefaultRunMode = RunMode.Async,
@@ -66,16 +64,16 @@ namespace NOVAxis
             Services.LavalinkService.Manager.Log += Client_Log;
             Services.DatabaseService.LogEvent += Client_Log;
 
-            services = new ServiceCollection()
+            _services = new ServiceCollection()
                 .AddSingleton(new Services.AudioModuleService())
                 .AddSingleton(new Services.DatabaseService())
                 .AddSingleton(new Services.PrefixService())
                 .AddSingleton(new InteractiveService((BaseSocketClient)Client))
                 .BuildServiceProvider();
 
-            commandService.CommandExecuted += CommandService_CommandExecuted;
-            commandService.AddTypeReader(typeof(TimeSpan), new TypeReaders.AudioModuleTypeReader());
-            await commandService.AddModulesAsync(Assembly.GetEntryAssembly(), services);
+            _commandService.CommandExecuted += CommandService_CommandExecuted;
+            _commandService.AddTypeReader(typeof(TimeSpan), new TypeReaders.AudioModuleTypeReader());
+            await _commandService.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
             
             Client.MessageReceived += Client_MessageReceived;
             Client.ShardReady += Client_Ready;
@@ -145,7 +143,7 @@ namespace NOVAxis
                 await ProgramLog.ToFile(arg);
         }
 
-        private async static Task Client_Ready(DiscordSocketClient shard)
+        private static async Task Client_Ready(DiscordSocketClient shard)
         {
             await Client_Log(new LogMessage(LogSeverity.Info, "Shard #" + shard.ShardId, "Ready"));
             
@@ -156,7 +154,7 @@ namespace NOVAxis
             }
         }
 
-        private async static Task Client_MessageReceived(SocketMessage arg)
+        private static async Task Client_MessageReceived(SocketMessage arg)
         {
             SocketUserMessage message = (SocketUserMessage)arg;
             ShardedCommandContext context = new ShardedCommandContext(Client, message);   
@@ -188,10 +186,10 @@ namespace NOVAxis
                     return;
             }
 
-            await commandService.ExecuteAsync(context, argPos, services);
+            await _commandService.ExecuteAsync(context, argPos, _services);
         }
 
-        private async static Task CommandService_CommandExecuted(Optional<CommandInfo> info, ICommandContext context, IResult result)
+        private static async Task CommandService_CommandExecuted(Optional<CommandInfo> info, ICommandContext context, IResult result)
         {
             if (!result.IsSuccess)
             {

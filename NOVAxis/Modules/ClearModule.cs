@@ -1,12 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 using Discord;
 using Discord.Commands;
-using Discord.WebSocket;
 
 namespace NOVAxis.Modules
 {
@@ -22,25 +19,21 @@ namespace NOVAxis.Modules
             {
                 await Context.Message.DeleteAsync();
 
-                IEnumerable<IMessage> messages = await Context.Channel.GetMessagesAsync(numberOfMessages).FlattenAsync();
+                var messages = (await Context.Channel.GetMessagesAsync(numberOfMessages).FlattenAsync()).ToList();
 
-                messages = messages.Where((x) =>
-                {
-                    return DateTime.UtcNow - x.Timestamp.UtcDateTime <= TimeSpan.FromDays(14);
-                });
-
-                int _messagesCount = messages.Count();
+                // Removes messages older than 14 days due to Discord API limitations
+                messages.RemoveAll(m => DateTime.UtcNow - m.Timestamp.UtcDateTime > TimeSpan.FromDays(14));
 
                 await ((ITextChannel)Context.Channel).DeleteMessagesAsync(messages);
 
-                IMessage _message = await ReplyAsync(embed: new EmbedBuilder()
+                IMessage message = await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
-                    .WithTitle($"Mé jádro úspěšně vymazalo z existence **{_messagesCount}** zpráv" +
-                        ((_messagesCount == 1) ? "u" : (Enumerable.Range(1, 4).Contains(_messagesCount) ? "y" : ""))).Build());
+                    .WithTitle($"Mé jádro úspěšně vymazalo z existence **{messages.Count}** zpráv" +
+                        (messages.Count == 1 ? "u" : Enumerable.Range(1, 4).Contains(messages.Count) ? "y" : "")).Build());
 
                 await Task.Delay(5000);
 
-                try { await _message.DeleteAsync(); }
+                try { await message.DeleteAsync(); }
                 catch (Discord.Net.HttpException) { }
             }
 

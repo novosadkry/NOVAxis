@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 using Discord;
@@ -17,30 +15,29 @@ namespace NOVAxis.Services
 
         public string DefaultPrefix { get; }
 
-        private DatabaseService database;
+        private DatabaseService db;
 
         public PrefixService()
         {
-            database = new DatabaseService();
+            db = new DatabaseService();
             DefaultPrefix = Program.Config.DefaultPrefix;
         }
 
         public async Task<string> GetPrefix(ICommandContext context)
         {
-            if (context.User is IGuildUser && database.Config.Active)
+            if (context.User is IGuildUser && db.Config.Active)
                 return await GetPrefix(context.Guild.Id);
 
-            else
-                return DefaultPrefix;
+            return DefaultPrefix;
         }
 
         public async Task<string> GetPrefix(ulong id)
         {
-            if (!database.Config.Active)
+            if (!db.Config.Active)
                 throw new InvalidOperationException("Database service is not active");
 
             if (!Cache.ContainsKey(id))
-                Cache[id] = (string)await database.GetValue("SELECT Prefix FROM Guilds WHERE Id=@id",
+                Cache[id] = (string)await db.GetValue("SELECT Prefix FROM Guilds WHERE Id=@id",
                     new MySqlParameter("id", id));
 
             return Cache[id];
@@ -56,10 +53,10 @@ namespace NOVAxis.Services
 
         public async Task SetPrefix(ulong id, string prefix)
         {
-            if (!database.Config.Active)
+            if (!db.Config.Active)
                 throw new InvalidOperationException("Database service is not active");
 
-            await database.Execute("REPLACE INTO Guilds (Id, Prefix) VALUES (@id, @prefix)",
+            await db.Execute("REPLACE INTO Guilds (Id, Prefix) VALUES (@id, @prefix)",
                 new MySqlParameter("id", id),
                 new MySqlParameter("prefix", prefix));
 

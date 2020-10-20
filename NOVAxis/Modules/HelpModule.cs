@@ -350,7 +350,7 @@ namespace NOVAxis.Modules
         }
 
         [Command("mal"), Alias("Mal", "MyAnimeList", "myanimelist"), Summary("Shows command list for MAL")]
-        public async Task ShowMALHelp()
+        public async Task ShowMalHelp()
         {
             string prefix = await PrefixService.GetPrefix(Context);
 

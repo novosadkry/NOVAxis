@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 using Discord;
@@ -10,19 +8,19 @@ using Discord.WebSocket;
 
 namespace NOVAxis.Preconditions
 {
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true, Inherited = true)]
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
     class RequireRoleAttribute : PreconditionAttribute
     {
-        private readonly string[] roles;
+        private readonly string[] _roles;
 
         public RequireRoleAttribute(string name)
         {
-            roles = new string[] { name };
+            _roles = new[] { name };
         }
 
         public RequireRoleAttribute(string[] names)
         {
-            roles = names;
+            _roles = names;
         }
 
         public override Task<PreconditionResult> CheckPermissionsAsync(ICommandContext context, CommandInfo command, IServiceProvider services)
@@ -31,7 +29,7 @@ namespace NOVAxis.Preconditions
             {
                 bool match = true;
 
-                foreach (string name in roles)
+                foreach (string name in _roles)
                 {
                     IRole role = (from r in context.Guild.Roles
                                   where r.Name.Contains(name)
@@ -41,15 +39,13 @@ namespace NOVAxis.Preconditions
                         match = false;
                 }
 
-                if (match)
-                    return Task.FromResult(PreconditionResult.FromSuccess());
 
-                else
-                    return Task.FromResult(PreconditionResult.FromError($"User requires guild role '{string.Join(", ", roles)}'"));
+                return match 
+                    ? Task.FromResult(PreconditionResult.FromSuccess())
+                    : Task.FromResult(PreconditionResult.FromError($"User requires guild role '{string.Join(", ", _roles)}'"));
             }
 
-            else
-                return Task.FromResult(PreconditionResult.FromError("Invalid context for command"));
+            return Task.FromResult(PreconditionResult.FromError("Invalid context for command"));
         }
     }
 }

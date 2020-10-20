@@ -452,7 +452,7 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            if (player?.CurrentTrack.Length < time)
+            if (player.CurrentTrack.Length < time)
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
@@ -504,7 +504,7 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            TimeSpan newTime = TimeSpan.FromSeconds(player.CurrentPosition / 1000) + time;
+            TimeSpan newTime = TimeSpan.FromSeconds(player.CurrentPosition / 1000d) + time;
 
             if (newTime > player.CurrentTrack.Length)
                 newTime = player.CurrentTrack.Length;
@@ -541,7 +541,7 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            TimeSpan newTime = TimeSpan.FromSeconds(player.CurrentPosition / 1000) - time;
+            TimeSpan newTime = TimeSpan.FromSeconds(player.CurrentPosition / 1000d) - time;
 
             if (newTime < TimeSpan.Zero)
                 newTime = TimeSpan.Zero;
@@ -620,7 +620,7 @@ namespace NOVAxis.Modules
                         new EmbedFieldBuilder
                         {
                             Name = "Pozice:",
-                            Value = $"`{TimeSpan.FromSeconds(player.CurrentPosition / 1000)} / {player.CurrentTrack.Length}`",
+                            Value = $"`{TimeSpan.FromSeconds(player.CurrentPosition / 1000d)} / {player.CurrentTrack.Length}`",
                             IsInline = true
                         },
 

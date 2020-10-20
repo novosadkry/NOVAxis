@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 using MySql.Data.MySqlClient;
@@ -48,9 +45,7 @@ namespace NOVAxis.Services
                     if (reader.HasRows)
                     {
                         while (await reader.ReadAsync())
-                        {
                             result = reader.GetValue(0);
-                        }
                     }
                 }
             }
@@ -75,9 +70,7 @@ namespace NOVAxis.Services
                     if (reader.HasRows)
                     {
                         while (await reader.ReadAsync())
-                        {
                             reader.GetValues(result);
-                        }
                     }
                 }
             }

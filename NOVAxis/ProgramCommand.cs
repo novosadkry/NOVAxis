@@ -1,16 +1,11 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Reflection;
 using System.IO;
 
 using Discord;
-using Discord.Commands;
-using Discord.WebSocket;
 
 namespace NOVAxis
 {

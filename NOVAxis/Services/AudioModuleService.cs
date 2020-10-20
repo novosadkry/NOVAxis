@@ -23,7 +23,7 @@ namespace NOVAxis.Services
             {
                 public LavalinkTrack Value { get; set; }
                 public IUser RequestedBy { get; set; }
-                public string ThumbnailUrl { get => Value.GetThumbnailUrl(); }
+                public string ThumbnailUrl => Value.GetThumbnailUrl();
 
                 public static implicit operator LavalinkTrack(ContextTrack track)
                 {    
@@ -33,31 +33,33 @@ namespace NOVAxis.Services
 
             public class ContextTimer
             {
-                private Timer timer;
-                public bool IsSet { get; private set; } = false;
-                public bool Elapsed { get; private set; } = false;
+                private Timer _timer;
+                public bool IsSet { get; private set; }
+                public bool Elapsed { get; private set; }
 
                 public void Set(double interval, ElapsedEventHandler elapsedEvent)
                 {
-                    timer = new Timer(interval);
-                    timer.Elapsed += (sender, e) => Elapsed = true;
-                    timer.Elapsed += elapsedEvent;
+                    _timer = new Timer(interval);
+                    _timer.Elapsed += (sender, e) => Elapsed = true;
+                    _timer.Elapsed += elapsedEvent;
+
                     IsSet = true;
                 }
 
                 public void Reset()
                 {
-                    timer.Stop();
-                    timer.Start();
+                    _timer.Stop();
+                    _timer.Start();
+
                     Elapsed = false;
                 }
 
-                public void Start() => timer.Start();
-                public void Stop() => timer.Stop();
+                public void Start() => _timer.Start();
+                public void Stop() => _timer.Stop();
 
                 public void Dispose() 
                 { 
-                    timer.Dispose(); 
+                    _timer.Dispose(); 
                     IsSet = false; 
                     Elapsed = false; 
                 }
@@ -69,8 +71,8 @@ namespace NOVAxis.Services
 
             public ContextTimer Timer { get; set; } = new ContextTimer();
 
-            public ContextTrack CurrentTrack { get => Queue.First(); }
-            public ContextTrack LastTrack { get => Queue.Last(); }
+            public ContextTrack CurrentTrack => Queue.First();
+            public ContextTrack LastTrack => Queue.Last();
 
             public uint Volume { get; set; } = 100;
             public ulong GuildId { get; }
