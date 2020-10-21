@@ -11,16 +11,16 @@ namespace NOVAxis.Preconditions
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
     class RequireRoleAttribute : PreconditionAttribute
     {
-        private readonly string[] _roles;
+        private readonly string[] _requiredRoles;
 
         public RequireRoleAttribute(string name)
         {
-            _roles = new[] { name };
+            _requiredRoles = new[] { name };
         }
 
         public RequireRoleAttribute(string[] names)
         {
-            _roles = names;
+            _requiredRoles = names;
         }
 
         public override Task<PreconditionResult> CheckPermissionsAsync(ICommandContext context, CommandInfo command, IServiceProvider services)
@@ -29,20 +29,23 @@ namespace NOVAxis.Preconditions
             {
                 bool match = true;
 
-                foreach (string name in _roles)
+                foreach (string role in _requiredRoles)
                 {
-                    IRole role = (from r in context.Guild.Roles
-                                  where r.Name.Contains(name)
-                                  select r).Single();
+                    IRole guildRole = (from r in context.Guild.Roles
+                                  where r.Name.Contains(role)
+                                  select r).FirstOrDefault();
 
-                    if (!user.Roles.Contains(role))
+                    if (guildRole == null)
+                        continue;
+
+                    if (!user.Roles.Contains(guildRole))
                         match = false;
                 }
 
 
                 return match 
                     ? Task.FromResult(PreconditionResult.FromSuccess())
-                    : Task.FromResult(PreconditionResult.FromError($"User requires guild role '{string.Join(", ", _roles)}'"));
+                    : Task.FromResult(PreconditionResult.FromError($"User requires guild role '{string.Join(", ", _requiredRoles)}'"));
             }
 
             return Task.FromResult(PreconditionResult.FromError("Invalid context for command"));
