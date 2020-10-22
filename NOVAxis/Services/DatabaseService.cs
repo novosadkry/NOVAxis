@@ -15,7 +15,7 @@ namespace NOVAxis.Services
 
         private string ConnectionString
         {
-            get => string.Format("Data Source={0},{1};Initial Catalog={2};User ID={3};Password={4}",
+            get => string.Format("Server={0};Port={1};Database={2};Uid={3};Pwd={4}",
                 Config.DbHost,
                 Config.DbPort,
                 Config.DbName,
