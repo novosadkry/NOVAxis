@@ -14,8 +14,8 @@ namespace NOVAxis.Services
         public class GuildInfo
         {
             public string Prefix { get; set; }
-            public ulong MuteGroup { get; set; }
-            public ulong DjGroup { get; set; }
+            public ulong MuteRole { get; set; }
+            public ulong DjRole { get; set; }
         }
 
         private Dictionary<ulong, GuildInfo> cache;
@@ -46,14 +46,14 @@ namespace NOVAxis.Services
                 if (db.Config.Active)
                 {
                     var result = await db.GetValues(
-                        "SELECT Prefix, MuteGroup, DjGroup FROM Guilds WHERE Id=@id",
+                        "SELECT Prefix, MuteRole, DjRole FROM Guilds WHERE Id=@id",
                         new MySqlParameter("id", id));
 
                     info = new GuildInfo
                     {
                         Prefix = (string)(result?[0] ?? DefaultPrefix),
-                        MuteGroup = (ulong)(result?[1] ?? 0UL),
-                        DjGroup = (ulong)(result?[2] ?? 0UL)
+                        MuteRole = (ulong)(result?[1] ?? 0UL),
+                        DjRole = (ulong)(result?[2] ?? 0UL)
                     };
                 }
 
@@ -62,8 +62,8 @@ namespace NOVAxis.Services
                     info = new GuildInfo
                     {
                         Prefix = DefaultPrefix,
-                        MuteGroup = 0,
-                        DjGroup = 0
+                        MuteRole = 0,
+                        DjRole = 0
                     };
                 }
 
@@ -86,11 +86,11 @@ namespace NOVAxis.Services
             if (db.Config.Active)
             {
                 await db.Execute(
-                    "UPDATE Guilds SET Prefix = @prefix, MuteGroup = @muteGroup, DjGroup = @djGroup WHERE Id=@id",
+                    "UPDATE Guilds SET Prefix = @prefix, MuteRole = @muteRole, DjRole = @djRole WHERE Id=@id",
                     new MySqlParameter("id", id),
                     new MySqlParameter("prefix", info.Prefix),
-                    new MySqlParameter("muteGroup", info.MuteGroup),
-                    new MySqlParameter("djGroup", info.DjGroup));
+                    new MySqlParameter("muteRole", info.MuteRole),
+                    new MySqlParameter("djRole", info.DjRole));
             }
 
             cache[id] = info;
