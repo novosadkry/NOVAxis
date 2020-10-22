@@ -51,9 +51,9 @@ namespace NOVAxis.Services
 
                     info = new GuildInfo
                     {
-                        Prefix = (string)result[0],
-                        MuteGroup = (ulong)result[1],
-                        DjGroup = (ulong)result[2]
+                        Prefix = (string)(result?[0] ?? DefaultPrefix),
+                        MuteGroup = (ulong)(result?[1] ?? 0UL),
+                        DjGroup = (ulong)(result?[2] ?? 0UL)
                     };
                 }
 
