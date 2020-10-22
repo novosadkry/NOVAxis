@@ -12,7 +12,7 @@ namespace NOVAxis.Modules
     [Group("help"), Alias("?")]
     public class HelpModule : InteractiveBase<SocketCommandContext>
     {
-        public PrefixService PrefixService { get; set; }
+        public GuildService GuildService { get; set; }
 
         private async Task SendHelp(Embed embed)
         {
@@ -36,7 +36,7 @@ namespace NOVAxis.Modules
         [Command, Summary("Shows command list")]
         public async Task ShowHelp()
         {
-            string prefix = await PrefixService.GetPrefix(Context);
+            string prefix = await GuildService.GetPrefix(Context);
 
             EmbedBuilder embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
@@ -105,7 +105,7 @@ namespace NOVAxis.Modules
         [Command("jisho"), Alias("Jisho"), Summary("Shows command list for Jisho")]
         public async Task ShowJishoHelp()
         {
-            string prefix = await PrefixService.GetPrefix(Context);
+            string prefix = await GuildService.GetPrefix(Context);
 
             EmbedBuilder embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
@@ -140,7 +140,7 @@ namespace NOVAxis.Modules
         [Command("move"), Alias("Move"), Summary("Shows command list for Move")]
         public async Task ShowMoveHelp()
         {
-            string prefix = await PrefixService.GetPrefix(Context);
+            string prefix = await GuildService.GetPrefix(Context);
 
             EmbedBuilder embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
@@ -195,7 +195,7 @@ namespace NOVAxis.Modules
         [Command("audio"), Alias("Audio"), Summary("Shows command list for Audio")]
         public async Task ShowAudioHelp()
         {
-            string prefix = await PrefixService.GetPrefix(Context);
+            string prefix = await GuildService.GetPrefix(Context);
 
             EmbedBuilder embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
@@ -314,7 +314,7 @@ namespace NOVAxis.Modules
         [Command("clear"), Alias("Clear"), Summary("Shows command list for Clear")]
         public async Task ShowChatHelp()
         {
-            string prefix = await PrefixService.GetPrefix(Context);
+            string prefix = await GuildService.GetPrefix(Context);
 
             EmbedBuilder embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
@@ -349,7 +349,7 @@ namespace NOVAxis.Modules
         [Command("mal"), Alias("Mal", "MyAnimeList", "myanimelist"), Summary("Shows command list for MAL")]
         public async Task ShowMalHelp()
         {
-            string prefix = await PrefixService.GetPrefix(Context);
+            string prefix = await GuildService.GetPrefix(Context);
 
             EmbedBuilder embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
