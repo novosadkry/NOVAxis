@@ -35,7 +35,7 @@ namespace NOVAxis
                     break;
             }
 
-            Console.WriteLine($"[{DateTime.Now}] {arg.Source} | <{arg.Severity}> {arg.Message}");
+            Console.WriteLine($"[{DateTime.Now}] {arg.Source} | <{arg.Severity}> {arg.Message} {arg.Exception}");
             Console.ForegroundColor = ConsoleColor.Gray;
 
             return Task.CompletedTask;
