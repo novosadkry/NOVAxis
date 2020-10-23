@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Threading.Tasks;
 
 using Discord;
@@ -18,7 +18,7 @@ namespace NOVAxis.Services
             public ulong DjRole { get; set; }
         }
 
-        private Dictionary<ulong, GuildInfo> cache;
+        private ConcurrentDictionary<ulong, GuildInfo> cache;
         private DatabaseService db;
 
         public string DefaultPrefix { get; }
@@ -26,7 +26,7 @@ namespace NOVAxis.Services
         public GuildService()
         {
             db = new DatabaseService();
-            cache = new Dictionary<ulong, GuildInfo>();
+            cache = new ConcurrentDictionary<ulong, GuildInfo>();
             
             DefaultPrefix = Program.Config.DefaultPrefix;
         }
