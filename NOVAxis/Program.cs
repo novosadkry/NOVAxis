@@ -162,27 +162,38 @@ namespace NOVAxis
             if (context.Message == null) return;
             if (context.User.IsBot) return;
 
-            string prefix = await _services.GetService<Services.GuildService>().GetPrefix(context);
+            var guildService = _services.GetService<Services.GuildService>();
+            var guildInfo = await guildService.GetInfo(context);
+
+            string prefix = guildInfo.Prefix;
 
             int argPos = 0;
             if (!(context.Message.HasStringPrefix(prefix, ref argPos) || 
                 context.Message.HasMentionPrefix(Client.CurrentUser, ref argPos)))
+            {
+                if (context.User is IGuildUser guildUser)
+                {
+                    if (guildUser.RoleIds.Contains(guildInfo.MuteRole))
+                        _ = arg.DeleteAsync();
+                }
+
                 return;
+            }
 
             switch (Client.Status)
             {
                 case UserStatus.DoNotDisturb:
                     await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
                         .WithColor(220, 20, 60)
-                        .WithDescription($"(Bot je offline)")
-                        .WithTitle($"Mé jádro se nyní nachází ve fázi opravy či restartu").Build());
+                        .WithDescription("(Bot je offline)")
+                        .WithTitle("Mé jádro se nyní nachází ve fázi opravy či restartu").Build());
                     return;
 
                 case UserStatus.AFK:
                     await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
-                        .WithDescription($"(Bot je nedostupný)")
-                        .WithTitle($"Mé jádro se nyní nachází ve fázi rapidního ochlazování").Build());
+                        .WithDescription("(Bot je nedostupný)")
+                        .WithTitle("Mé jádro se nyní nachází ve fázi rapidního ochlazování").Build());
                     return;
             }
 
@@ -199,14 +210,14 @@ namespace NOVAxis
                         await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
                             .WithColor(220, 20, 60)
                             .WithDescription($"(Příkaz `{context.Message.Content.Split(' ')[0]}` neexistuje)")
-                            .WithTitle($"Má verze jádra ještě není schopna téhle funkce").Build());
+                            .WithTitle("Má verze jádra ještě není schopna téhle funkce").Build());
                         break;
 
                     case CommandError.BadArgCount:
                         await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
                             .WithColor(220, 20, 60)
                             .WithDescription("(Neplatný počet argumentů)")
-                            .WithTitle($"Počet elektronů v elektronovém obale není roven počtu protonů v atomovém jádře").Build());
+                            .WithTitle("Počet elektronů v elektronovém obale není roven počtu protonů v atomovém jádře").Build());
                         break;
 
                     case CommandError.ObjectNotFound:
@@ -214,7 +225,7 @@ namespace NOVAxis
                         await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
                             .WithColor(220, 20, 60)
                             .WithDescription("(Neplatný argument)")
-                            .WithTitle($"Má databáze nebyla schopna rozpoznat daný prvek").Build());
+                            .WithTitle("Má databáze nebyla schopna rozpoznat daný prvek").Build());
                         break;
 
                     case CommandError.UnmetPrecondition:
@@ -222,13 +233,13 @@ namespace NOVAxis
                             await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
                                 .WithColor(220, 20, 60)
                                 .WithDescription("(Přístup odepřen)")
-                                .WithTitle($"Tento příkaz nelze vyvolat přímou zprávou").Build());
+                                .WithTitle("Tento příkaz nelze vyvolat přímou zprávou").Build());
 
                         else
                             await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
                                 .WithColor(220, 20, 60)
                                 .WithDescription("(Přístup odepřen)")
-                                .WithTitle($"Pro operaci s tímto modulem nemáš dodatečnou kvalifikaci").Build());
+                                .WithTitle("Pro operaci s tímto modulem nemáš dodatečnou kvalifikaci").Build());
                         break;
 
                     default:
