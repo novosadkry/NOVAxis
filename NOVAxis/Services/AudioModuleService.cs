@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Timers;
@@ -25,7 +26,7 @@ namespace NOVAxis.Services
                 public IUser RequestedBy { get; set; }
                 public string ThumbnailUrl => Value.GetThumbnailUrl();
 
-                public static implicit operator LavalinkTrack(ContextTrack track)
+                public static explicit operator LavalinkTrack(ContextTrack track)
                 {    
                     return track.Value;
                 }
@@ -83,7 +84,7 @@ namespace NOVAxis.Services
         public AudioModuleService()
         {
             AudioTimeout = Program.Config.AudioTimeout;
-            guilds = new Dictionary<ulong, Context>();
+            guilds = new ConcurrentDictionary<ulong, Context>();
 
             LavalinkService.Manager.TrackEnd -= AudioModuleService_TrackEnd;
             LavalinkService.Manager.TrackEnd += AudioModuleService_TrackEnd;
@@ -91,22 +92,12 @@ namespace NOVAxis.Services
 
         public long AudioTimeout { get; }
 
-        private IDictionary<ulong, Context> guilds;
+        private ConcurrentDictionary<ulong, Context> guilds;
 
         public Context this[ulong id]
         {
-            get
-            {
-                if (!guilds.ContainsKey(id))
-                    guilds[id] = new Context(id);
-
-                return guilds[id];
-            }
-
-            set
-            {
-                guilds[id] = value;
-            }
+            get => guilds.GetOrAdd(id, new Context(id));
+            set => guilds[id] = value;
         }
 
         private async Task AudioModuleService_TrackEnd(LavalinkPlayer player, LavalinkTrack track, string _)
