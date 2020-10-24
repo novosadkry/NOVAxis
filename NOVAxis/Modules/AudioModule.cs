@@ -17,7 +17,7 @@ namespace NOVAxis.Modules
     [Group("audio")]
     [RequireContext(ContextType.Guild)]
     [RequireOwner(Group = "Permission")]
-    [RequireRole("DJ", Group = "Permission")]
+    [RequireRole("DjRole", true, Group = "Permission")]
     public class AudioModule : ModuleBase<SocketCommandContext>
     {
         public AudioModuleService AudioModuleService { get; set; }
