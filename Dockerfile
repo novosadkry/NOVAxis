@@ -6,7 +6,7 @@ WORKDIR /app
 COPY . .
 
 WORKDIR /app/NOVAxis
-RUN dotnet publish -c Release -r alpine-x64 /p:PublishTrimmed=true -o out --self-contained true
+RUN dotnet publish -c Release -r alpine-x64 -p:PublishTrimmed=true -o out --self-contained true
 
 # -- Runtime -- 
 
