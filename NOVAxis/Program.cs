@@ -11,6 +11,7 @@ using Discord.Addons.Interactive;
 
 using SharpLink;
 using NOVAxis.Services;
+using NOVAxis.Services.Database;
 
 namespace NOVAxis
 {
@@ -63,12 +64,14 @@ namespace NOVAxis
             }); 
 
             LavalinkService.Manager.Log += Client_Log;
-            DatabaseService.LogEvent += Client_Log;
+
+            DatabaseService databaseService = DatabaseService.GetService(Config.Database);
+            databaseService.LogEvent += Client_Log;
 
             Services = new ServiceCollection()
                 .AddSingleton(new AudioModuleService())
-                .AddSingleton(new DatabaseService())
-                .AddSingleton(new GuildService())
+                .AddSingleton(databaseService)
+                .AddSingleton(new GuildService(databaseService))
                 .AddSingleton(new InteractiveService((BaseSocketClient)Client))
                 .BuildServiceProvider();
 

@@ -22,6 +22,7 @@ namespace NOVAxis
         public class DatabaseObject
         {
             public bool Active { get; set; }
+            public string DbType { get; set; }
             public string DbHost { get; set; }
             public ushort DbPort { get; set; }
             public string DbUsername { get; set; }
@@ -84,6 +85,7 @@ namespace NOVAxis
             Database = new DatabaseObject
             {
                 Active = true,
+                DbType = "mysql",
                 DbHost = "localhost",
                 DbUsername = "novaxis",
                 DbPassword = "123",
