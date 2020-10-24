@@ -1,17 +1,12 @@
 ﻿using System;
 using System.Threading.Tasks;
-
 using MySql.Data.MySqlClient;
 
-using Discord;
-
-namespace NOVAxis.Services
+namespace NOVAxis.Services.Database
 {
-    public class DatabaseService
+    public class MySqlDatabaseService : DatabaseService
     {
-        public static event Func<LogMessage, Task> LogEvent;
-
-        public ProgramConfig.DatabaseObject Config { get; }
+        public MySqlDatabaseService(ProgramConfig.DatabaseObject config) : base(config) { }
 
         private string ConnectionString
         {
@@ -23,12 +18,7 @@ namespace NOVAxis.Services
                 Config.DbPassword);
         }
 
-        public DatabaseService()
-        {
-            Config = Program.Config.Database;
-        }
-
-        public async Task<object> GetValue(string query, params MySqlParameter[] arg)
+        public override async Task<object> GetValue(string query, int index, params Tuple<string, object>[] arg)
         {
             object result = null;
 
@@ -38,14 +28,14 @@ namespace NOVAxis.Services
 
                 MySqlCommand command = sqlc.CreateCommand();
                 command.CommandText = query;
-                command.Parameters.AddRange(arg);
+                command.Parameters.AddRange(TuplesToMySqlParameters(arg));
 
                 using (MySqlDataReader reader = command.ExecuteReader())
                 {
                     if (reader.HasRows)
                     {
                         while (await reader.ReadAsync())
-                            result = reader.GetValue(0);
+                            result = reader.GetValue(index);
                     }
                 }
             }
@@ -53,9 +43,9 @@ namespace NOVAxis.Services
             return result;
         }
 
-        public async Task<object[]> GetValues(string query, params MySqlParameter[] arg)
+        public override async Task<object[]> GetValues(string query, int expected, params Tuple<string, object>[] arg)
         {
-            object[] result = null;
+            object[] result = new object[expected];
 
             using (MySqlConnection sqlc = new MySqlConnection(ConnectionString))
             {
@@ -63,7 +53,7 @@ namespace NOVAxis.Services
 
                 MySqlCommand command = sqlc.CreateCommand();
                 command.CommandText = query;
-                command.Parameters.AddRange(arg);
+                command.Parameters.AddRange(TuplesToMySqlParameters(arg));
 
                 using (MySqlDataReader reader = command.ExecuteReader())
                 {
@@ -78,7 +68,7 @@ namespace NOVAxis.Services
             return result;
         }
 
-        public async Task Execute(string query, params MySqlParameter[] arg)
+        public override async Task Execute(string query, params Tuple<string, object>[] arg)
         {
             using (MySqlConnection sqlc = new MySqlConnection(ConnectionString))
             {
@@ -86,10 +76,23 @@ namespace NOVAxis.Services
 
                 MySqlCommand command = sqlc.CreateCommand();
                 command.CommandText = query;
-                command.Parameters.AddRange(arg);
+                command.Parameters.AddRange(TuplesToMySqlParameters(arg));
 
                 await command.ExecuteNonQueryAsync();
             }
+        }
+
+        private static MySqlParameter[] TuplesToMySqlParameters(params Tuple<string, object>[] tuples)
+        {
+            MySqlParameter[] mySqlParameters = new MySqlParameter[tuples.Length];
+
+            for (int i = 0; i < tuples.Length; i++)
+            {
+                var (key, value) = tuples[i];
+                mySqlParameters[i] = new MySqlParameter(key, value);
+            }
+
+            return mySqlParameters;
         }
     }
 }

@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 
-using MySql.Data.MySqlClient;
+using NOVAxis.Services.Database;
 
 namespace NOVAxis.Services
 {
@@ -21,13 +21,13 @@ namespace NOVAxis.Services
                 new GuildInfo {Prefix = Program.Config.DefaultPrefix};
         }
 
-        private ConcurrentDictionary<ulong, GuildInfo> cache;
-        private DatabaseService db;
+        private readonly ConcurrentDictionary<ulong, GuildInfo> _cache;
+        private readonly IDatabaseService _db;
 
-        public GuildService()
+        public GuildService(IDatabaseService databaseService)
         {
-            db = new DatabaseService();
-            cache = new ConcurrentDictionary<ulong, GuildInfo>();
+            _db = databaseService;
+            _cache = new ConcurrentDictionary<ulong, GuildInfo>();
         }
 
         public async Task<GuildInfo> GetInfo(ICommandContext context)
@@ -40,29 +40,26 @@ namespace NOVAxis.Services
 
         public async Task<GuildInfo> GetInfo(ulong id)
         {
-            if (!cache.TryGetValue(id, out GuildInfo info))
+            if (!_cache.TryGetValue(id, out _))
             {
-                if (db.Config.Active)
-                {
-                    var result = await db.GetValues(
-                        "SELECT Prefix, MuteRole, DjRole FROM Guilds WHERE Id=@id",
-                        new MySqlParameter("id", id));
+                GuildInfo info = GuildInfo.Default;
 
-                    info = new GuildInfo
-                    {
-                        Prefix = (string)result?[0],
-                        MuteRole = (ulong)(result?[1] ?? 0UL),
-                        DjRole = (ulong)(result?[2] ?? 0UL)
-                    };
+                if (_db.Active)
+                {
+                    var result = await _db.GetValues(
+                        "SELECT Prefix, MuteRole, DjRole FROM Guilds WHERE Id=@id",
+                        3,
+                        new Tuple<string, object>("id", id));
+
+                    info.Prefix = (string)(result?[0] ?? info.Prefix);
+                    info.MuteRole = (ulong)(result?[1] ?? 0UL);
+                    info.DjRole = (ulong)(result?[2] ?? 0UL);
                 }
 
-                else
-                    info = GuildInfo.Default;
-
-                cache[id] = info;
+                _cache[id] = info;
             }
 
-            return cache[id];
+            return _cache[id];
         }
 
         public async Task SetInfo(ICommandContext context, GuildInfo info)
@@ -75,17 +72,18 @@ namespace NOVAxis.Services
 
         public async Task SetInfo(ulong id, GuildInfo info)
         {
-            if (db.Config.Active)
+            if (_db.Active)
             {
-                await db.Execute(
-                    "UPDATE Guilds SET Prefix = @prefix, MuteRole = @muteRole, DjRole = @djRole WHERE Id=@id",
-                    new MySqlParameter("id", id),
-                    new MySqlParameter("prefix", info.Prefix),
-                    new MySqlParameter("muteRole", info.MuteRole),
-                    new MySqlParameter("djRole", info.DjRole));
+                await _db.Execute(
+                    "INSERT INTO guilds (Id, Prefix, MuteRole, DjRole) VALUES(@id, @prefix, @muteRole, @djRole) " +
+                    "ON DUPLICATE KEY UPDATE Prefix=@prefix, MuteRole=@muteRole, DjRole=@djRole",
+                    new Tuple<string, object>("id", id),
+                    new Tuple<string, object>("prefix", info.Prefix),
+                    new Tuple<string, object>("muteRole", info.MuteRole),
+                    new Tuple<string, object>("djRole", info.DjRole));
             }
 
-            cache[id] = info;
+            _cache[id] = info;
         }
     }
 }
