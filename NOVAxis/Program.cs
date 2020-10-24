@@ -10,13 +10,14 @@ using Discord.WebSocket;
 using Discord.Addons.Interactive;
 
 using SharpLink;
+using NOVAxis.Services;
 
 namespace NOVAxis
 {
     class Program
     {  
         private static CommandService _commandService;
-        private static IServiceProvider _services;
+        public static IServiceProvider Services;
 
         public static DiscordShardedClient Client { get; private set; }
         public static ProgramConfig Config { get; private set; }
@@ -51,7 +52,7 @@ namespace NOVAxis
                 LogLevel = Config.Log.Severity
             });
 
-            Services.LavalinkService.Manager = new LavalinkManager(Client, new LavalinkManagerConfig
+            LavalinkService.Manager = new LavalinkManager(Client, new LavalinkManagerConfig
             {
                 RESTHost = Config.Lavalink.Host,
                 RESTPort = 2333,
@@ -61,19 +62,19 @@ namespace NOVAxis
                 TotalShards = Config.TotalShards
             }); 
 
-            Services.LavalinkService.Manager.Log += Client_Log;
-            Services.DatabaseService.LogEvent += Client_Log;
+            LavalinkService.Manager.Log += Client_Log;
+            DatabaseService.LogEvent += Client_Log;
 
-            _services = new ServiceCollection()
-                .AddSingleton(new Services.AudioModuleService())
-                .AddSingleton(new Services.DatabaseService())
-                .AddSingleton(new Services.GuildService())
+            Services = new ServiceCollection()
+                .AddSingleton(new AudioModuleService())
+                .AddSingleton(new DatabaseService())
+                .AddSingleton(new GuildService())
                 .AddSingleton(new InteractiveService((BaseSocketClient)Client))
                 .BuildServiceProvider();
 
             _commandService.CommandExecuted += CommandService_CommandExecuted;
             _commandService.AddTypeReader(typeof(TimeSpan), new TypeReaders.AudioModuleTypeReader());
-            await _commandService.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
+            await _commandService.AddModulesAsync(Assembly.GetEntryAssembly(), Services);
             
             Client.MessageReceived += Client_MessageReceived;
             Client.ShardReady += Client_Ready;
@@ -82,7 +83,7 @@ namespace NOVAxis
             if (Config.Lavalink.Start)
             {
                 await ProgramCommand.ProgramCommandList
-                    .First((x) => x.Name == "lavalink")
+                    .First(x => x.Name == "lavalink")
                     .Execute();
             }
 
@@ -120,7 +121,7 @@ namespace NOVAxis
                             break;
                         }
 
-                        else if (i + 1 == ProgramCommand.ProgramCommandList.Count)
+                        if (i + 1 == ProgramCommand.ProgramCommandList.Count)
                             await Client_Log(new LogMessage(LogSeverity.Info, "Program", "Invalid ProgramCommand"));
                     }
                 }
@@ -150,19 +151,19 @@ namespace NOVAxis
             if (++ShardsReady == Config.TotalShards)
             {
                 await Client_Log(new LogMessage(LogSeverity.Info, "Lavalink", "Start"));
-                await Services.LavalinkService.Manager.StartAsync();
+                await LavalinkService.Manager.StartAsync();
             }
         }
 
         private static async Task Client_MessageReceived(SocketMessage arg)
         {
             SocketUserMessage message = (SocketUserMessage)arg;
-            ShardedCommandContext context = new ShardedCommandContext(Client, message);   
+            ShardedCommandContext context = new ShardedCommandContext(Client, message);
 
             if (context.Message == null) return;
             if (context.User.IsBot) return;
 
-            var guildService = _services.GetService<Services.GuildService>();
+            var guildService = Services.GetService<GuildService>();
             var guildInfo = await guildService.GetInfo(context);
 
             string prefix = guildInfo.Prefix;
@@ -197,7 +198,7 @@ namespace NOVAxis
                     return;
             }
 
-            await _commandService.ExecuteAsync(context, argPos, _services);
+            await _commandService.ExecuteAsync(context, argPos, Services);
         }
 
         private static async Task CommandService_CommandExecuted(Optional<CommandInfo> info, ICommandContext context, IResult result)
