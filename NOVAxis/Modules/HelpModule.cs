@@ -303,7 +303,14 @@ namespace NOVAxis.Modules
                         IsInline = true,
                         Name = $"**{prefix}audio backward** n",
                         Value = "*Posune pozici stopy dozadu o n sekund*"
-                    }                                  
+                    },
+
+                    new EmbedFieldBuilder
+                    {
+                        IsInline = true,
+                        Name = $"**{prefix}audio setrole** @role/ID",
+                        Value = "*Nastaví roli pro identifikaci oprávněných uživatelů*"
+                    }
                 )
                 .WithFooter(new EmbedFooterBuilder
                 {
@@ -375,6 +382,49 @@ namespace NOVAxis.Modules
                         IsInline = false,
                         Name = $"**{prefix}mal manga** název",
                         Value = "*Prohledá databázi MyAnimeList*"
+                    }
+                )
+                .WithFooter(new EmbedFooterBuilder
+                {
+                    IconUrl = Context.Client.GetUser(Program.OwnerId).GetAvatarUrl(),
+                    Text = $"© Kryštof Novosad | {DateTime.Now}"
+                });
+
+
+            await SendHelp(embed: embed.Build());
+        }
+
+        [Command("mute"), Alias("Mute"), Summary("Shows command list for Mute")]
+        public async Task ShowMuteHelp()
+        {
+            var guildInfo = await GuildService.GetInfo(Context);
+            string prefix = guildInfo.Prefix;
+
+            EmbedBuilder embed = new EmbedBuilder()
+                .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
+                .WithColor(new Color(52, 231, 231))
+                .WithTitle("Příručka pro telekomunikaci s jádrem NOVAxis")
+                .WithDescription("(Seznam příkazů pro **mute**)")
+                .WithFields(
+                    new EmbedFieldBuilder
+                    {
+                        IsInline = true,
+                        Name = $"**{prefix}mute** @user",
+                        Value = "*Odpojí uživatele od textového kanálu*"
+                    },
+
+                    new EmbedFieldBuilder
+                    {
+                        IsInline = true,
+                        Name = $"**{prefix}mute setrole** @role/ID",
+                        Value = "*Nastaví roli pro identifikaci odpojených uživatelů*"
+                    },
+
+                    new EmbedFieldBuilder
+                    {
+                        IsInline = true,
+                        Name = $"**{prefix}mute setrole**",
+                        Value = "*Zruší již nastavenou roli*"
                     }
                 )
                 .WithFooter(new EmbedFooterBuilder
