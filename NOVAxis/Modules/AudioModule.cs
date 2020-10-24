@@ -21,6 +21,7 @@ namespace NOVAxis.Modules
     public class AudioModule : ModuleBase<SocketCommandContext>
     {
         public AudioModuleService AudioModuleService { get; set; }
+        public GuildService GuildService { get; set; }
 
         protected override void BeforeExecute(CommandInfo command)
         {
@@ -706,6 +707,60 @@ namespace NOVAxis.Modules
             await ReplyAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
                 .WithTitle($"Požadovaná stopa byla úspěšně odebrána z fronty").Build());
+        }
+
+        [Command("setrole"), Summary("Sets the guild's DJ role which is used to identify eligible users")]
+        public async Task SetDjRole(IRole role)
+        {
+            var guildInfo = await GuildService.GetInfo(Context);
+            guildInfo.DjRole = role.Id;
+
+            await GuildService.SetInfo(Context, guildInfo);
+
+            await ReplyAsync(embed: new EmbedBuilder()
+                .WithColor(52, 231, 231)
+                .WithDescription($"(Nastavena role {role.Mention})")
+                .WithTitle("Konfigurace mého jádra proběhla úspešně").Build());
+        }
+
+        [Command("setrole"), Summary("Sets the guild's DJ role which is used to identify eligible users")]
+        public async Task SetDjRole(ulong roleId = 0)
+        {
+            IRole role = Context.Guild.GetRole(roleId);
+
+            if (role != null)
+            {
+                var guildInfo = await GuildService.GetInfo(Context);
+                guildInfo.DjRole = role.Id;
+
+                await GuildService.SetInfo(Context, guildInfo);
+
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithDescription($"(Nastavená role {role.Mention})")
+                    .WithTitle("Konfigurace mého jádra proběhla úspešně").Build());
+            }
+
+            else if (roleId == 0)
+            {
+                var guildInfo = await GuildService.GetInfo(Context);
+                guildInfo.DjRole = 0;
+
+                await GuildService.SetInfo(Context, guildInfo);
+
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithDescription("(Nastavená role zrušena)")
+                    .WithTitle("Konfigurace mého jádra proběhla úspešně").Build());
+            }
+
+            else
+            {
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(220, 20, 60)
+                    .WithDescription("(Neplatný argument)")
+                    .WithTitle("Má databáze nebyla schopna rozpoznat daný prvek").Build());
+            }
         }
 
         public async void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
