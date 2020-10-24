@@ -52,8 +52,8 @@ namespace NOVAxis.Services
                         new Tuple<string, object>("id", id));
 
                     info.Prefix = (string)(result?[0] ?? info.Prefix);
-                    info.MuteRole = (ulong)(result?[1] ?? 0UL);
-                    info.DjRole = (ulong)(result?[2] ?? 0UL);
+                    info.MuteRole = Convert.ToUInt64(result?[1]);
+                    info.DjRole = Convert.ToUInt64(result?[2]);
                 }
 
                 _cache[id] = info;
@@ -75,8 +75,7 @@ namespace NOVAxis.Services
             if (_db.Active)
             {
                 await _db.Execute(
-                    "INSERT INTO guilds (Id, Prefix, MuteRole, DjRole) VALUES(@id, @prefix, @muteRole, @djRole) " +
-                    "ON DUPLICATE KEY UPDATE Prefix=@prefix, MuteRole=@muteRole, DjRole=@djRole",
+                    "REPLACE INTO guilds VALUES(@id, @prefix, @muteRole, @djRole)",
                     new Tuple<string, object>("id", id),
                     new Tuple<string, object>("prefix", info.Prefix),
                     new Tuple<string, object>("muteRole", info.MuteRole),
