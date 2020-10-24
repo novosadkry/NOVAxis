@@ -64,5 +64,45 @@ namespace NOVAxis.Modules
                 .WithDescription($"(Nastavena role {role.Mention})")
                 .WithTitle("Konfigurace mého jádra proběhla úspešně").Build());
         }
+
+        [Command("setrole"), Summary("Sets the guild's mute role which is used to identify muted users")]
+        public async Task SetMuteRole(ulong roleId = 0)
+        {
+            IRole role = Context.Guild.GetRole(roleId);
+
+            if (role != null)
+            {
+                var guildInfo = await GuildService.GetInfo(Context);
+                guildInfo.MuteRole = role.Id;
+
+                await GuildService.SetInfo(Context, guildInfo);
+
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithDescription($"(Nastavená role {role.Mention})")
+                    .WithTitle("Konfigurace mého jádra proběhla úspešně").Build());
+            }
+
+            else if (roleId == 0)
+            {
+                var guildInfo = await GuildService.GetInfo(Context);
+                guildInfo.MuteRole = 0;
+
+                await GuildService.SetInfo(Context, guildInfo);
+
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithDescription("(Nastavená role zrušena)")
+                    .WithTitle("Konfigurace mého jádra proběhla úspešně").Build());
+            }
+
+            else
+            {
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(220, 20, 60)
+                    .WithDescription("(Neplatný argument)")
+                    .WithTitle("Má databáze nebyla schopna rozpoznat daný prvek").Build());
+            }
+        }
     }
 }
