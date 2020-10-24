@@ -67,6 +67,7 @@ namespace NOVAxis
 
             DatabaseService databaseService = DatabaseService.GetService(Config.Database);
             databaseService.LogEvent += Client_Log;
+            await databaseService.Setup();
 
             Services = new ServiceCollection()
                 .AddSingleton(new AudioModuleService())

@@ -1,34 +1,26 @@
 ﻿using System;
 using System.Threading.Tasks;
-using MySql.Data.MySqlClient;
+using Microsoft.Data.Sqlite;
 
 namespace NOVAxis.Services.Database
 {
-    public class MySqlDatabaseService : DatabaseService
+    class SqliteDatabaseService : DatabaseService
     {
-        public MySqlDatabaseService(ProgramConfig.DatabaseObject config) : base(config) { }
+        public SqliteDatabaseService(ProgramConfig.DatabaseObject config) : base(config) { }
 
-        protected override string ConnectionString
-        {
-            get => string.Format("Server={0};Port={1};Database={2};Uid={3};Pwd={4}",
-                Config.DbHost,
-                Config.DbPort,
-                Config.DbName,
-                Config.DbUsername,
-                Config.DbPassword);
-        }
+        protected override string ConnectionString => $"Data Source={Config.DbName}.db";
 
         public override async Task<object> GetValue(string query, int index, params Tuple<string, object>[] arg)
         {
             object result = null;
 
-            using (var sqlc = new MySqlConnection(ConnectionString))
+            using (var sqlc = new SqliteConnection(ConnectionString))
             {
                 await sqlc.OpenAsync();
 
                 var command = sqlc.CreateCommand();
                 command.CommandText = query;
-                command.Parameters.AddRange(TuplesToMySqlParameters(arg));
+                command.Parameters.AddRange(TuplesToSqliteParameters(arg));
 
                 using (var reader = await command.ExecuteReaderAsync())
                 {
@@ -47,13 +39,13 @@ namespace NOVAxis.Services.Database
         {
             object[] result = new object[expected];
 
-            using (var sqlc = new MySqlConnection(ConnectionString))
+            using (var sqlc = new SqliteConnection(ConnectionString))
             {
                 await sqlc.OpenAsync();
 
                 var command = sqlc.CreateCommand();
                 command.CommandText = query;
-                command.Parameters.AddRange(TuplesToMySqlParameters(arg));
+                command.Parameters.AddRange(TuplesToSqliteParameters(arg));
 
                 using (var reader = await command.ExecuteReaderAsync())
                 {
@@ -70,13 +62,13 @@ namespace NOVAxis.Services.Database
 
         public override async Task Execute(string query, params Tuple<string, object>[] arg)
         {
-            using (var sqlc = new MySqlConnection(ConnectionString))
+            using (var sqlc = new SqliteConnection(ConnectionString))
             {
                 await sqlc.OpenAsync();
 
                 var command = sqlc.CreateCommand();
                 command.CommandText = query;
-                command.Parameters.AddRange(TuplesToMySqlParameters(arg));
+                command.Parameters.AddRange(TuplesToSqliteParameters(arg));
 
                 await command.ExecuteNonQueryAsync();
             }
@@ -86,20 +78,20 @@ namespace NOVAxis.Services.Database
         {
             await Execute(
                 "CREATE TABLE IF NOT EXISTS `guilds` (" +
-                "`Id` bigint(20) UNSIGNED NOT NULL PRIMARY KEY," +
-                "`Prefix` varchar(10) DEFAULT NULL," +
-                "`MuteRole` bigint(20) UNSIGNED NOT NULL," +
-                "`DjRole` bigint(20) UNSIGNED NOT NULL)");
+                "`Id` INTEGER NOT NULL PRIMARY KEY," +
+                "`Prefix` TEXT DEFAULT NULL," +
+                "`MuteRole` INTEGER NOT NULL," +
+                "`DjRole` INTEGER NOT NULL)");
         }
 
-        private static MySqlParameter[] TuplesToMySqlParameters(params Tuple<string, object>[] tuples)
+        private static SqliteParameter[] TuplesToSqliteParameters(params Tuple<string, object>[] tuples)
         {
-            MySqlParameter[] mySqlParameters = new MySqlParameter[tuples.Length];
+            SqliteParameter[] mySqlParameters = new SqliteParameter[tuples.Length];
 
             for (int i = 0; i < tuples.Length; i++)
             {
                 var (key, value) = tuples[i];
-                mySqlParameters[i] = new MySqlParameter(key, value);
+                mySqlParameters[i] = new SqliteParameter(key, value);
             }
 
             return mySqlParameters;

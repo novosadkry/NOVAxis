@@ -9,6 +9,8 @@ namespace NOVAxis.Services.Database
     {
         public event Func<LogMessage, Task> LogEvent;
 
+        protected abstract string ConnectionString { get; }
+
         protected DatabaseService(ProgramConfig.DatabaseObject config) { Config = config; }
 
         protected ProgramConfig.DatabaseObject Config { get; }
@@ -18,15 +20,16 @@ namespace NOVAxis.Services.Database
         public abstract Task<object[]> GetValues(string query, int expected, params Tuple<string, object>[] arg);
         public abstract Task Execute(string query, params Tuple<string, object>[] arg);
 
+        public abstract Task Setup();
+
         public static DatabaseService GetService(ProgramConfig.DatabaseObject config)
         {
             switch (config.DbType)
             {
-                case "mysql":
+                case "mysql": 
                     return new MySqlDatabaseService(config);
-                case "sqlite":
-                    // TODO
-                    break;
+                case "sqlite": 
+                    return new SqliteDatabaseService(config);
             }
 
             return null;
