@@ -224,7 +224,7 @@ namespace NOVAxis.Modules
                 LoadTracksResponse tracks = await LavalinkService.Manager.GetTracksAsync(search);
                 LavalinkTrack track = tracks.Tracks.First();
 
-                service.Queue.Add(new AudioModuleService.Context.ContextTrack
+                service.Queue.AddLast(new AudioModuleService.Context.ContextTrack
                 {
                     Value = track,
                     RequestedBy = Context.User
@@ -658,15 +658,25 @@ namespace NOVAxis.Modules
 
             EmbedFieldBuilder[] embedFields = new EmbedFieldBuilder[service.Queue.Count];
 
-            for (int i = 0; i < service.Queue.Count; i++)
+            var currentNode = service.Queue.First;
+            for (int i = 0; currentNode != null; i++, currentNode = currentNode.Next)
             {
+                var track = currentNode.Value;
+                var emoji = i == 0
+                    ? service.GetPlayer().Playing 
+                        ? new Emoji("\u25B6") // Playing
+                        : new Emoji("\u23F8") // Paused
+                    : i == 1 
+                        ? new Emoji("\u23ED") // Next
+                        : null;
+
                 embedFields[i] = new EmbedFieldBuilder
                 {
                     Name = $"{(i == 0 ? "**" : "")}`{i}.` " +
-                    $"{(i == 0 ? (service.GetPlayer().Playing ? new Emoji("\u25B6") : new Emoji("\u23F8")) : (i == 1 ? new Emoji("\u23ED") : null))} {service.Queue[i].Value.Title}" +
+                    $"{emoji} {track.Value.Title}" +
                     $"{(i == 0 ? "**" : "")}",
 
-                    Value = $"Vyžádal: {service.Queue[i].RequestedBy.Mention} | Délka: `{service.Queue[i].Value.Length}` | [Odkaz]({service.Queue[i].Value.Url})"
+                    Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Value.Length}` | [Odkaz]({track.Value.Url})"
                 };
             }
 
