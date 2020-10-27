@@ -118,7 +118,7 @@ namespace NOVAxis.Services
                 await service.BoundChannel.SendMessageAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithAuthor("Právě přehrávám:")
-                    .WithTitle($"{new Emoji("\u25B6")} {service.LastTrack.Value.Title}")
+                    .WithTitle($"{new Emoji("\u25B6")} {nextTrack.Value.Title}")
                     .WithUrl(nextTrack.Value.Url)
                     .WithThumbnailUrl(nextTrack.ThumbnailUrl)
                     .WithFields(
