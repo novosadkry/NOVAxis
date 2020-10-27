@@ -44,7 +44,7 @@ namespace NOVAxis.Modules
                         var track = service.CurrentTrack;
                         long trackPos = service.GetPlayer().CurrentPosition;
 
-                        AudioModuleService[Context.Guild.Id].Queue.Insert(0, track);
+                        AudioModuleService[Context.Guild.Id].Queue.AddFirst(track);
 
                         await Services.LavalinkService.Manager.LeaveAsync(Context.Guild.Id);
                         await Services.LavalinkService.Manager.JoinAsync(channel);
@@ -116,7 +116,7 @@ namespace NOVAxis.Modules
                             var track = service.CurrentTrack;
                             long trackPos = service.GetPlayer().CurrentPosition;
 
-                            AudioModuleService[Context.Guild.Id].Queue.Insert(0, track);
+                            AudioModuleService[Context.Guild.Id].Queue.AddFirst(track);
 
                             await Services.LavalinkService.Manager.LeaveAsync(Context.Guild.Id);
                             await Services.LavalinkService.Manager.JoinAsync(channel2);
@@ -183,7 +183,7 @@ namespace NOVAxis.Modules
                             var track = service.CurrentTrack;
                             long trackPos = service.GetPlayer().CurrentPosition;
 
-                            AudioModuleService[Context.Guild.Id].Queue.Insert(0, track);
+                            AudioModuleService[Context.Guild.Id].Queue.AddFirst(track);
 
                             await Services.LavalinkService.Manager.LeaveAsync(Context.Guild.Id);
                             await Services.LavalinkService.Manager.JoinAsync(channel2);

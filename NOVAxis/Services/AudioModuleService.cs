@@ -68,7 +68,7 @@ namespace NOVAxis.Services
 
             public LavalinkPlayer GetPlayer() => LavalinkService.Manager.GetPlayer(GuildId);
 
-            public List<ContextTrack> Queue { get; set; } = new List<ContextTrack>();
+            public LinkedList<ContextTrack> Queue { get; set; } = new LinkedList<ContextTrack>();
 
             public ContextTimer Timer { get; set; } = new ContextTimer();
 
@@ -107,7 +107,7 @@ namespace NOVAxis.Services
             if (service.Queue.Count == 0)
                 return;
 
-            service.Queue.RemoveAt(0);
+            service.Queue.RemoveFirst();
 
             if (service.Queue.Count > 0)
             {
