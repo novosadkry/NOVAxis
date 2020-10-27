@@ -348,7 +348,7 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            await player.StopAsync();
+            await player.SeekAsync((int)player.CurrentTrack.Length.TotalMilliseconds);
         }
 
         [Command("stop"), Summary("Stops the audio transmission")]
