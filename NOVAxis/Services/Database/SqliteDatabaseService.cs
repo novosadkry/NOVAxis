@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Discord;
 using Microsoft.Data.Sqlite;
 
 namespace NOVAxis.Services.Database
@@ -12,6 +13,11 @@ namespace NOVAxis.Services.Database
 
         public override async Task<object> GetValue(string query, int index, params Tuple<string, object>[] arg)
         {
+            await LogAsync(new LogMessage(
+                LogSeverity.Debug,
+                "Database",
+                "Query executed"));
+
             object result = null;
 
             using (var sqlc = new SqliteConnection(ConnectionString))
@@ -37,6 +43,11 @@ namespace NOVAxis.Services.Database
 
         public override async Task<object[]> GetValues(string query, int expected, params Tuple<string, object>[] arg)
         {
+            await LogAsync(new LogMessage(
+                LogSeverity.Debug,
+                "Database",
+                "Query executed"));
+
             object[] result = new object[expected];
 
             using (var sqlc = new SqliteConnection(ConnectionString))
@@ -62,6 +73,11 @@ namespace NOVAxis.Services.Database
 
         public override async Task Execute(string query, params Tuple<string, object>[] arg)
         {
+            await LogAsync(new LogMessage(
+                LogSeverity.Debug,
+                "Database",
+                "Query executed"));
+
             using (var sqlc = new SqliteConnection(ConnectionString))
             {
                 await sqlc.OpenAsync();
