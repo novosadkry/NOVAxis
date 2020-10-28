@@ -209,6 +209,8 @@ namespace NOVAxis
         {
             if (!result.IsSuccess)
             {
+                bool logWarning = false;
+
                 switch (result.Error)
                 {
                     case CommandError.UnknownCommand:
@@ -239,7 +241,6 @@ namespace NOVAxis
                                 .WithColor(220, 20, 60)
                                 .WithDescription("(Přístup odepřen)")
                                 .WithTitle("Tento příkaz nelze vyvolat přímou zprávou").Build());
-
                         else
                             await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
                                 .WithColor(220, 20, 60)
@@ -248,12 +249,14 @@ namespace NOVAxis
                         break;
 
                     default:
-                        await Client_Log(new LogMessage(
-                            LogSeverity.Warning,
-                            "Command",
-                            $"User {context.User.Username}#{context.User.Discriminator} was unable to execute command '{context.Message.Content}' Reason: '{result.ErrorReason}'"));
+                        logWarning = true;
                         break;
                 }
+
+                await Client_Log(new LogMessage(
+                    logWarning ? LogSeverity.Warning : LogSeverity.Verbose,
+                    "Command",
+                    $"User {context.User.Username}#{context.User.Discriminator} was unable to execute command '{context.Message.Content}' Reason: '{result.ErrorReason}'"));
             }
         }
     }

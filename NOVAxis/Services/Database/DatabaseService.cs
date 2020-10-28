@@ -8,6 +8,7 @@ namespace NOVAxis.Services.Database
     public abstract class DatabaseService : IDatabaseService
     {
         public event Func<LogMessage, Task> LogEvent;
+        protected Task LogAsync(LogMessage message) => LogEvent?.Invoke(message);
 
         protected abstract string ConnectionString { get; }
 
