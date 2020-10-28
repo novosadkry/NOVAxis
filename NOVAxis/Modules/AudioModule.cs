@@ -140,7 +140,7 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            if (player.VoiceChannel != voiceChannel && await player.VoiceChannel.GetHumanUsers().Count() > 0)
+            if (player.VoiceChannel != voiceChannel && await player.VoiceChannel.GetHumanUsers().CountAsync() > 0)
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
