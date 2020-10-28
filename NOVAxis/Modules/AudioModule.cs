@@ -155,16 +155,19 @@ namespace NOVAxis.Modules
 
         private async Task LeaveChannel(AudioModuleService.Context service, LavalinkPlayer player)
         {
-            await service.BoundChannel.SendMessageAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle($"Odpojuji se od kanálu `{player.VoiceChannel.Name}`").Build());
+            if (player != null)
+            {
+                await service.BoundChannel.SendMessageAsync(embed: new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithTitle($"Odpojuji se od kanálu `{player.VoiceChannel.Name}`").Build());
+
+                await player.StopAsync();
+                await player.DisconnectAsync();
+            }
 
             service.Queue.Clear();
             service.Timer.Stop();
             service.Timer.Dispose();
-
-            await player.StopAsync();
-            await player.DisconnectAsync();
         }
 
         [Command("play"), Summary("Plays an audio transmission")]
@@ -662,22 +665,28 @@ namespace NOVAxis.Modules
             for (int i = 0; currentNode != null; i++, currentNode = currentNode.Next)
             {
                 var track = currentNode.Value;
-                var emoji = i == 0
-                    ? service.GetPlayer().Playing 
-                        ? new Emoji("\u25B6") // Playing
-                        : new Emoji("\u23F8") // Paused
-                    : i == 1 
-                        ? new Emoji("\u23ED") // Next
-                        : null;
 
-                embedFields[i] = new EmbedFieldBuilder
+                if (i == 0)
                 {
-                    Name = $"{(i == 0 ? "**" : "")}`{i}.` " +
-                    $"{emoji} {track.Value.Title}" +
-                    $"{(i == 0 ? "**" : "")}",
+                    var emoji = service.GetPlayer().Playing
+                        ? new Emoji("\u25B6")  // Playing
+                        : new Emoji("\u23F8"); // Paused
 
-                    Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Value.Length}` | [Odkaz]({track.Value.Url})"
-                };
+                    embedFields[i] = new EmbedFieldBuilder
+                    {
+                        Name = $"**{emoji} {track.Value.Title}**",
+                        Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Value.Length}` | [Odkaz]({track.Value.Url})\n"
+                    };
+                }
+
+                else
+                {
+                    embedFields[i] = new EmbedFieldBuilder
+                    {
+                        Name = $"`{i}.` {track.Value.Title}", 
+                        Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Value.Length}` | [Odkaz]({track.Value.Url})"
+                    };
+                }
             }
 
             await ReplyAsync(embed: new EmbedBuilder()
@@ -777,13 +786,16 @@ namespace NOVAxis.Modules
         {
             var service = AudioModuleService[Context.Guild.Id];
 
-            if (service.Queue.Count > 0 && service.GetPlayer().Playing)
-                return;
+            if (LavalinkService.IsConnected && service.GetPlayer() != null)
+            {
+                if (service.Queue.Count > 0 && service.GetPlayer().Playing)
+                    return;
 
-            if (LavalinkService.IsConnected)
                 await LeaveChannel(service, LavalinkService.Manager.GetPlayer(Context.Guild.Id));
+            }
+
             else
-                await ((IGuildUser)Context.User).VoiceChannel.DisconnectAsync();
+                await LeaveChannel(service, null);
         }
     }
 }
