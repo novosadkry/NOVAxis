@@ -62,7 +62,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Služba není dostupná)")
-                    .WithTitle($"Mé jádro pravě nemůže poskytnout stabilní modul audia").Build());
+                    .WithTitle("Mé jádro pravě nemůže poskytnout stabilní modul audia").Build());
 
                 return;
             }
@@ -72,7 +72,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný kanál)")
-                    .WithTitle($"Mému jádru se nepodařilo naladit na stejnou zvukovou frekvenci").Build());
+                    .WithTitle("Mému jádru se nepodařilo naladit na stejnou zvukovou frekvenci").Build());
 
                 return;
             }
@@ -86,7 +86,7 @@ namespace NOVAxis.Modules
                     await ReplyAsync(embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
-                        .WithTitle($"Mé jádro už bylo naladěno na stejnou zvukovou frekvenci").Build());
+                        .WithTitle("Mé jádro už bylo naladěno na stejnou zvukovou frekvenci").Build());
 
                     return;
                 }
@@ -122,7 +122,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Služba není dostupná)")
-                    .WithTitle($"Mé jádro pravě nemůže poskytnout stabilní modul audia").Build());
+                    .WithTitle("Mé jádro pravě nemůže poskytnout stabilní modul audia").Build());
 
                 return;
             }
@@ -135,7 +135,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle($"Mé jádro musí být před odpojením naladěno na správnou frekvenci").Build());
+                    .WithTitle("Mé jádro musí být před odpojením naladěno na správnou frekvenci").Build());
 
                 return;
             }
@@ -145,7 +145,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle($"Pro komunikaci s jádrem musíš být naladěn na stejnou frekvenci").Build());
+                    .WithTitle("Pro komunikaci s jádrem musíš být naladěn na stejnou frekvenci").Build());
 
                 return;
             }
@@ -175,7 +175,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Služba není dostupná)")
-                    .WithTitle($"Mé jádro pravě nemůže poskytnout stabilní modul audia").Build());
+                    .WithTitle("Mé jádro pravě nemůže poskytnout stabilní modul audia").Build());
 
                 return;
             }
@@ -187,7 +187,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný kanál)")
-                    .WithTitle($"Mému jádru se nepodařilo naladit na stejnou zvukovou frekvenci").Build());
+                    .WithTitle("Mému jádru se nepodařilo naladit na stejnou zvukovou frekvenci").Build());
 
                 return;
             }
@@ -239,7 +239,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Služba není dostupná)")
-                    .WithTitle($"Mé jádro pravě nemůže poskytnout stabilní stream audia").Build());
+                    .WithTitle("Mé jádro pravě nemůže poskytnout stabilní stream audia").Build());
 
                 return;
             }
@@ -249,7 +249,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný argument)")
-                    .WithTitle($"Mému jádru se nepodařilo v databázi nalézt požadovanou stopu").Build());
+                    .WithTitle("Mému jádru se nepodařilo v databázi nalézt požadovanou stopu").Build());
 
                 return;
             }    
@@ -343,7 +343,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle($"Právě teď není streamováno na serveru žádné audio").Build());
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
 
                 return;
             }
@@ -361,7 +361,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle($"Právě teď není streamováno na serveru žádné audio").Build());
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
 
                 return;
             }
@@ -371,7 +371,7 @@ namespace NOVAxis.Modules
 
             await ReplyAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
-                .WithTitle($"Stream audia byl úspěšně zastaven").Build());
+                .WithTitle("Stream audia byl úspěšně zastaven").Build());
         }
 
         [Command("pause"), Summary("Pauses the audio transmission")]
@@ -384,7 +384,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle($"Právě teď není streamováno na serveru žádné audio").Build());
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
 
                 return;
             }
@@ -394,7 +394,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle($"Stream audia byl dávno pozastaven (pro obnovení použíjte `~audio resume`)").Build());
+                    .WithTitle("Stream audia byl dávno pozastaven (pro obnovení použíjte `~audio resume`)").Build());
 
                 return;
             }
@@ -403,7 +403,7 @@ namespace NOVAxis.Modules
 
             await ReplyAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
-                .WithTitle($"Stream audia byl úspěšně pozastaven").Build());
+                .WithTitle("Stream audia byl úspěšně pozastaven").Build());
         }
 
         [Command("resume"), Summary("Resumes the audio transmission")]
@@ -416,7 +416,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle($"Právě teď není streamováno na serveru žádné audio").Build());
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
 
                 return;
             }
@@ -426,7 +426,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle($"Stream audia právě běží (pro pozastavení použíjte `~audio pause`)").Build());
+                    .WithTitle("Stream audia právě běží (pro pozastavení použíjte `~audio pause`)").Build());
 
                 return;
             }
@@ -435,7 +435,7 @@ namespace NOVAxis.Modules
 
             await ReplyAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
-                .WithTitle($"Stream audia byl úspěšně obnoven").Build());
+                .WithTitle("Stream audia byl úspěšně obnoven").Build());
         }
 
         [Command("seek"), Summary("Seeks a position in the audio transmissions")]
@@ -448,7 +448,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle($"Právě teď není streamováno na serveru žádné audio").Build());
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
 
                 return;
             }
@@ -458,7 +458,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný argument)")
-                    .WithTitle($"Nelze nastavit hodnotu přesahující maximální délku stopy").Build());
+                    .WithTitle("Nelze nastavit hodnotu přesahující maximální délku stopy").Build());
 
                 return;
             }
@@ -468,7 +468,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný argument)")
-                    .WithTitle($"Nelze nastavit zápornou hodnotu").Build());
+                    .WithTitle("Nelze nastavit zápornou hodnotu").Build());
 
                 return;
             }
@@ -490,7 +490,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle($"Právě teď není streamováno na serveru žádné audio").Build());
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
 
                 return;
             }
@@ -500,7 +500,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný argument)")
-                    .WithTitle($"Nelze posunout o zápornou nebo nulovou hodnotu").Build());
+                    .WithTitle("Nelze posunout o zápornou nebo nulovou hodnotu").Build());
 
                 return;
             }
@@ -527,7 +527,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle($"Právě teď není streamováno na serveru žádné audio").Build());
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
 
                 return;
             }
@@ -537,7 +537,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný argument)")
-                    .WithTitle($"Nelze posunout o zápornou nebo nulovou hodnotu").Build());
+                    .WithTitle("Nelze posunout o zápornou nebo nulovou hodnotu").Build());
 
                 return;
             }
@@ -565,7 +565,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle($"Právě teď není streamováno na serveru žádné audio").Build());
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
 
                 return;
             }
@@ -575,7 +575,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný argument)")
-                    .WithTitle($"Mé jádro nepodporuje hlasitost vyšší než 150%").Build());
+                    .WithTitle("Mé jádro nepodporuje hlasitost vyšší než 150%").Build());
 
                 return;
             }
@@ -599,7 +599,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle($"Právě teď není streamováno na serveru žádné audio").Build());
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
 
                 return;
             }
@@ -651,7 +651,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle($"Právě teď se ve frontě nenachází žádná zvuková stopa").Build());
+                    .WithTitle("Právě teď se ve frontě nenachází žádná zvuková stopa").Build());
 
                 return;
             }
@@ -697,7 +697,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle($"Právě teď se ve frontě nenachází žádná zvuková stopa").Build());
+                    .WithTitle("Právě teď se ve frontě nenachází žádná zvuková stopa").Build());
 
                 return;
             }
@@ -707,7 +707,7 @@ namespace NOVAxis.Modules
                 await Context.Channel.SendMessageAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatná pozice)")
-                    .WithTitle($"Požadovaná stopa se ve frontě nenachází").Build());
+                    .WithTitle("Požadovaná stopa se ve frontě nenachází").Build());
 
                 return;
             }
@@ -716,7 +716,7 @@ namespace NOVAxis.Modules
 
             await ReplyAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
-                .WithTitle($"Požadovaná stopa byla úspěšně odebrána z fronty").Build());
+                .WithTitle("Požadovaná stopa byla úspěšně odebrána z fronty").Build());
         }
 
         [Command("setrole"), Summary("Sets the guild's DJ role which is used to identify eligible users")]
