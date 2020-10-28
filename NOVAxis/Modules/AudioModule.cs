@@ -173,6 +173,8 @@ namespace NOVAxis.Modules
         [Command("play"), Summary("Plays an audio transmission")]
         public async Task PlayAudio([Remainder]string input)
         {
+            var service = AudioModuleService[Context.Guild.Id];
+
             if (!LavalinkService.IsConnected)
             {
                 await ReplyAsync(embed: new EmbedBuilder()
@@ -199,13 +201,15 @@ namespace NOVAxis.Modules
 
             if (player == null)
             {
+                service.Queue.Clear();
+
                 await JoinChannel(voiceChannel);
                 player = LavalinkService.Manager.GetPlayer(voiceChannel.GuildId);
             }
 
             if (player.VoiceChannel != voiceChannel)
             {
-                AudioModuleService[Context.Guild.Id].Queue.Clear();
+                service.Queue.Clear();
 
                 await LavalinkService.Manager.LeaveAsync(voiceChannel.GuildId);
                 await JoinChannel(voiceChannel);
@@ -649,7 +653,7 @@ namespace NOVAxis.Modules
         {
             var service = AudioModuleService[Context.Guild.Id];
 
-            if (service.Queue.Count <= 0)
+            if (service.Queue.Count < 1 || service.GetPlayer() == null)
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
