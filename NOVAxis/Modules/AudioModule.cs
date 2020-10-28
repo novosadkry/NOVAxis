@@ -505,14 +505,14 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            TimeSpan newTime = TimeSpan.FromSeconds(player.CurrentPosition / 1000d) + time;
+            TimeSpan newTime = TimeSpan.FromMilliseconds(player.CurrentPosition) + time;
 
             if (newTime > player.CurrentTrack.Length)
                 newTime = player.CurrentTrack.Length;
 
             await ReplyAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
-                .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime}`").Build());
+                .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime:hh\\:mm\\:ss}`").Build());
 
             await player.SeekAsync((int)newTime.TotalMilliseconds);
         }
@@ -542,14 +542,14 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            TimeSpan newTime = TimeSpan.FromSeconds(player.CurrentPosition / 1000d) - time;
+            TimeSpan newTime = TimeSpan.FromMilliseconds(player.CurrentPosition) - time;
 
             if (newTime < TimeSpan.Zero)
                 newTime = TimeSpan.Zero;
 
             await ReplyAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
-                .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime}`").Build());
+                .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime:hh\\:mm\\:ss}`").Build());
 
             await player.SeekAsync((int)newTime.TotalMilliseconds);
         }
@@ -621,7 +621,7 @@ namespace NOVAxis.Modules
                         new EmbedFieldBuilder
                         {
                             Name = "Pozice:",
-                            Value = $"`{TimeSpan.FromSeconds(player.CurrentPosition / 1000d)} / {player.CurrentTrack.Length}`",
+                            Value = $"`{TimeSpan.FromMilliseconds(player.CurrentPosition):hh\\:mm\\:ss} / {player.CurrentTrack.Length}`",
                             IsInline = true
                         },
 
