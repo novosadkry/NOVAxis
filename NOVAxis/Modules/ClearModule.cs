@@ -39,7 +39,7 @@ namespace NOVAxis.Modules
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription($"({e.Message})")
-                    .WithTitle($"Mé jádro nebylo schopno vyzamat daný počet zpráv").Build());
+                    .WithTitle($"Mé jádro nebylo schopno vymazat daný počet zpráv").Build());
             }
         }
 

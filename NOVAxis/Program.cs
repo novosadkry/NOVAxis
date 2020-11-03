@@ -43,7 +43,8 @@ namespace NOVAxis
             {
                 LogLevel = Config.Log.Severity,
                 TotalShards = Config.TotalShards,
-                ExclusiveBulkDelete = true
+                ExclusiveBulkDelete = true,
+                MessageCacheSize = 100
             });
 
             _commandService = new CommandService(new CommandServiceConfig
