@@ -359,7 +359,7 @@ namespace NOVAxis.Modules
         }
 
         [Command("mal"), Alias("Mal", "MyAnimeList", "myanimelist"), Summary("Shows command list for MAL")]
-        public async Task ShowMalHelp()
+        public async Task ShowMALHelp()
         {
             var guildInfo = await GuildService.GetInfo(Context);
             string prefix = guildInfo.Prefix;

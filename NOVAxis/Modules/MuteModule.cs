@@ -3,32 +3,21 @@ using System.Threading.Tasks;
 
 using Discord;
 using Discord.Commands;
-using NOVAxis.Services;
 
 namespace NOVAxis.Modules
 {
     [Group("mute")]
     [RequireContext(ContextType.Guild)]
     [RequireUserPermission(GuildPermission.MuteMembers)]
+    [RequireBotPermission(GuildPermission.ManageChannels | GuildPermission.MuteMembers | GuildPermission.ManageRoles)]
     public class MuteModule : ModuleBase<SocketCommandContext>
     {
-        public GuildService GuildService { get; set; }
+        public const string RoleName = "Muted";
 
         [Command, Summary("Swithes a user's permission to chat in text channels")]
         public async Task SwitchMute(IGuildUser user)
         {
-            var guildInfo = await GuildService.GetInfo(Context);
-            IRole role = Context.Guild.GetRole(guildInfo.MuteRole);
-
-            if (role == null)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Role neexistuje nebo nebyla nastavena)")
-                    .WithTitle("Mé jádro nebylo pro tenhle příkaz nakonfigurováno").Build());
-
-                return;
-            }
+            IRole role = await SetupMute();
 
             if (!user.RoleIds.Contains(role.Id))
             {
@@ -51,58 +40,24 @@ namespace NOVAxis.Modules
             }
         }
 
-        [Command("setrole"), Summary("Sets the guild's mute role which is used to identify muted users")]
-        public async Task SetMuteRole(IRole role)
+        private async Task<IRole> SetupMute()
         {
-            var guildInfo = await GuildService.GetInfo(Context);
-            guildInfo.MuteRole = role.Id;
+            IRole role = Context.Guild.Roles.FirstOrDefault(r => r.Name == RoleName);
 
-            await GuildService.SetInfo(Context, guildInfo);
-
-            await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithDescription($"(Nastavena role {role.Mention})")
-                .WithTitle("Konfigurace mého jádra proběhla úspešně").Build());
-        }
-
-        [Command("setrole"), Summary("Sets the guild's mute role which is used to identify muted users")]
-        public async Task SetMuteRole(ulong roleId = 0)
-        {
-            IRole role = Context.Guild.GetRole(roleId);
-
-            if (role != null)
+            if (role == null)
             {
-                var guildInfo = await GuildService.GetInfo(Context);
-                guildInfo.MuteRole = role.Id;
-
-                await GuildService.SetInfo(Context, guildInfo);
-
+                role = await Context.Guild.CreateRoleAsync(RoleName, new GuildPermissions(), new Color(0x818386), false, false);
+                
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
-                    .WithDescription($"(Nastavená role {role.Mention})")
-                    .WithTitle("Konfigurace mého jádra proběhla úspešně").Build());
+                    .WithDescription($"(Vytvoření role {role.Mention})")
+                    .WithTitle("Mé jádro úspěšně nakonfigurovalo textový protokol").Build());
             }
 
-            else if (roleId == 0)
-            {
-                var guildInfo = await GuildService.GetInfo(Context);
-                guildInfo.MuteRole = 0;
+            foreach (ITextChannel channel in Context.Guild.TextChannels)
+                await channel.AddPermissionOverwriteAsync(role, new OverwritePermissions(sendMessages: PermValue.Deny));
 
-                await GuildService.SetInfo(Context, guildInfo);
-
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithDescription("(Nastavená role zrušena)")
-                    .WithTitle("Konfigurace mého jádra proběhla úspešně").Build());
-            }
-
-            else
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný argument)")
-                    .WithTitle("Má databáze nebyla schopna rozpoznat daný prvek").Build());
-            }
+            return role;
         }
     }
 }

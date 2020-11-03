@@ -1,4 +1,8 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 using SharpLink;
 using SharpLink.Stats;
@@ -10,7 +14,10 @@ namespace NOVAxis.Services
         private static LavalinkManager _manager;
         public static LavalinkManager Manager
         {
-            get => _manager;
+            get
+            {
+                return _manager;
+            }
 
             set
             {

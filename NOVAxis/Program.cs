@@ -176,15 +176,7 @@ namespace NOVAxis
             int argPos = 0;
             if (!(context.Message.HasStringPrefix(prefix, ref argPos) || 
                 context.Message.HasMentionPrefix(Client.CurrentUser, ref argPos)))
-            {
-                if (context.User is IGuildUser guildUser)
-                {
-                    if (guildUser.RoleIds.Contains(guildInfo.MuteRole))
-                        _ = arg.DeleteAsync();
-                }
-
                 return;
-            }
 
             switch (Client.Status)
             {

@@ -104,7 +104,6 @@ namespace NOVAxis.Services.Database
                 "CREATE TABLE IF NOT EXISTS `guilds` (" +
                 "`Id` bigint(20) UNSIGNED NOT NULL PRIMARY KEY," +
                 "`Prefix` varchar(10) DEFAULT NULL," +
-                "`MuteRole` bigint(20) UNSIGNED NOT NULL," +
                 "`DjRole` bigint(20) UNSIGNED NOT NULL)");
         }
 
