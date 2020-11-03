@@ -14,7 +14,6 @@ namespace NOVAxis.Services
         public class GuildInfo
         {
             public string Prefix { get; set; }
-            public ulong MuteRole { get; set; }
             public ulong DjRole { get; set; }
 
             public static GuildInfo Default => 
@@ -47,13 +46,12 @@ namespace NOVAxis.Services
                 if (_db.Active)
                 {
                     var result = await _db.GetValues(
-                        "SELECT Prefix, MuteRole, DjRole FROM Guilds WHERE Id=@id",
+                        "SELECT Prefix, DjRole FROM Guilds WHERE Id=@id",
                         3,
                         new Tuple<string, object>("id", id));
 
                     info.Prefix = (string)(result?[0] ?? info.Prefix);
-                    info.MuteRole = Convert.ToUInt64(result?[1]);
-                    info.DjRole = Convert.ToUInt64(result?[2]);
+                    info.DjRole = Convert.ToUInt64(result?[1]);
                 }
 
                 _cache[id] = info;
@@ -75,10 +73,9 @@ namespace NOVAxis.Services
             if (_db.Active)
             {
                 await _db.Execute(
-                    "REPLACE INTO guilds VALUES(@id, @prefix, @muteRole, @djRole)",
+                    "REPLACE INTO guilds VALUES(@id, @prefix, @djRole)",
                     new Tuple<string, object>("id", id),
                     new Tuple<string, object>("prefix", info.Prefix),
-                    new Tuple<string, object>("muteRole", info.MuteRole),
                     new Tuple<string, object>("djRole", info.DjRole));
             }
 

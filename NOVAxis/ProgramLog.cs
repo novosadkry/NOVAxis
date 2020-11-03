@@ -1,17 +1,27 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 using Discord;
+using Discord.Commands;
+using Discord.WebSocket;
 
 namespace NOVAxis
 {
     static class ProgramLog
     {
-        private static string LogPathFormat => Path.Combine(".", "log", "log_{0}.txt");
+        private static string LogPathFormat
+        {
+            get => Path.Combine(".", "log", "log_{0}.txt");
+        }
 
-        private static string LogPath => string.Format(LogPathFormat, $"{DateTime.Now.Day}.{DateTime.Now.Month}.{DateTime.Now.Year}");
+        private static string LogPath
+        {
+            get => string.Format(LogPathFormat, string.Format("{0}.{1}.{2}", DateTime.Now.Day, DateTime.Now.Month, DateTime.Now.Year));
+        }
 
         public static Task ToConsole(LogMessage arg)
         { 

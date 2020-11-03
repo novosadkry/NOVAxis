@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 using Discord;
@@ -43,7 +46,7 @@ namespace NOVAxis
             public LogSeverity Severity { get; set; }
         }
 
-        private const string ConfigPath = @"config.json";
+        private const string configPath = @"config.json";
 
         public string LoginToken { get; set; }
         public string DefaultPrefix { get; set; }
@@ -97,16 +100,16 @@ namespace NOVAxis
 
         public static event Func<LogMessage, Task> LogEvent;
 
-        public static async Task<ProgramConfig> LoadConfig()
+        public async static Task<ProgramConfig> LoadConfig()
         {
             try
             {
-                return JsonConvert.DeserializeObject<ProgramConfig>(await File.ReadAllTextAsync(ConfigPath));
+                return JsonConvert.DeserializeObject<ProgramConfig>(File.ReadAllText(configPath));
             }
 
             catch (FileNotFoundException)
             {
-                await LogEvent(new LogMessage(LogSeverity.Warning, "Program", $"Config file ({ConfigPath}) not found"));
+                await LogEvent(new LogMessage(LogSeverity.Warning, "Program", $"Config file ({configPath}) not found"));
                 await LogEvent(new LogMessage(LogSeverity.Info, "Program", "Forcing config reset"));
                 await ResetConfig();
 
@@ -114,12 +117,12 @@ namespace NOVAxis
             }
         }
 
-        public static async Task SaveConfig(ProgramConfig config)
+        public async static Task SaveConfig(ProgramConfig config)
         {
-            await Task.Run(() => File.WriteAllText(ConfigPath, JsonConvert.SerializeObject(config, Formatting.Indented)));
+            await Task.Run(() => File.WriteAllText(configPath, JsonConvert.SerializeObject(config, Formatting.Indented)));
         }
 
-        public static async Task ResetConfig()
+        public async static Task ResetConfig()
         {
             await SaveConfig(new ProgramConfig());
         }

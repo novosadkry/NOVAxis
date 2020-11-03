@@ -1,11 +1,17 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
 
+using NOVAxis.Preconditions;
+
 using Discord;
 using Discord.Commands;
+using Discord.WebSocket;
 
 namespace NOVAxis.Modules
 {
@@ -48,7 +54,7 @@ namespace NOVAxis.Modules
                     await ReplyAsync(embed: new EmbedBuilder()
                         .WithColor(220, 20, 60)
                         .WithDescription($"({e.Message})")
-                        .WithTitle("Má databáze nebyla schopna přeložit daný text").Build());
+                        .WithTitle($"Má databáze nebyla schopna přeložit daný text").Build());
                 }
             }
         }
