@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,12 +8,40 @@ using System.Timers;
 using NOVAxis.Extensions;
 
 using Discord;
-using SharpLink;
+using Victoria;
+using Victoria.EventArgs;
 
 namespace NOVAxis.Services
 {
     public class AudioModuleService
     {
+        public class LinkedQueue<T> : LinkedList<T>
+        {
+            public void Enqueue(T value)
+            {
+                AddLast(value);
+            }
+
+            public void Enqueue(IEnumerable<T> values)
+            {
+                foreach (T value in values)
+                    AddLast(value);
+            }
+
+            public T Dequeue()
+            {
+                T value = this.First();
+                RemoveFirst();
+
+                return value;
+            }
+
+            public T Peek()
+            {
+                return this.First();
+            }
+        }
+
         public class Context
         {
             public Context(ulong id)
@@ -22,98 +51,94 @@ namespace NOVAxis.Services
 
             public class ContextTrack
             {
-                public LavalinkTrack Value { get; set; }
+                public LavaTrack Value { get; set; }
                 public IUser RequestedBy { get; set; }
-                public string ThumbnailUrl { get => Value.GetThumbnailUrl(); }
+                public string ThumbnailUrl => Value.GetThumbnailUrl(); 
 
-                public static explicit operator LavalinkTrack(ContextTrack track)
+                public static implicit operator LavaTrack(ContextTrack track)
                 {    
                     return track.Value;
                 }
             }
 
-            public class ContextTimer
+            public class ContextTimer : IDisposable
             {
-                private Timer timer;
-                public bool IsSet { get; private set; } = false;
-                public bool Elapsed { get; private set; } = false;
+                private Timer _timer;
+                public bool IsSet { get; private set; }
+                public bool Elapsed { get; private set; }
 
                 public void Set(double interval, ElapsedEventHandler elapsedEvent)
                 {
-                    timer = new Timer(interval);
-                    timer.Elapsed += (sender, e) => Elapsed = true;
-                    timer.Elapsed += elapsedEvent;
+                    _timer = new Timer(interval);
+                    _timer.Elapsed += (sender, e) => Elapsed = true;
+                    _timer.Elapsed += elapsedEvent;
                     IsSet = true;
                 }
 
                 public void Reset()
                 {
-                    timer.Stop();
-                    timer.Start();
+                    Stop(); Start();
                     Elapsed = false;
                 }
 
-                public void Start() => timer.Start();
-                public void Stop() => timer.Stop();
+                public void Start() => _timer.Start();
+                public void Stop() => _timer.Stop();
 
-                public void Dispose() 
-                { 
-                    timer.Dispose(); 
-                    IsSet = false; 
-                    Elapsed = false; 
+                public void Dispose()
+                {
+                    _timer.Dispose();
+                    IsSet = false;
+                    Elapsed = false;
                 }
             }
 
-            public LavalinkPlayer GetPlayer() => LavalinkService.Manager.GetPlayer(GuildId);
-
-            public LinkedList<ContextTrack> Queue { get; set; } = new LinkedList<ContextTrack>();
+            public LinkedQueue<ContextTrack> Queue { get; set; } = new LinkedQueue<ContextTrack>();
+            public ContextTrack Track => Queue.First();
+            public ContextTrack LastTrack => Queue.Last();
 
             public ContextTimer Timer { get; set; } = new ContextTimer();
 
-            public ContextTrack CurrentTrack { get => Queue.First(); }
-            public ContextTrack LastTrack { get => Queue.Last(); }
-
-            public uint Volume { get; set; } = 100;
             public ulong GuildId { get; }
-
-            public IMessageChannel BoundChannel { get; set; }
         }
 
-        public AudioModuleService()
+        public AudioModuleService(LavaNode lavaNodeInstance)
         {
             AudioTimeout = Program.Config.AudioTimeout;
-            guilds = new ConcurrentDictionary<ulong, Context>();
+            _guilds = new ConcurrentDictionary<ulong, Context>();
 
-            LavalinkService.Manager.TrackEnd -= AudioModuleService_TrackEnd;
-            LavalinkService.Manager.TrackEnd += AudioModuleService_TrackEnd;
+            lavaNodeInstance.OnTrackEnded -= AudioModuleService_TrackEnd;
+            lavaNodeInstance.OnTrackEnded += AudioModuleService_TrackEnd;
         }
 
         public long AudioTimeout { get; }
 
-        private ConcurrentDictionary<ulong, Context> guilds;
+        private readonly ConcurrentDictionary<ulong, Context> _guilds;
 
         public Context this[ulong id]
         {
-            get => guilds.GetOrAdd(id, new Context(id));
-            set => guilds[id] = value;
+            get => _guilds.GetOrAdd(id, new Context(id));
+            set => _guilds[id] = value;
         }
 
-        private async Task AudioModuleService_TrackEnd(LavalinkPlayer player, LavalinkTrack track, string _)
+        private async Task AudioModuleService_TrackEnd(TrackEndedEventArgs args)
         {
-            var service = guilds[player.VoiceChannel.GuildId];
+            if (args.Player.VoiceChannel == null)
+                return;
+
+            var service = _guilds[args.Player.VoiceChannel.GuildId];
 
             if (service.Queue.Count == 0)
                 return;
 
-            service.Queue.RemoveFirst();
+            service.Queue.Dequeue();
 
             if (service.Queue.Count > 0)
             {
-                Context.ContextTrack nextTrack = service.Queue.First();
+                Context.ContextTrack nextTrack = service.Queue.Peek();
 
-                await player.PlayAsync(nextTrack.Value);
+                await args.Player.PlayAsync(nextTrack.Value);
 
-                await service.BoundChannel.SendMessageAsync(embed: new EmbedBuilder()
+                await args.Player.TextChannel.SendMessageAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithAuthor("Právě přehrávám:")
                     .WithTitle($"{new Emoji("\u25B6")} {nextTrack.Value.Title}")
@@ -130,7 +155,7 @@ namespace NOVAxis.Services
                         new EmbedFieldBuilder
                         {
                             Name = "Délka:",
-                            Value = $"`{nextTrack.Value.Length}`",
+                            Value = $"`{nextTrack.Value.Duration}`",
                             IsInline = true
                         },
 
@@ -144,7 +169,7 @@ namespace NOVAxis.Services
                         new EmbedFieldBuilder
                         {
                             Name = "Hlasitost:",
-                            Value = $"{service.Volume}%",
+                            Value = $"{args.Player.Volume}%",
                             IsInline = true
                         }
                     ).Build());
@@ -152,9 +177,9 @@ namespace NOVAxis.Services
 
             else
             {
-                await service.BoundChannel.SendMessageAsync(embed: new EmbedBuilder()
+                await args.Player.TextChannel.SendMessageAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
-                    .WithTitle($"Stream audia byl úspěšně dokončen").Build());
+                    .WithTitle("Stream audia byl úspěšně dokončen").Build());
             }
 
             service.Timer.Reset();

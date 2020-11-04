@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Discord;
-using SharpLink;
+using Victoria;
 
 namespace NOVAxis.Extensions
 {
     public static class AudioModuleExtensions
     {
-        public static string GetThumbnailUrl(this LavalinkTrack track)
+        public static string GetThumbnailUrl(this LavaTrack track)
         {
             string id = System.Web.HttpUtility.ParseQueryString(track.Url)[0];
             return $"https://img.youtube.com/vi/{id}/hqdefault.jpg";

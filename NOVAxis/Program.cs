@@ -9,7 +9,7 @@ using Discord.Commands;
 using Discord.WebSocket;
 
 using Interactivity;
-using SharpLink;
+using Victoria;
 
 using NOVAxis.Services;
 using NOVAxis.Services.Database;
@@ -19,6 +19,8 @@ namespace NOVAxis
     class Program
     {  
         private static CommandService _commandService;
+        private static LavaNode _lavaNodeInstance;
+
         public static IServiceProvider Services;
 
         public static DiscordShardedClient Client { get; private set; }
@@ -55,27 +57,28 @@ namespace NOVAxis
                 LogLevel = Config.Log.Severity
             });
 
-            LavalinkService.Manager = new LavalinkManager(Client, new LavalinkManagerConfig
+            LavaConfig lavaConfig = new LavaConfig
             {
-                RESTHost = Config.Lavalink.Host,
-                RESTPort = 2333,
-                WebSocketHost = Config.Lavalink.Host,
-                WebSocketPort = 2333,
+                Hostname = Config.Lavalink.Host,
+                Port = Config.Lavalink.Port,
                 Authorization = Config.Lavalink.Login,
-                TotalShards = Config.TotalShards
-            }); 
+                SelfDeaf = Config.Lavalink.SelfDeaf,
+                LogSeverity = Config.Log.Severity,
+            };
 
-            LavalinkService.Manager.Log += Client_Log;
+            _lavaNodeInstance = new LavaNode(Client, lavaConfig);
+            _lavaNodeInstance.OnLog += Client_Log;
 
             DatabaseService databaseService = DatabaseService.GetService(Config.Database);
             databaseService.LogEvent += Client_Log;
-            await databaseService.Setup();
+            _ = databaseService.Setup();
 
             Services = new ServiceCollection()
-                .AddSingleton(new AudioModuleService())
+                .AddSingleton(new AudioModuleService(_lavaNodeInstance))
                 .AddSingleton(databaseService)
                 .AddSingleton(new GuildService(databaseService))
                 .AddSingleton(new InteractivityService(Client))
+                .AddSingleton(_lavaNodeInstance)
                 .BuildServiceProvider();
 
             _commandService.CommandExecuted += CommandService_CommandExecuted;
@@ -136,6 +139,15 @@ namespace NOVAxis
             Console.Read();
         }
 
+        public static async Task Exit()
+        {
+            await Client.LogoutAsync();
+            await Client.StopAsync();
+
+            await _lavaNodeInstance.DisconnectAsync();
+            await _lavaNodeInstance.DisposeAsync();
+        }
+
         public static async Task Client_Log(LogMessage arg)
         {
             ProgramConfig config =
@@ -156,8 +168,8 @@ namespace NOVAxis
             
             if (++ShardsReady == Config.TotalShards)
             {
-                await Client_Log(new LogMessage(LogSeverity.Info, "Lavalink", "Start"));
-                await LavalinkService.Manager.StartAsync();
+                await Client_Log(new LogMessage(LogSeverity.Info, "Victoria", "Connecting"));
+                await _lavaNodeInstance.ConnectAsync();
             }
         }
 

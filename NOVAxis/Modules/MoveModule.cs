@@ -1,14 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
-
-using SharpLink;
 
 namespace NOVAxis.Modules
 {
@@ -37,30 +34,6 @@ namespace NOVAxis.Modules
 
                 if (user.VoiceChannel == channel)
                     return;
-
-                if (user.Id == Context.Client.CurrentUser.Id)
-                {
-                    try
-                    {
-                        var service = AudioModuleService[Context.Guild.Id];
-
-                        var track = service.CurrentTrack;
-                        long trackPos = service.GetPlayer().CurrentPosition;
-
-                        AudioModuleService[Context.Guild.Id].Queue.AddFirst(track);
-
-                        await Services.LavalinkService.Manager.LeaveAsync(Context.Guild.Id);
-                        await Services.LavalinkService.Manager.JoinAsync(channel);
-
-                        await service.GetPlayer().SeekAsync((int)trackPos);
-                    }
-
-                    catch (InvalidOperationException)
-                    {
-                        await Services.LavalinkService.Manager.LeaveAsync(Context.Guild.Id);
-                        await Services.LavalinkService.Manager.JoinAsync(channel);
-                    }
-                }
 
                 await user.ModifyAsync(prop =>
                 {
@@ -110,32 +83,6 @@ namespace NOVAxis.Modules
                     if (u.VoiceChannel == channel2)
                         continue;
 
-                    if (u.Id == Context.Client.CurrentUser.Id)
-                    {
-                        var service = AudioModuleService[Context.Guild.Id];
-
-                        try
-                        {
-                            var track = service.CurrentTrack;
-                            long trackPos = service.GetPlayer().CurrentPosition;
-
-                            AudioModuleService[Context.Guild.Id].Queue.AddFirst(track);
-
-                            await Services.LavalinkService.Manager.LeaveAsync(Context.Guild.Id);
-                            await Services.LavalinkService.Manager.JoinAsync(channel2);
-
-                            await service.GetPlayer().SeekAsync((int)trackPos);
-                        }
-
-                        catch (InvalidOperationException)
-                        {
-                            await Services.LavalinkService.Manager.LeaveAsync(Context.Guild.Id);
-                            await Services.LavalinkService.Manager.JoinAsync(channel2);
-                        }
-
-                        continue;
-                    }
-
                     await u.ModifyAsync(prop =>
                     {
                         prop.ChannelId = channel2.Id;
@@ -176,32 +123,6 @@ namespace NOVAxis.Modules
                 {
                     if (u.VoiceChannel == channel2)
                         continue;
-
-                    if (u.Id == Context.Client.CurrentUser.Id)
-                    {
-                        try
-                        {
-                            var service = AudioModuleService[Context.Guild.Id];
-
-                            var track = service.CurrentTrack;
-                            long trackPos = service.GetPlayer().CurrentPosition;
-
-                            AudioModuleService[Context.Guild.Id].Queue.AddFirst(track);
-
-                            await Services.LavalinkService.Manager.LeaveAsync(Context.Guild.Id);
-                            await Services.LavalinkService.Manager.JoinAsync(channel2);
-
-                            await service.GetPlayer().SeekAsync((int)trackPos);
-                        }
-
-                        catch (InvalidOperationException)
-                        {
-                            await Services.LavalinkService.Manager.LeaveAsync(Context.Guild.Id);
-                            await Services.LavalinkService.Manager.JoinAsync(channel2);
-                        }
-
-                        continue;
-                    }
 
                     await u.ModifyAsync(prop =>
                     {

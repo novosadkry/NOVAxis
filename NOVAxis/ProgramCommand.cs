@@ -1,16 +1,11 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Reflection;
 using System.IO;
 
 using Discord;
-using Discord.Commands;
-using Discord.WebSocket;
 
 namespace NOVAxis
 {
@@ -18,7 +13,7 @@ namespace NOVAxis
     {
         public string Name { get; }
         public string[] Alias { get; }
-        private Action _command;
+        private readonly Action _command;
 
         public Task Execute()
         {
@@ -38,11 +33,7 @@ namespace NOVAxis
             {
                 try
                 {
-                    await Program.Client.LogoutAsync();
-                    await Program.Client.StopAsync();
-
-                    try { await Services.LavalinkService.Manager.StopAsync(); }
-                    catch (ObjectDisposedException) { }
+                    await Program.Exit();
                 }
 
                 catch (Exception e)
@@ -57,11 +48,7 @@ namespace NOVAxis
             {
                 try
                 {
-                    await Program.Client.LogoutAsync();
-                    await Program.Client.StopAsync();
-
-                    try { await Services.LavalinkService.Manager.StopAsync(); }
-                    catch (ObjectDisposedException) { }
+                    await Program.Exit();
 
                     Process.Start(Path.GetFileName(Assembly.GetEntryAssembly().Location));
                     Process.GetCurrentProcess().Close();
@@ -149,23 +136,6 @@ namespace NOVAxis
                         await Program.Client_Log(new LogMessage(LogSeverity.Info, "Program", $"This command isn't supported on your OS ({Environment.OSVersion.Platform})"));
                         return;
                 }        
-            }),
-
-            new ProgramCommand("lavalink_stats", null, async () =>
-            {
-                var stats = Services.LavalinkService.ManagerStats;
-
-                await Program.Client_Log(new LogMessage(LogSeverity.Info, "Lavalink",
-                    $"Lavalink statistics: " +
-                    $"\nMemory allocated: {stats?.Memory.Allocated:0,0} bytes " +
-                    $"\nMemory free: {stats?.Memory.Free:0,0} bytes " +
-                    $"\nMemory used: {stats?.Memory.Used:0,0} bytes " +
-                    $"\nCPU cores: {stats?.CPU.Cores} " +
-                    $"\nCPU systemload: {stats?.CPU.SystemLoad:0.000} % " +
-                    $"\nCPU lavalinkload: {stats?.CPU.LavalinkLoad:0.000} % " +
-                    $"\nPlayers: {stats?.Players} " +
-                    $"| Playing: {stats?.PlayingPlayers} " +
-                    $"\nUptime: {TimeSpan.FromMilliseconds(stats?.Uptime ?? 0)}"));
             }),
         };
     }
