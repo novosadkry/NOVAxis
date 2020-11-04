@@ -4,14 +4,15 @@ using System.Threading.Tasks;
 using NOVAxis.Services;
 
 using Discord;
-using Discord.Addons.Interactive;
+using Interactivity;
 using Discord.Commands;
 
 namespace NOVAxis.Modules
 {
     [Group("help"), Alias("?")]
-    public class HelpModule : InteractiveBase<SocketCommandContext>
+    public class HelpModule : ModuleBase<SocketCommandContext>
     {
+        public InteractivityService InteractivityService { get; set; }
         public GuildService GuildService { get; set; }
 
         private async Task SendHelp(Embed embed)
@@ -20,11 +21,12 @@ namespace NOVAxis.Modules
             {
                 await Context.Message.DeleteAsync();
 
-                await ReplyAndDeleteAsync(null, embed: new EmbedBuilder()
+                var msg = await ReplyAsync(embed: new EmbedBuilder()
                     .WithAuthor(Context.User.Username, Context.User.GetAvatarUrl())
                     .WithColor(new Color(52, 231, 231))
-                    .WithTitle("Seznam příkazů byl úspěšně poslán do přímé zprávy").Build(), 
-                    timeout: TimeSpan.FromSeconds(5));
+                    .WithTitle("Seznam příkazů byl úspěšně poslán do přímé zprávy").Build());
+
+                InteractivityService.DelayedDeleteMessageAsync(msg, TimeSpan.FromSeconds(5));
 
                 await Context.User.SendMessageAsync(embed: embed);
             }
