@@ -3,7 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 
 using Discord;
-using Discord.Addons.Interactive;
+using Interactivity;
 using Discord.Commands;
 
 namespace NOVAxis.Modules
@@ -11,8 +11,10 @@ namespace NOVAxis.Modules
     [Group("clear")]
     [RequireContext(ContextType.Guild)]
     [RequireUserPermission(GuildPermission.ManageMessages)]
-    public class ClearModule : InteractiveBase<SocketCommandContext>
+    public class ClearModule : ModuleBase<SocketCommandContext>
     {
+        public InteractivityService InteractivityService { get; set; }
+
         [Command, Summary("Clears a number of the last sent messages")]
         public async Task Purge(int numberOfMessages)
         {
@@ -36,12 +38,12 @@ namespace NOVAxis.Modules
                 await ((ITextChannel)Context.Channel).DeleteMessagesAsync(messages);
 
                 int count = messages.Count - 1;
-                await ReplyAndDeleteAsync(null,
-                    embed: new EmbedBuilder()
-                        .WithColor(52, 231, 231)
-                        .WithTitle($"Mé jádro úspěšně vymazalo z existence **{count}** zpráv" + 
-                                   (count == 1 ? "u" : Enumerable.Range(1, 4).Contains(count) ? "y" : "")).Build(), 
-                    timeout: TimeSpan.FromSeconds(5));
+                var msg = await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithTitle($"Mé jádro úspěšně vymazalo z existence **{count}** zpráv" +
+                               (count == 1 ? "u" : Enumerable.Range(1, 4).Contains(count) ? "y" : "")).Build());
+
+                InteractivityService.DelayedDeleteMessageAsync(msg, TimeSpan.FromSeconds(5));
             }
 
             catch (Exception e)

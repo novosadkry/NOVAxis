@@ -1,25 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
-using System.Web;
-using System.Net;
-
-using NOVAxis.Preconditions;
-
 using Discord;
 using Discord.Commands;
-using Discord.WebSocket;
-using Discord.Addons.Interactive;
-
-using Newtonsoft.Json;
+using Interactivity;
 using Newtonsoft.Json.Linq;
 
 namespace NOVAxis.Modules
 {
     [Group("mal")]
-    public class MALModule : InteractiveBase<SocketCommandContext>
+    public class MALModule : ModuleBase<SocketCommandContext>
     {
         private static class MALJson
         {
@@ -92,7 +85,7 @@ namespace NOVAxis.Modules
                     string api = string.Format(this.api, mal_id);
                     api = Uri.EscapeUriString(api);
 
-                    using (WebClient client = new WebClient() { Encoding = Encoding.UTF8 })
+                    using (WebClient client = new WebClient { Encoding = Encoding.UTF8 })
                     {
                         Task<string> result = client.DownloadStringTaskAsync(api);
                         return JObject.Parse(await result).ToObject<Info>();
@@ -123,7 +116,7 @@ namespace NOVAxis.Modules
             }
         }
 
-        public InteractiveService InteractiveService { get; set; }
+        public InteractivityService InteractivityService { get; set; }
 
         private async Task ShowResults<T>(List<T> results) where T : MALJson.MALResult
         {
@@ -186,8 +179,8 @@ namespace NOVAxis.Modules
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
-                    .WithDescription($"(Argument musí být delší než tři znaky)")
-                    .WithTitle($"Mé jádro nebylo schopno příjmout daný prvek").Build());
+                    .WithDescription("(Argument musí být delší než tři znaky)")
+                    .WithTitle("Mé jádro nebylo schopno příjmout daný prvek").Build());
 
                 return;
             }
@@ -196,7 +189,7 @@ namespace NOVAxis.Modules
             api = string.Format(api, name, limit);
             api = Uri.EscapeUriString(api);
 
-            using (WebClient client = new WebClient() { Encoding = Encoding.UTF8 })
+            using (WebClient client = new WebClient { Encoding = Encoding.UTF8 })
             {
                 try
                 {
@@ -206,13 +199,14 @@ namespace NOVAxis.Modules
                         MALJson.Get<MALJson.MALResult.Anime>(result);
 
                     await ShowResults(collection);
-                    var input = await NextMessageAsync();
+                    var input = await InteractivityService.NextMessageAsync(
+                        timeout: TimeSpan.FromSeconds(10));
 
                     try
                     {
-                        if (input != null)
+                        if (input.IsSuccess)
                         {
-                            if (ushort.TryParse(input.Content, out ushort select))
+                            if (ushort.TryParse(input.Value.Content, out ushort select))
                             {
                                 if (select > collection.Count || select <= 0)
                                     throw new Exception("Neplatný výběr");
@@ -288,12 +282,10 @@ namespace NOVAxis.Modules
 
                     catch (Exception e)
                     {
-                        await InteractiveService.ReplyAndDeleteAsync(Context, null,
-                            timeout: new TimeSpan(0, 0, 5),
-                            embed: new EmbedBuilder()
+                         await ReplyAsync(embed: new EmbedBuilder()
                             .WithColor(220, 20, 60)
                             .WithDescription($"({e.Message})")
-                            .WithTitle($"Mé jádro přerušilo čekání na lidský vstup").Build());
+                            .WithTitle("Mé jádro přerušilo čekání na lidský vstup").Build());
                     }              
                 }
 
@@ -302,7 +294,7 @@ namespace NOVAxis.Modules
                     await ReplyAsync(embed: new EmbedBuilder()
                         .WithColor(220, 20, 60)
                         .WithDescription($"({e.Message})")
-                        .WithTitle($"V databázi serveru MyAnimeList.net nebyla nalezena shoda").Build());
+                        .WithTitle("V databázi serveru MyAnimeList.net nebyla nalezena shoda").Build());
                 }
             }
         }
@@ -316,8 +308,8 @@ namespace NOVAxis.Modules
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
-                    .WithDescription($"(Argument musí být delší než tři znaky)")
-                    .WithTitle($"Mé jádro nebylo schopno příjmout daný prvek").Build());
+                    .WithDescription("(Argument musí být delší než tři znaky)")
+                    .WithTitle("Mé jádro nebylo schopno příjmout daný prvek").Build());
 
                 return;
             }
@@ -326,7 +318,7 @@ namespace NOVAxis.Modules
             api = string.Format(api, name, limit);
             api = Uri.EscapeUriString(api);
 
-            using (WebClient client = new WebClient() { Encoding = Encoding.UTF8 })
+            using (WebClient client = new WebClient { Encoding = Encoding.UTF8 })
             {
                 try
                 {
@@ -336,13 +328,14 @@ namespace NOVAxis.Modules
                         MALJson.Get<MALJson.MALResult.Manga>(result);
 
                     await ShowResults(collection);
-                    var input = await NextMessageAsync();
+                    var input = await InteractivityService.NextMessageAsync(
+                        timeout: TimeSpan.FromSeconds(10));
 
                     try
                     {
-                        if (input != null)
+                        if (input.IsSuccess)
                         {
-                            if (ushort.TryParse(input.Content, out ushort select))
+                            if (ushort.TryParse(input.Value.Content, out ushort select))
                             {
                                 if (select > collection.Count || select <= 0)
                                     throw new Exception("Neplatný výběr");
@@ -418,12 +411,12 @@ namespace NOVAxis.Modules
 
                     catch (Exception e)
                     {
-                        await InteractiveService.ReplyAndDeleteAsync(Context, null, 
-                            timeout: new TimeSpan(0, 0, 5),
-                            embed: new EmbedBuilder()
+                        var msg = await ReplyAsync(embed: new EmbedBuilder()
                             .WithColor(220, 20, 60)
                             .WithDescription($"({e.Message})")
-                            .WithTitle($"Mé jádro přerušilo čekání na lidský vstup").Build());
+                            .WithTitle("Mé jádro přerušilo čekání na lidský vstup").Build());
+
+                        InteractivityService.DelayedDeleteMessageAsync(msg, TimeSpan.FromSeconds(5));
                     }
                 }
 
@@ -432,7 +425,7 @@ namespace NOVAxis.Modules
                     await ReplyAsync(embed: new EmbedBuilder()
                         .WithColor(220, 20, 60)
                         .WithDescription($"({e.Message})")
-                        .WithTitle($"V databázi serveru MyAnimeList.net nebyla nalezena shoda").Build());
+                        .WithTitle("V databázi serveru MyAnimeList.net nebyla nalezena shoda").Build());
                 }
             }
         }
