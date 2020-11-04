@@ -28,7 +28,7 @@ namespace NOVAxis
         public static ulong OwnerId => 269182357704015873L;
 
         public static string Version 
-            => Assembly.GetExecutingAssembly().GetName().Version.ToString().Substring(0, 5);
+            => Assembly.GetExecutingAssembly().GetName().Version?.ToString().Substring(0, 5);
 
         public static void Main(string[] args)
             => MainAsync().GetAwaiter().GetResult();
