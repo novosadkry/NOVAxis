@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -10,7 +11,9 @@ using NOVAxis.Preconditions;
 using Discord;
 using Discord.Commands;
 
-using SharpLink;
+using Victoria;
+using Victoria.Enums;
+using Victoria.Responses.Rest;
 
 namespace NOVAxis.Modules
 {
@@ -20,19 +23,28 @@ namespace NOVAxis.Modules
     [RequireRole("DjRole", true, Group = "Permission")]
     public class AudioModule : ModuleBase<SocketCommandContext>
     {
+        public LavaNode LavaNode { get; set; }
         public AudioModuleService AudioModuleService { get; set; }
         public GuildService GuildService { get; set; }
 
+        private AudioModuleService.Context service;
+
         protected override void BeforeExecute(CommandInfo command)
         {
-            var service = AudioModuleService[Context.Guild.Id];
+            service = AudioModuleService[Context.Guild.Id];
 
-            service.BoundChannel = Context.Channel;
+            if (!service.Timer.IsSet)
+                service.Timer.Set(Program.Config.AudioTimeout, Timer_Elapsed);
 
+            base.BeforeExecute(command);
+        }
+
+        protected override void AfterExecute(CommandInfo command)
+        {
             if (service.Timer.IsSet)
                 service.Timer.Reset();
 
-            base.BeforeExecute(command);
+            base.AfterExecute(command);
         }
 
         [Command("join"), Summary("Joins a voice channel")]
@@ -48,16 +60,14 @@ namespace NOVAxis.Modules
         {
             IVoiceChannel voiceChannel = (from ch in Context.Guild.VoiceChannels
                                           where ch.Name.Contains(channelname)
-                                          select ch).Single();
+                                          select ch).FirstOrDefault();
 
             await JoinChannel(voiceChannel);
         }
 
         private async Task JoinChannel(IVoiceChannel voiceChannel)
         {
-            var service = AudioModuleService[Context.Guild.Id];
-
-            if (!LavalinkService.IsConnected)
+            if (!LavaNode.IsConnected)
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
@@ -77,10 +87,11 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            LavalinkPlayer player = service.GetPlayer();
-
-            if (player != null)
+            LavaPlayer player;
+            if (LavaNode.HasPlayer(Context.Guild))
             {
+                player = LavaNode.GetPlayer(Context.Guild);
+
                 if (player.VoiceChannel == voiceChannel)
                 {
                     await ReplyAsync(embed: new EmbedBuilder()
@@ -91,33 +102,27 @@ namespace NOVAxis.Modules
                     return;
                 }
 
-                AudioModuleService[Context.Guild.Id].Queue.Clear();
+                service.Queue.Clear();
 
-                await LavalinkService.Manager.LeaveAsync(voiceChannel.GuildId);
-                await LavalinkService.Manager.JoinAsync(voiceChannel);
+                await LavaNode.LeaveAsync(voiceChannel);
+                player = await LavaNode.JoinAsync(voiceChannel, Context.Channel as ITextChannel);
             }
 
             else
-            {
-                await LavalinkService.Manager.JoinAsync(voiceChannel);
-            }
+                player = await LavaNode.JoinAsync(voiceChannel, Context.Channel as ITextChannel);
+
+            if (player.Volume == 0)
+                await player.UpdateVolumeAsync(100);
 
             await ReplyAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
                 .WithTitle($"Připojuji se ke kanálu `{voiceChannel.Name}`").Build());
-
-            if (!service.Timer.IsSet)
-                service.Timer.Set(AudioModuleService.AudioTimeout, Timer_Elapsed);
-
-            service.Timer.Reset();
         }
 
         [Command("leave"), Alias("quit", "disconnect"), Summary("Leaves a voice channel")]
         public async Task LeaveChannel()
         {
-            var service = AudioModuleService[Context.Guild.Id];
-
-            if (!LavalinkService.IsConnected)
+            if (!LavaNode.IsConnected)
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
@@ -127,10 +132,7 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(Context.Guild.Id);
-            IVoiceChannel voiceChannel = ((IGuildUser)Context.User).VoiceChannel;
-
-            if (player == null)
+            if (!LavaNode.HasPlayer(Context.Guild))
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
@@ -139,6 +141,9 @@ namespace NOVAxis.Modules
 
                 return;
             }
+
+            LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+            IVoiceChannel voiceChannel = ((IGuildUser)Context.User).VoiceChannel;
 
             if (player.VoiceChannel != voiceChannel && await player.VoiceChannel.GetHumanUsers().CountAsync() > 0)
             {
@@ -150,32 +155,28 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            await LeaveChannel(service, player);
+            await LeaveChannel(player);
         }
 
-        private async Task LeaveChannel(AudioModuleService.Context service, LavalinkPlayer player)
+        private async Task LeaveChannel(LavaPlayer player)
         {
             if (player != null)
             {
-                await service.BoundChannel.SendMessageAsync(embed: new EmbedBuilder()
+                await player.TextChannel.SendMessageAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithTitle($"Odpojuji se od kanálu `{player.VoiceChannel.Name}`").Build());
 
-                await player.StopAsync();
-                await player.DisconnectAsync();
+                await LavaNode.LeaveAsync(player.VoiceChannel);
             }
 
             service.Queue.Clear();
-            service.Timer.Stop();
             service.Timer.Dispose();
         }
 
         [Command("play"), Summary("Plays an audio transmission")]
         public async Task PlayAudio([Remainder]string input)
         {
-            var service = AudioModuleService[Context.Guild.Id];
-
-            if (!LavalinkService.IsConnected)
+            if (!LavaNode.IsConnected)
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
@@ -197,48 +198,186 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(voiceChannel.GuildId);
-
-            if (player == null)
+            if (LavaNode.HasPlayer(Context.Guild))
             {
-                service.Queue.Clear();
+                LavaPlayer player = LavaNode.GetPlayer(voiceChannel.Guild);
 
-                await JoinChannel(voiceChannel);
-                player = LavalinkService.Manager.GetPlayer(voiceChannel.GuildId);
+                if (player.VoiceChannel != voiceChannel)
+                {
+                    service.Queue.Clear();
+
+                    await LavaNode.LeaveAsync(voiceChannel);
+                    await JoinChannel(voiceChannel);
+
+                    player = LavaNode.GetPlayer(voiceChannel.Guild);
+                }
+
+                await PlayAudio(player, input);
             }
 
-            if (player.VoiceChannel != voiceChannel)
+            else
             {
                 service.Queue.Clear();
-
-                await LavalinkService.Manager.LeaveAsync(voiceChannel.GuildId);
                 await JoinChannel(voiceChannel);
 
-                player = LavalinkService.Manager.GetPlayer(voiceChannel.GuildId);
-            }
+                LavaPlayer player = LavaNode.GetPlayer(voiceChannel.Guild);
 
-            await PlayAudio(player, input);
+                await PlayAudio(player, input);
+            }
         }
 
-        private async Task PlayAudio(LavalinkPlayer player, string input)
+        private async IAsyncEnumerable<AudioModuleService.Context.ContextTrack> Search(string input)
         {
-            var service = AudioModuleService[Context.Guild.Id];
+            SearchResponse response = await LavaNode.SearchYouTubeAsync(input);
 
+            switch (response.LoadStatus)
+            {
+                case LoadStatus.LoadFailed: throw new HttpRequestException();
+                case LoadStatus.NoMatches: throw new ArgumentNullException();
+            }
+
+            // Check if search result is a playlist
+            if (!string.IsNullOrEmpty(response.Playlist.Name))
+            {
+                foreach (LavaTrack track in response.Tracks)
+                {
+                    yield return new AudioModuleService.Context.ContextTrack
+                    {
+                        Value = track,
+                        RequestedBy = Context.User
+                    };
+                }
+            }
+
+            else
+            {
+                yield return new AudioModuleService.Context.ContextTrack
+                {
+                    Value = response.Tracks.First(),
+                    RequestedBy = Context.User
+                };
+            }
+        }
+
+        private async Task PlayAudio(LavaPlayer player, string input)
+        {
             try
             {
-                string search = (Uri.IsWellFormedUriString(input, 0) ? "" : "ytsearch:") + input;
-
-                LoadTracksResponse tracks = await LavalinkService.Manager.GetTracksAsync(search);
-                LavalinkTrack track = tracks.Tracks.First();
-
-                service.Queue.AddLast(new AudioModuleService.Context.ContextTrack
-                {
-                    Value = track,
-                    RequestedBy = Context.User
-                });
+                var tracks = await Search(input).ToListAsync();
+                service.Queue.Enqueue(tracks);
 
                 if (service.Queue.Count == 1)
-                    await player.PlayAsync(track);
+                {
+                    await player.PlayAsync(service.Queue.First());
+
+                    await ReplyAsync(embed: new EmbedBuilder()
+                        .WithColor(52, 231, 231)
+                        .WithAuthor("Právě přehrávám:")
+                        .WithTitle($"{new Emoji("\u25B6")} {player.Track.Title}")
+                        .WithUrl(player.Track.Url)
+                        .WithThumbnailUrl(player.Track.GetThumbnailUrl())
+                        .WithFields(
+                            new EmbedFieldBuilder
+                            {
+                                Name = "Autor:",
+                                Value = player.Track.Author,
+                                IsInline = true
+                            },
+
+                            new EmbedFieldBuilder
+                            {
+                                Name = "Délka:",
+                                Value = $"`{player.Track.Duration}`",
+                                IsInline = true
+                            },
+
+                            new EmbedFieldBuilder
+                            {
+                                Name = "Vyžádal:",
+                                Value = service.Track.RequestedBy.Mention,
+                                IsInline = true
+                            },
+
+                            new EmbedFieldBuilder
+                            {
+                                Name = "Hlasitost:",
+                                Value = $"{player.Volume}%",
+                                IsInline = true
+                            }
+                        ).Build());
+                }
+
+                else
+                {
+                    if (tracks.Count > 1)
+                    {
+                        TimeSpan totalDuration = new TimeSpan();
+
+                        foreach (LavaTrack track in tracks)
+                            totalDuration += track.Duration;
+
+                        await ReplyAsync(embed: new EmbedBuilder()
+                            .WithColor(52, 231, 231)
+                            .WithAuthor($"Přidáno do fronty ({tracks.Count}):")
+                            .WithTitle($"{new Emoji("\u23ED")} {service.LastTrack.Value.Title}")
+                            .WithUrl(service.LastTrack.Value.Url)
+                            .WithThumbnailUrl(service.LastTrack.ThumbnailUrl)
+                            .WithFields(
+                                new EmbedFieldBuilder
+                                {
+                                    Name = "Délka:",
+                                    Value = $"`{totalDuration}`",
+                                    IsInline = true
+                                },
+
+                                new EmbedFieldBuilder
+                                {
+                                    Name = "Vyžádal:",
+                                    Value = service.LastTrack.RequestedBy.Mention,
+                                    IsInline = true
+                                }
+                            ).Build());
+                    }
+
+                    else
+                    {
+                        await ReplyAsync(embed: new EmbedBuilder()
+                            .WithColor(52, 231, 231)
+                            .WithAuthor("Přidáno do fronty:")
+                            .WithTitle($"{new Emoji("\u23ED")} {service.LastTrack.Value.Title}")
+                            .WithUrl(service.LastTrack.Value.Url)
+                            .WithThumbnailUrl(service.LastTrack.ThumbnailUrl)
+                            .WithFields(
+                                new EmbedFieldBuilder
+                                {
+                                    Name = "Autor:",
+                                    Value = service.LastTrack.Value.Author,
+                                    IsInline = true
+                                },
+
+                                new EmbedFieldBuilder
+                                {
+                                    Name = "Délka:",
+                                    Value = $"`{service.LastTrack.Value.Duration}`",
+                                    IsInline = true
+                                },
+
+                                new EmbedFieldBuilder
+                                {
+                                    Name = "Vyžádal:",
+                                    Value = service.LastTrack.RequestedBy.Mention,
+                                    IsInline = true
+                                },
+
+                                new EmbedFieldBuilder
+                                {
+                                    Name = "Pořadí ve frontě:",
+                                    Value = $"`{service.Queue.Count - 1}.`",
+                                    IsInline = true
+                                }
+                            ).Build());
+                    }
+                }
             }
 
             catch (HttpRequestException)
@@ -247,8 +386,6 @@ namespace NOVAxis.Modules
                     .WithColor(255, 150, 0)
                     .WithDescription("(Služba není dostupná)")
                     .WithTitle("Mé jádro pravě nemůže poskytnout stabilní stream audia").Build());
-
-                return;
             }
 
             catch (ArgumentNullException)
@@ -257,44 +394,401 @@ namespace NOVAxis.Modules
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný argument)")
                     .WithTitle("Mému jádru se nepodařilo v databázi nalézt požadovanou stopu").Build());
+            }
+        }
 
-                return;
-            }    
+        [Command("skip"), Alias("next"), Summary("Skips to the next audio transmission")]
+        public async Task SkipAudio()
+        {
+            if (LavaNode.HasPlayer(Context.Guild))
+            {
+                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
 
-            if (service.Queue.Count == 1)
-            {             
+                if (player.Track == null)
+                {
+                    await ReplyAsync(embed: new EmbedBuilder()
+                        .WithColor(255, 150, 0)
+                        .WithDescription("(Neplatný příkaz)")
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+
+                    return;
+                }
+
+                await player.StopAsync();
+            }
+
+            else
+            {
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(255, 150, 0)
+                    .WithDescription("(Neplatný příkaz)")
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+            }
+        }
+
+        [Command("stop"), Summary("Stops the audio transmission")]
+        public async Task StopAudio()
+        {
+            if (LavaNode.HasPlayer(Context.Guild))
+            {
+                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+
+                if (player.Track == null)
+                {
+                    await ReplyAsync(embed: new EmbedBuilder()
+                        .WithColor(255, 150, 0)
+                        .WithDescription("(Neplatný příkaz)")
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+
+                    return;
+                }
+
+                service.Queue.Clear();
+                await player.StopAsync();
+
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithTitle("Stream audia byl úspěšně zastaven").Build());
+            }
+
+            else
+            {
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(255, 150, 0)
+                    .WithDescription("(Neplatný příkaz)")
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+            }
+        }
+
+        [Command("pause"), Summary("Pauses the audio transmission")]
+        public async Task PauseAudio()
+        {
+            if (LavaNode.HasPlayer(Context.Guild))
+            {
+                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+
+                if (player.Track == null)
+                {
+                    await ReplyAsync(embed: new EmbedBuilder()
+                        .WithColor(255, 150, 0)
+                        .WithDescription("(Neplatný příkaz)")
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+
+                    return;
+                }
+
+                if (player.PlayerState == PlayerState.Paused)
+                {
+                    await ReplyAsync(embed: new EmbedBuilder()
+                        .WithColor(255, 150, 0)
+                        .WithDescription("(Neplatný příkaz)")
+                        .WithTitle("Stream audia byl dávno pozastaven (pro obnovení použíjte `~audio resume`)")
+                        .Build());
+
+                    return;
+                }
+
+                await player.PauseAsync();
+
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithTitle("Stream audia byl úspěšně pozastaven").Build());
+            }
+
+            else
+            {
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(255, 150, 0)
+                    .WithDescription("(Neplatný příkaz)")
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+            }
+        }
+
+        [Command("resume"), Summary("Resumes the audio transmission")]
+        public async Task ResumeAudio()
+        {
+            if (LavaNode.HasPlayer(Context.Guild))
+            {
+                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+
+                if (player.Track == null)
+                {
+                    await ReplyAsync(embed: new EmbedBuilder()
+                        .WithColor(255, 150, 0)
+                        .WithDescription("(Neplatný příkaz)")
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+
+                    return;
+                }
+
+                if (player.PlayerState == PlayerState.Playing)
+                {
+                    await ReplyAsync(embed: new EmbedBuilder()
+                        .WithColor(255, 150, 0)
+                        .WithDescription("(Neplatný příkaz)")
+                        .WithTitle("Stream audia právě běží (pro pozastavení použíjte `~audio pause`)").Build());
+
+                    return;
+                }
+
+                await player.ResumeAsync();
+
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithTitle("Stream audia byl úspěšně obnoven").Build());
+            }
+
+            else
+            {
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(255, 150, 0)
+                    .WithDescription("(Neplatný příkaz)")
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+            }
+        }
+
+        [Command("seek"), Summary("Seeks a position in the audio transmissions")]
+        public async Task SeekAudio(TimeSpan time)
+        {
+            if (LavaNode.HasPlayer(Context.Guild))
+            {
+                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+
+                if (player.Track == null)
+                {
+                    await ReplyAsync(embed: new EmbedBuilder()
+                        .WithColor(255, 150, 0)
+                        .WithDescription("(Neplatný příkaz)")
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+
+                    return;
+                }
+
+                if (time > player.Track.Duration)
+                {
+                    await ReplyAsync(embed: new EmbedBuilder()
+                        .WithColor(220, 20, 60)
+                        .WithDescription("(Neplatný argument)")
+                        .WithTitle("Nelze nastavit hodnotu přesahující maximální délku stopy").Build());
+
+                    return;
+                }
+
+                if (time < TimeSpan.Zero)
+                {
+                    await ReplyAsync(embed: new EmbedBuilder()
+                        .WithColor(220, 20, 60)
+                        .WithDescription("(Neplatný argument)")
+                        .WithTitle("Nelze nastavit zápornou hodnotu").Build());
+
+                    return;
+                }
+
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithTitle($"Pozice audia byla úspěšně nastavena na `{time:hh\\:mm\\:ss}`").Build());
+
+                await player.SeekAsync(time);
+            }
+
+            else
+            {
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(255, 150, 0)
+                    .WithDescription("(Neplatný příkaz)")
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+            }
+        }
+
+        [Command("forward"), Summary("Forwards to a position in the audio transmissions")]
+        public async Task ForwardAudio(TimeSpan time)
+        {
+            if (LavaNode.HasPlayer(Context.Guild))
+            {
+                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+
+                if (player.Track == null)
+                {
+                    await ReplyAsync(embed: new EmbedBuilder()
+                        .WithColor(255, 150, 0)
+                        .WithDescription("(Neplatný příkaz)")
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+
+                    return;
+                }
+
+                if (time <= TimeSpan.Zero)
+                {
+                    await ReplyAsync(embed: new EmbedBuilder()
+                        .WithColor(220, 20, 60)
+                        .WithDescription("(Neplatný argument)")
+                        .WithTitle("Nelze posunout o zápornou nebo nulovou hodnotu").Build());
+
+                    return;
+                }
+
+                TimeSpan newTime = player.Track.Position + time;
+
+                if (newTime > player.Track.Duration)
+                    newTime = player.Track.Duration;
+
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime:hh\\:mm\\:ss}`").Build());
+
+                await player.SeekAsync(newTime);
+            }
+
+            else
+            {
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(255, 150, 0)
+                    .WithDescription("(Neplatný příkaz)")
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+            }
+        }
+
+        [Command("backward"), Summary("Backwards to a position in the audio transmissions")]
+        public async Task BackwardAudio(TimeSpan time)
+        {
+            if (LavaNode.HasPlayer(Context.Guild))
+            {
+                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+
+                if (player.Track == null)
+                {
+                    await ReplyAsync(embed: new EmbedBuilder()
+                        .WithColor(255, 150, 0)
+                        .WithDescription("(Neplatný příkaz)")
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+
+                    return;
+                }
+
+                if (time <= TimeSpan.Zero)
+                {
+                    await ReplyAsync(embed: new EmbedBuilder()
+                        .WithColor(220, 20, 60)
+                        .WithDescription("(Neplatný argument)")
+                        .WithTitle("Nelze posunout o zápornou nebo nulovou hodnotu").Build());
+
+                    return;
+                }
+
+                TimeSpan newTime = player.Track.Position - time;
+
+                if (newTime < TimeSpan.Zero)
+                    newTime = TimeSpan.Zero;
+
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime:hh\\:mm\\:ss}`").Build());
+
+                await player.SeekAsync(newTime);
+            }
+
+            else
+            {
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(255, 150, 0)
+                    .WithDescription("(Neplatný příkaz)")
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+            }
+        }
+
+        [Command("volume"), Summary("Sets a volume of the audio transmissions")]
+        public async Task AudioVolume(ushort percentage)
+        {
+            if (LavaNode.HasPlayer(Context.Guild))
+            {
+                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+
+                if (player.Track == null)
+                {
+                    await ReplyAsync(embed: new EmbedBuilder()
+                        .WithColor(255, 150, 0)
+                        .WithDescription("(Neplatný příkaz)")
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+
+                    return;
+                }
+
+                if (percentage > 150)
+                {
+                    await ReplyAsync(embed: new EmbedBuilder()
+                        .WithColor(255, 150, 0)
+                        .WithDescription("(Neplatný argument)")
+                        .WithTitle("Mé jádro nepodporuje hlasitost vyšší než 150%").Build());
+
+                    return;
+                }
+
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithTitle($"Hlasitost audia byla úspěšně nastavena na {percentage}%").Build());
+
+                await player.UpdateVolumeAsync(percentage);
+            }
+
+            else
+            {
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(255, 150, 0)
+                    .WithDescription("(Neplatný příkaz)")
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+            }
+        }
+
+        [Command("status"), Alias("np", "info"), Summary("Shows active audio transmissions")]
+        public async Task AudioStatus()
+        {
+            if (LavaNode.HasPlayer(Context.Guild))
+            {
+                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+
+                if (player.Track == null)
+                {
+                    await ReplyAsync(embed: new EmbedBuilder()
+                        .WithColor(255, 150, 0)
+                        .WithDescription("(Neplatný příkaz)")
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+
+                    return;
+                }
+
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithAuthor("Právě přehrávám:")
-                    .WithTitle($"{new Emoji("\u25B6")} {service.LastTrack.Value.Title}")
-                    .WithUrl(player.CurrentTrack.Url)
-                    .WithThumbnailUrl(service.CurrentTrack.ThumbnailUrl)
+                    .WithTitle(
+                        $"{(player.PlayerState == PlayerState.Playing ? new Emoji("\u25B6") : new Emoji("\u23F8"))} {player.Track.Title}")
+                    .WithUrl(player.Track.Url)
+                    .WithThumbnailUrl(player.Track.GetThumbnailUrl())
                     .WithFields(
                         new EmbedFieldBuilder
                         {
                             Name = "Autor:",
-                            Value = player.CurrentTrack.Author,
+                            Value = player.Track.Author,
                             IsInline = true
                         },
 
                         new EmbedFieldBuilder
                         {
-                            Name = "Délka:",
-                            Value = $"`{player.CurrentTrack.Length}`",
+                            Name = "Pozice:",
+                            Value = $"`{player.Track.Position:hh\\:mm\\:ss} / {player.Track.Duration}`",
                             IsInline = true
                         },
 
                         new EmbedFieldBuilder
                         {
                             Name = "Vyžádal:",
-                            Value = service.CurrentTrack.RequestedBy.Mention,
+                            Value = service.Track.RequestedBy.Mention,
                             IsInline = true
                         },
 
                         new EmbedFieldBuilder
                         {
                             Name = "Hlasitost:",
-                            Value = $"{service.Volume}%",
+                            Value = $"{player.Volume}%",
                             IsInline = true
                         }
                     ).Build());
@@ -303,357 +797,16 @@ namespace NOVAxis.Modules
             else
             {
                 await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithAuthor("Přidáno do fronty:")
-                    .WithTitle($"{new Emoji("\u23ED")} {service.LastTrack.Value.Title}")
-                    .WithUrl(service.LastTrack.Value.Url)
-                    .WithThumbnailUrl(service.LastTrack.ThumbnailUrl)
-                    .WithFields(
-                        new EmbedFieldBuilder
-                        {
-                            Name = "Autor:",
-                            Value = service.LastTrack.Value.Author,
-                            IsInline = true
-                        },
-
-                        new EmbedFieldBuilder
-                        {
-                            Name = "Délka:",
-                            Value = $"`{service.LastTrack.Value.Length}`",
-                            IsInline = true
-                        },
-
-                        new EmbedFieldBuilder
-                        {
-                            Name = "Vyžádal:",
-                            Value = service.LastTrack.RequestedBy.Mention,
-                            IsInline = true
-                        },
-
-                        new EmbedFieldBuilder
-                        {
-                            Name = "Pořadí ve frontě:",
-                            Value = $"`{service.Queue.Count - 1}.`",
-                            IsInline = true
-                        }
-                    ).Build());
-            }
-        }
-
-        [Command("skip"), Alias("next"), Summary("Skips to the next audio transmission")]
-        public async Task SkipAudio()
-        {
-            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(Context.Guild.Id);
-
-            if (player?.CurrentTrack == null)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
-
-                return;
             }
-
-            await player.SeekAsync((int)player.CurrentTrack.Length.TotalMilliseconds);
-        }
-
-        [Command("stop"), Summary("Stops the audio transmission")]
-        public async Task StopAudio()
-        {
-            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(Context.Guild.Id);
-
-            if (player?.CurrentTrack == null)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
-
-                return;
-            }
-
-            AudioModuleService[Context.Guild.Id].Queue.Clear();
-            await player.StopAsync();
-
-            await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle("Stream audia byl úspěšně zastaven").Build());
-        }
-
-        [Command("pause"), Summary("Pauses the audio transmission")]
-        public async Task PauseAudio()
-        {
-            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(Context.Guild.Id);
-
-            if (player?.CurrentTrack == null)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
-
-                return;
-            }
-
-            if (!player.Playing)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Stream audia byl dávno pozastaven (pro obnovení použíjte `~audio resume`)").Build());
-
-                return;
-            }
-
-            await player.PauseAsync();
-
-            await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle("Stream audia byl úspěšně pozastaven").Build());
-        }
-
-        [Command("resume"), Summary("Resumes the audio transmission")]
-        public async Task ResumeAudio()
-        {
-            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(Context.Guild.Id);
-
-            if (player?.CurrentTrack == null)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
-
-                return;
-            }
-
-            if (player.Playing)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Stream audia právě běží (pro pozastavení použíjte `~audio pause`)").Build());
-
-                return;
-            }
-
-            await player.ResumeAsync();
-
-            await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle("Stream audia byl úspěšně obnoven").Build());
-        }
-
-        [Command("seek"), Summary("Seeks a position in the audio transmissions")]
-        public async Task SeekAudio(TimeSpan time)
-        {
-            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(Context.Guild.Id);
-
-            if (player?.CurrentTrack == null)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
-
-                return;
-            }
-
-            if (player.CurrentTrack.Length < time)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný argument)")
-                    .WithTitle("Nelze nastavit hodnotu přesahující maximální délku stopy").Build());
-
-                return;
-            }
-
-            if (time < TimeSpan.Zero)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný argument)")
-                    .WithTitle("Nelze nastavit zápornou hodnotu").Build());
-
-                return;
-            }
-
-            await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle($"Pozice audia byla úspěšně nastavena na `{time}`").Build());
-
-            await player.SeekAsync((int)time.TotalMilliseconds);
-        }
-
-        [Command("forward"), Summary("Forwards to a position in the audio transmissions")]
-        public async Task ForwardAudio(TimeSpan time)
-        {
-            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(Context.Guild.Id);
-
-            if (player?.CurrentTrack == null)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
-
-                return;
-            }
-
-            if (time <= TimeSpan.Zero)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný argument)")
-                    .WithTitle("Nelze posunout o zápornou nebo nulovou hodnotu").Build());
-
-                return;
-            }
-
-            TimeSpan newTime = TimeSpan.FromMilliseconds(player.CurrentPosition) + time;
-
-            if (newTime > player.CurrentTrack.Length)
-                newTime = player.CurrentTrack.Length;
-
-            await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime:hh\\:mm\\:ss}`").Build());
-
-            await player.SeekAsync((int)newTime.TotalMilliseconds);
-        }
-
-        [Command("backward"), Summary("Backwards to a position in the audio transmissions")]
-        public async Task BackwardAudio(TimeSpan time)
-        {
-            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(Context.Guild.Id);
-
-            if (player?.CurrentTrack == null)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
-
-                return;
-            }
-
-            if (time <= TimeSpan.Zero)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný argument)")
-                    .WithTitle("Nelze posunout o zápornou nebo nulovou hodnotu").Build());
-
-                return;
-            }
-
-            TimeSpan newTime = TimeSpan.FromMilliseconds(player.CurrentPosition) - time;
-
-            if (newTime < TimeSpan.Zero)
-                newTime = TimeSpan.Zero;
-
-            await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime:hh\\:mm\\:ss}`").Build());
-
-            await player.SeekAsync((int)newTime.TotalMilliseconds);
-        }
-
-        [Command("volume"), Summary("Sets a volume of the audio transmissions")]
-        public async Task AudioVolume(uint percentage)
-        {
-            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(Context.Guild.Id);
-            var service = AudioModuleService[Context.Guild.Id];
-
-            if (player?.CurrentTrack == null)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
-
-                return;
-            }
-
-            if (percentage > 150)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný argument)")
-                    .WithTitle("Mé jádro nepodporuje hlasitost vyšší než 150%").Build());
-
-                return;
-            }
-
-            await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle($"Hlasitost audia byla úspěšně nastavena na {percentage}%").Build());
-
-            await player.SetVolumeAsync(percentage);
-            service.Volume = percentage;
-        }
-
-        [Command("status"), Alias("np", "info"), Summary("Shows active audio transmissions")]
-        public async Task AudioStatus()
-        {
-            LavalinkPlayer player = LavalinkService.Manager.GetPlayer(Context.Guild.Id);
-            var service = AudioModuleService[Context.Guild.Id];
-
-            if (player?.CurrentTrack == null)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
-
-                return;
-            }
-
-            await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithAuthor("Právě přehrávám:")
-                    .WithTitle($"{(player.Playing ? new Emoji("\u25B6") : new Emoji("\u23F8"))} {player.CurrentTrack.Title}")
-                    .WithUrl(player.CurrentTrack.Url)
-                    .WithThumbnailUrl(service.CurrentTrack.ThumbnailUrl)
-                    .WithFields(
-                        new EmbedFieldBuilder
-                        {
-                            Name = "Autor:",
-                            Value = player.CurrentTrack.Author,
-                            IsInline = true
-                        },
-
-                        new EmbedFieldBuilder
-                        {
-                            Name = "Pozice:",
-                            Value = $"`{TimeSpan.FromMilliseconds(player.CurrentPosition):hh\\:mm\\:ss} / {player.CurrentTrack.Length}`",
-                            IsInline = true
-                        },
-
-                        new EmbedFieldBuilder
-                        {
-                            Name = "Vyžádal:",
-                            Value = service.CurrentTrack.RequestedBy.Mention,
-                            IsInline = true
-                        },
-
-                        new EmbedFieldBuilder
-                        {
-                            Name = "Hlasitost:",
-                            Value = $"{service.Volume}%",
-                            IsInline = true
-                        }
-                    ).Build());
         }
 
         [Command("queue"), Summary("Shows enqueued audio transmissions")]
         public async Task AudioQueue()
         {
-            var service = AudioModuleService[Context.Guild.Id];
-
-            if (service.Queue.Count < 1 || service.GetPlayer() == null)
+            if (service.Queue.Count < 1 || !LavaNode.HasPlayer(Context.Guild))
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
@@ -663,6 +816,7 @@ namespace NOVAxis.Modules
                 return;
             }
 
+            LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
             EmbedFieldBuilder[] embedFields = new EmbedFieldBuilder[service.Queue.Count];
 
             var currentNode = service.Queue.First;
@@ -672,14 +826,14 @@ namespace NOVAxis.Modules
 
                 if (i == 0)
                 {
-                    var emoji = service.GetPlayer().Playing
+                    var emoji = player.PlayerState == PlayerState.Playing
                         ? new Emoji("\u25B6")  // Playing
                         : new Emoji("\u23F8"); // Paused
 
                     embedFields[i] = new EmbedFieldBuilder
                     {
                         Name = $"**{emoji} {track.Value.Title}**",
-                        Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Value.Length}` | [Odkaz]({track.Value.Url})\n"
+                        Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Value.Duration}` | [Odkaz]({track.Value.Url})\n"
                     };
                 }
 
@@ -688,7 +842,7 @@ namespace NOVAxis.Modules
                     embedFields[i] = new EmbedFieldBuilder
                     {
                         Name = $"`{i}.` {track.Value.Title}", 
-                        Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Value.Length}` | [Odkaz]({track.Value.Url})"
+                        Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Value.Duration}` | [Odkaz]({track.Value.Url})"
                     };
                 }
             }
@@ -703,8 +857,6 @@ namespace NOVAxis.Modules
         [Command("remove"), Summary("Removes an enqueued audio transmission")]
         public async Task RemoveAudio(int index)
         {
-            var service = AudioModuleService[Context.Guild.Id];
-
             if (service.Queue.Count <= 1)
             {
                 await ReplyAsync(embed: new EmbedBuilder()
@@ -788,18 +940,17 @@ namespace NOVAxis.Modules
 
         public async void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
         {
-            var service = AudioModuleService[Context.Guild.Id];
-
-            if (LavalinkService.IsConnected && service.GetPlayer() != null)
+            if (LavaNode.IsConnected && LavaNode.HasPlayer(Context.Guild))
             {
-                if (service.Queue.Count > 0 && service.GetPlayer().Playing)
+                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+
+                if (service.Queue.Count > 0 && player.PlayerState == PlayerState.Playing)
                     return;
 
-                await LeaveChannel(service, LavalinkService.Manager.GetPlayer(Context.Guild.Id));
+                await LeaveChannel(player);
             }
 
-            else
-                await LeaveChannel(service, null);
+            await LeaveChannel(null);
         }
     }
 }
