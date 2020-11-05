@@ -20,8 +20,6 @@ namespace NOVAxis.Core
     public class Program
     {  
         private static CommandService _commandService;
-        private static LavaNode _lavaNodeInstance;
-
         public static IServiceProvider Services;
 
         public static DiscordShardedClient Client { get; private set; }
@@ -67,19 +65,22 @@ namespace NOVAxis.Core
                 LogSeverity = Config.Log.Severity,
             };
 
-            _lavaNodeInstance = new LavaNode(Client, lavaConfig);
-            _lavaNodeInstance.OnLog += Client_Log;
+            LavaNode lavaNode = new LavaNode(Client, lavaConfig);
+            lavaNode.OnLog += Client_Log;
 
             DatabaseService databaseService = DatabaseService.GetService(Config.Database);
             databaseService.LogEvent += Client_Log;
-            _ = databaseService.Setup();
+            if (Config.Database.Active) await databaseService.Setup();
+
+            GuildService guildService = new GuildService(databaseService);
+            if (Config.Database.Active) await guildService.LoadFromDatabase();
 
             Services = new ServiceCollection()
-                .AddSingleton(new AudioModuleService(_lavaNodeInstance))
+                .AddSingleton(lavaNode)
                 .AddSingleton(databaseService)
-                .AddSingleton(new GuildService(databaseService))
+                .AddSingleton(guildService)
                 .AddSingleton(new InteractivityService(Client))
-                .AddSingleton(_lavaNodeInstance)
+                .AddSingleton(new AudioModuleService(lavaNode))
                 .BuildServiceProvider();
 
             _commandService.CommandExecuted += CommandService_CommandExecuted;
@@ -142,11 +143,13 @@ namespace NOVAxis.Core
 
         public static async Task Exit()
         {
+            var lavaNodeInstance = Services.GetService<LavaNode>();
+            
             await Client.LogoutAsync();
             await Client.StopAsync();
 
-            await _lavaNodeInstance.DisconnectAsync();
-            await _lavaNodeInstance.DisposeAsync();
+            await lavaNodeInstance.DisconnectAsync();
+            await lavaNodeInstance.DisposeAsync();
         }
 
         public static async Task Client_Log(LogMessage arg)
@@ -166,11 +169,12 @@ namespace NOVAxis.Core
         private static async Task Client_Ready(DiscordSocketClient shard)
         {
             await Client_Log(new LogMessage(LogSeverity.Info, "Shard #" + shard.ShardId, "Ready"));
-            
+            var lavaNodeInstance = Services.GetService<LavaNode>();
+
             if (++ShardsReady == Config.TotalShards)
             {
                 await Client_Log(new LogMessage(LogSeverity.Info, "Victoria", "Connecting"));
-                await _lavaNodeInstance.ConnectAsync();
+                await lavaNodeInstance.ConnectAsync();
             }
         }
 

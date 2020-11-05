@@ -28,9 +28,6 @@ namespace NOVAxis.Services
         {
             _db = databaseService;
             _cache = new ConcurrentDictionary<ulong, GuildInfo>();
-
-            if (_db.Active)
-                _ = LoadFromDatabase();
         }
 
         public async Task LoadFromDatabase()
