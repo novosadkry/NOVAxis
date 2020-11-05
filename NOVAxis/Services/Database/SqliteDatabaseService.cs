@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Data.Common;
 using System.Threading.Tasks;
 using Discord;
 using Microsoft.Data.Sqlite;
@@ -11,64 +12,21 @@ namespace NOVAxis.Services.Database
 
         protected override string ConnectionString => $"Data Source={Config.DbName}.db";
 
-        public override async Task<object> GetValue(string query, int index, params Tuple<string, object>[] arg)
+        public override async Task<DbDataReader> Get(string query, params Tuple<string, object>[] arg)
         {
             await LogAsync(new LogMessage(
                 LogSeverity.Debug,
                 "Database",
                 "Query executed"));
 
-            object result = null;
+            await using var sqlc = new SqliteConnection(ConnectionString);
+            await sqlc.OpenAsync();
 
-            using (var sqlc = new SqliteConnection(ConnectionString))
-            {
-                await sqlc.OpenAsync();
+            var command = sqlc.CreateCommand();
+            command.CommandText = query;
+            command.Parameters.AddRange(TuplesToSqliteParameters(arg));
 
-                var command = sqlc.CreateCommand();
-                command.CommandText = query;
-                command.Parameters.AddRange(TuplesToSqliteParameters(arg));
-
-                using (var reader = await command.ExecuteReaderAsync())
-                {
-                    if (reader.HasRows)
-                    {
-                        while (await reader.ReadAsync())
-                            result = reader.GetValue(index);
-                    }
-                }
-            }
-
-            return result;
-        }
-
-        public override async Task<object[]> GetValues(string query, int expected, params Tuple<string, object>[] arg)
-        {
-            await LogAsync(new LogMessage(
-                LogSeverity.Debug,
-                "Database",
-                "Query executed"));
-
-            object[] result = new object[expected];
-
-            using (var sqlc = new SqliteConnection(ConnectionString))
-            {
-                await sqlc.OpenAsync();
-
-                var command = sqlc.CreateCommand();
-                command.CommandText = query;
-                command.Parameters.AddRange(TuplesToSqliteParameters(arg));
-
-                using (var reader = await command.ExecuteReaderAsync())
-                {
-                    if (reader.HasRows)
-                    {
-                        while (await reader.ReadAsync())
-                            reader.GetValues(result);
-                    }
-                }
-            }
-
-            return result;
+            return await command.ExecuteReaderAsync();
         }
 
         public override async Task Execute(string query, params Tuple<string, object>[] arg)
@@ -78,16 +36,14 @@ namespace NOVAxis.Services.Database
                 "Database",
                 "Query executed"));
 
-            using (var sqlc = new SqliteConnection(ConnectionString))
-            {
-                await sqlc.OpenAsync();
+            await using var sqlc = new SqliteConnection(ConnectionString);
+            await sqlc.OpenAsync();
 
-                var command = sqlc.CreateCommand();
-                command.CommandText = query;
-                command.Parameters.AddRange(TuplesToSqliteParameters(arg));
+            var command = sqlc.CreateCommand();
+            command.CommandText = query;
+            command.Parameters.AddRange(TuplesToSqliteParameters(arg));
 
-                await command.ExecuteNonQueryAsync();
-            }
+            await command.ExecuteNonQueryAsync();
         }
 
         public override async Task Setup()

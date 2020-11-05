@@ -27,6 +27,32 @@ namespace NOVAxis.Services
         {
             _db = databaseService;
             _cache = new ConcurrentDictionary<ulong, GuildInfo>();
+
+            if (_db.Active)
+                _ = LoadFromDatabase();
+        }
+
+        public async Task LoadFromDatabase()
+        {
+            if (!_db.Active)
+                throw new InvalidOperationException("Database must be active in order to load values into memory");
+
+            await using var result = await _db.Get("SELECT * FROM Guilds");
+
+            if (result.HasRows)
+            {
+                while (await result.ReadAsync())
+                {
+                    GuildInfo info = GuildInfo.Default;
+
+                    ulong id = Convert.ToUInt64(result["Id"]);
+                    info.Prefix = Convert.ToString(result["Prefix"]);
+                    info.DjRole = Convert.ToUInt64(result["DjRole"]);
+
+                    if (id != 0)
+                        _cache[id] = info;
+                }
+            }
         }
 
         public async Task<GuildInfo> GetInfo(ICommandContext context)
@@ -45,13 +71,12 @@ namespace NOVAxis.Services
 
                 if (_db.Active)
                 {
-                    var result = await _db.GetValues(
-                        "SELECT Prefix, DjRole FROM Guilds WHERE Id=@id",
-                        3,
+                    await using var result = await _db.Get(
+                        "SELECT * FROM Guilds WHERE Id=@id",
                         new Tuple<string, object>("id", id));
 
-                    info.Prefix = (string)(result?[0] ?? info.Prefix);
-                    info.DjRole = Convert.ToUInt64(result?[1]);
+                    info.Prefix = Convert.ToString(result["Prefix"]);
+                    info.DjRole = Convert.ToUInt64(result["DjRole"]);
                 }
 
                 _cache[id] = info;
