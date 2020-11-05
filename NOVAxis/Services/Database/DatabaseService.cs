@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Data.Common;
 using System.Threading.Tasks;
 
 using Discord;
@@ -17,8 +18,7 @@ namespace NOVAxis.Services.Database
         protected ProgramConfig.DatabaseObject Config { get; }
         public bool Active => Config.Active;
 
-        public abstract Task<object> GetValue(string query, int index, params Tuple<string, object>[] arg);
-        public abstract Task<object[]> GetValues(string query, int expected, params Tuple<string, object>[] arg);
+        public abstract Task<DbDataReader> Get(string query, params Tuple<string, object>[] arg);
         public abstract Task Execute(string query, params Tuple<string, object>[] arg);
 
         public abstract Task Setup();
