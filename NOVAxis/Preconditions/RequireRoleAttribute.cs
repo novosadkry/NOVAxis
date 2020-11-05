@@ -7,6 +7,7 @@ using Discord.Commands;
 using Discord.WebSocket;
 
 using Microsoft.Extensions.DependencyInjection;
+using NOVAxis.Core;
 
 namespace NOVAxis.Preconditions
 {

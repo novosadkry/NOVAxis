@@ -2,10 +2,11 @@
 using System.Threading.Tasks;
 
 using NOVAxis.Services;
+using NOVAxis.Core;
 
 using Discord;
-using Interactivity;
 using Discord.Commands;
+using Interactivity;
 
 namespace NOVAxis.Modules
 {

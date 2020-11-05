@@ -2,10 +2,11 @@
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 
+using NOVAxis.Core;
+using NOVAxis.Services.Database;
+
 using Discord;
 using Discord.Commands;
-
-using NOVAxis.Services.Database;
 
 namespace NOVAxis.Services
 {

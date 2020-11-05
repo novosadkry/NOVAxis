@@ -1,15 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.Diagnostics;
-using System.Reflection;
 using System.IO;
+using System.Reflection;
+using System.Threading.Tasks;
 
 using Discord;
 
-namespace NOVAxis
+namespace NOVAxis.Core
 {
-    class ProgramCommand
+    public class ProgramCommand
     {
         public string Name { get; }
         public string[] Alias { get; }

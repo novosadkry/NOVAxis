@@ -3,10 +3,9 @@ using System.IO;
 using System.Threading.Tasks;
 
 using Discord;
-
 using Newtonsoft.Json;
 
-namespace NOVAxis
+namespace NOVAxis.Core
 {
     public class ProgramConfig
     {
