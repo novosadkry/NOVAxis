@@ -1,27 +1,16 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 using Discord;
-using Discord.Commands;
-using Discord.WebSocket;
 
-namespace NOVAxis
+namespace NOVAxis.Core
 {
-    static class ProgramLog
+    public static class ProgramLog
     {
-        private static string LogPathFormat
-        {
-            get => Path.Combine(".", "log", "log_{0}.txt");
-        }
-
-        private static string LogPath
-        {
-            get => string.Format(LogPathFormat, string.Format("{0}.{1}.{2}", DateTime.Now.Day, DateTime.Now.Month, DateTime.Now.Year));
-        }
+        private static string LogPathFormat => Path.Combine(".", "log", "log_{0}.txt");
+        private static string LogPath => string.Format(LogPathFormat, $"{DateTime.Now.Day}.{DateTime.Now.Month}.{DateTime.Now.Year}");
 
         public static Task ToConsole(LogMessage arg)
         { 
@@ -56,8 +45,8 @@ namespace NOVAxis
             if (!Directory.Exists(Directory.GetParent(LogPath).FullName))
                 Directory.CreateDirectory(Directory.GetParent(LogPath).FullName);
 
-            using (StreamWriter s = new StreamWriter(LogPath, true, Encoding.UTF8))
-                await s.WriteLineAsync($"[{DateTime.Now}] {arg.Source} | <{arg.Severity}> {arg.Message}");
+            await using StreamWriter writer = new StreamWriter(LogPath, true, Encoding.UTF8);
+            await writer.WriteLineAsync($"[{DateTime.Now}] {arg.Source} | <{arg.Severity}> {arg.Message}");
         }
     }
 }

@@ -2,7 +2,11 @@
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+
 using Microsoft.Extensions.DependencyInjection;
+
+using NOVAxis.Services;
+using NOVAxis.Services.Database;
 
 using Discord;
 using Discord.Commands;
@@ -11,12 +15,9 @@ using Discord.WebSocket;
 using Interactivity;
 using Victoria;
 
-using NOVAxis.Services;
-using NOVAxis.Services.Database;
-
-namespace NOVAxis
+namespace NOVAxis.Core
 {
-    class Program
+    public class Program
     {  
         private static CommandService _commandService;
         private static LavaNode _lavaNodeInstance;

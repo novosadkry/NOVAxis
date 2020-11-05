@@ -2,6 +2,8 @@
 using System.Data.Common;
 using System.Threading.Tasks;
 
+using NOVAxis.Core;
+
 using Discord;
 
 namespace NOVAxis.Services.Database

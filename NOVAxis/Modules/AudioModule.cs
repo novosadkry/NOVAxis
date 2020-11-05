@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 
+using NOVAxis.Core;
 using NOVAxis.Services;
 using NOVAxis.Extensions;
 using NOVAxis.Preconditions;

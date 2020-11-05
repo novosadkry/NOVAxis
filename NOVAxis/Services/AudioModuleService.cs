@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Timers;
 
+using NOVAxis.Core;
 using NOVAxis.Extensions;
 
 using Discord;

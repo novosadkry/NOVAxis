@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Data.Common;
 using System.Threading.Tasks;
+
+using NOVAxis.Core;
+
 using Discord;
 using MySql.Data.MySqlClient;
 
