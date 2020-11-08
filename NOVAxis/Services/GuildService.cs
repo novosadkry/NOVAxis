@@ -73,8 +73,12 @@ namespace NOVAxis.Services
                         "SELECT * FROM Guilds WHERE Id=@id",
                         new Tuple<string, object>("id", id));
 
-                    info.Prefix = Convert.ToString(result["Prefix"]);
-                    info.DjRole = Convert.ToUInt64(result["DjRole"]);
+                    if (result.HasRows)
+                    {
+                        await result.ReadAsync();
+                        info.Prefix = Convert.ToString(result["Prefix"]);
+                        info.DjRole = Convert.ToUInt64(result["DjRole"]);
+                    }
                 }
 
                 _cache[id] = info;
