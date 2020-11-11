@@ -229,7 +229,9 @@ namespace NOVAxis.Modules
 
         private async IAsyncEnumerable<AudioModuleService.Context.ContextTrack> Search(string input)
         {
-            SearchResponse response = await LavaNode.SearchYouTubeAsync(input);
+            SearchResponse response = Uri.IsWellFormedUriString(input, 0) 
+                ? await LavaNode.SearchAsync(input)
+                : await LavaNode.SearchYouTubeAsync(input);
 
             switch (response.LoadStatus)
             {
