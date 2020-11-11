@@ -62,7 +62,7 @@ namespace NOVAxis.Core
                 Port = Config.Lavalink.Port,
                 Authorization = Config.Lavalink.Login,
                 SelfDeaf = Config.Lavalink.SelfDeaf,
-                LogSeverity = Config.Log.Severity,
+                LogSeverity = Config.Log.Severity
             };
 
             LavaNode lavaNode = new LavaNode(Client, lavaConfig);
@@ -126,9 +126,9 @@ namespace NOVAxis.Core
                     {
                         ProgramCommand c = ProgramCommand.ProgramCommandList[i];
 
-                        if (input == c.Name || c.Alias.Contains(input) && input != "")
+                        if (input == c.Name || c.Alias.Contains(input) && !string.IsNullOrWhiteSpace(input))
                         {
-                            await c.Execute();                     
+                            await c.Execute();
                             break;
                         }
 
@@ -137,19 +137,17 @@ namespace NOVAxis.Core
                     }
                 }
             });
-
-            Console.Read();
         }
 
         public static async Task Exit()
         {
             var lavaNodeInstance = Services.GetService<LavaNode>();
-            
+
+            if (lavaNodeInstance.IsConnected)
+                await lavaNodeInstance.DisposeAsync();
+
             await Client.LogoutAsync();
             await Client.StopAsync();
-
-            await lavaNodeInstance.DisconnectAsync();
-            await lavaNodeInstance.DisposeAsync();
         }
 
         public static async Task Client_Log(LogMessage arg)
