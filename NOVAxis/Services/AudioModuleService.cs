@@ -50,16 +50,13 @@ namespace NOVAxis.Services
                 GuildId = id;
             }
 
-            public class ContextTrack
+            public class ContextTrack : LavaTrack
             {
-                public LavaTrack Value { get; set; }
-                public IUser RequestedBy { get; set; }
-                public string ThumbnailUrl => Value.GetThumbnailUrl(); 
+                public ContextTrack(LavaTrack lavaTrack) 
+                    : base(lavaTrack) { }
 
-                public static implicit operator LavaTrack(ContextTrack track)
-                {    
-                    return track.Value;
-                }
+                public IUser RequestedBy { get; set; }
+                public string ThumbnailUrl => this.GetThumbnailUrl();
             }
 
             public class ContextTimer : IDisposable
@@ -137,26 +134,26 @@ namespace NOVAxis.Services
             {
                 Context.ContextTrack nextTrack = service.Queue.Peek();
 
-                await args.Player.PlayAsync(nextTrack.Value);
+                await args.Player.PlayAsync(nextTrack);
 
                 await args.Player.TextChannel.SendMessageAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithAuthor("Právě přehrávám:")
-                    .WithTitle($"{new Emoji("\u25B6")} {nextTrack.Value.Title}")
-                    .WithUrl(nextTrack.Value.Url)
+                    .WithTitle($"{new Emoji("\u25B6")} {nextTrack.Title}")
+                    .WithUrl(nextTrack.Url)
                     .WithThumbnailUrl(nextTrack.ThumbnailUrl)
                     .WithFields(
                         new EmbedFieldBuilder
                         {
                             Name = "Autor:",
-                            Value = nextTrack.Value.Author,
+                            Value = nextTrack.Author,
                             IsInline = true
                         },
 
                         new EmbedFieldBuilder
                         {
                             Name = "Délka:",
-                            Value = $"`{nextTrack.Value.Duration}`",
+                            Value = $"`{nextTrack.Duration}`",
                             IsInline = true
                         },
 

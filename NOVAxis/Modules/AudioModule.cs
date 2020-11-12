@@ -244,9 +244,8 @@ namespace NOVAxis.Modules
             {
                 foreach (LavaTrack track in response.Tracks)
                 {
-                    yield return new AudioModuleService.Context.ContextTrack
+                    yield return new AudioModuleService.Context.ContextTrack(track)
                     {
-                        Value = track,
                         RequestedBy = Context.User
                     };
                 }
@@ -254,9 +253,10 @@ namespace NOVAxis.Modules
 
             else
             {
-                yield return new AudioModuleService.Context.ContextTrack
+                var track = response.Tracks.First();
+
+                yield return new AudioModuleService.Context.ContextTrack(track)
                 {
-                    Value = response.Tracks.First(),
                     RequestedBy = Context.User
                 };
             }
@@ -322,8 +322,8 @@ namespace NOVAxis.Modules
                         await ReplyAsync(embed: new EmbedBuilder()
                             .WithColor(52, 231, 231)
                             .WithAuthor($"Přidáno do fronty ({tracks.Count}):")
-                            .WithTitle($"{new Emoji("\u23ED")} {service.LastTrack.Value.Title}")
-                            .WithUrl(service.LastTrack.Value.Url)
+                            .WithTitle($"{new Emoji("\u23ED")} {service.LastTrack.Title}")
+                            .WithUrl(service.LastTrack.Url)
                             .WithThumbnailUrl(service.LastTrack.ThumbnailUrl)
                             .WithFields(
                                 new EmbedFieldBuilder
@@ -347,21 +347,21 @@ namespace NOVAxis.Modules
                         await ReplyAsync(embed: new EmbedBuilder()
                             .WithColor(52, 231, 231)
                             .WithAuthor("Přidáno do fronty:")
-                            .WithTitle($"{new Emoji("\u23ED")} {service.LastTrack.Value.Title}")
-                            .WithUrl(service.LastTrack.Value.Url)
+                            .WithTitle($"{new Emoji("\u23ED")} {service.LastTrack.Title}")
+                            .WithUrl(service.LastTrack.Url)
                             .WithThumbnailUrl(service.LastTrack.ThumbnailUrl)
                             .WithFields(
                                 new EmbedFieldBuilder
                                 {
                                     Name = "Autor:",
-                                    Value = service.LastTrack.Value.Author,
+                                    Value = service.LastTrack.Author,
                                     IsInline = true
                                 },
 
                                 new EmbedFieldBuilder
                                 {
                                     Name = "Délka:",
-                                    Value = $"`{service.LastTrack.Value.Duration}`",
+                                    Value = $"`{service.LastTrack.Duration}`",
                                     IsInline = true
                                 },
 
@@ -835,8 +835,8 @@ namespace NOVAxis.Modules
 
                     embedFields[i] = new EmbedFieldBuilder
                     {
-                        Name = $"**{emoji} {track.Value.Title}**",
-                        Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Value.Duration}` | [Odkaz]({track.Value.Url})\n"
+                        Name = $"**{emoji} {track.Title}**",
+                        Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Duration}` | [Odkaz]({track.Url})\n"
                     };
                 }
 
@@ -844,8 +844,8 @@ namespace NOVAxis.Modules
                 {
                     embedFields[i] = new EmbedFieldBuilder
                     {
-                        Name = $"`{i}.` {track.Value.Title}", 
-                        Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Value.Duration}` | [Odkaz]({track.Value.Url})"
+                        Name = $"`{i}.` {track.Title}", 
+                        Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Duration}` | [Odkaz]({track.Url})"
                     };
                 }
             }
