@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
+using NOVAxis.Services.Audio;
+
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
@@ -14,7 +16,7 @@ namespace NOVAxis.Modules
     [RequireUserPermission(GuildPermission.MoveMembers)]
     public class MoveModule : ModuleBase<SocketCommandContext>
     {
-        public Services.AudioModuleService AudioModuleService { get; set; }
+        public AudioModuleService AudioModuleService { get; set; }
 
         [Command, Summary("Moves user to selected channel")]
         public async Task MoveSomeone(IGuildUser user, string channelname)

@@ -5,9 +5,10 @@ using System.Net.Http;
 using System.Threading.Tasks;
 
 using NOVAxis.Core;
-using NOVAxis.Services;
 using NOVAxis.Extensions;
 using NOVAxis.Preconditions;
+using NOVAxis.Services.Audio;
+using NOVAxis.Services.Guild;
 
 using Discord;
 using Discord.Commands;
@@ -28,7 +29,7 @@ namespace NOVAxis.Modules
         public AudioModuleService AudioModuleService { get; set; }
         public GuildService GuildService { get; set; }
 
-        private AudioModuleService.Context service;
+        private AudioContext service;
 
         protected override void BeforeExecute(CommandInfo command)
         {
@@ -227,7 +228,7 @@ namespace NOVAxis.Modules
             }
         }
 
-        private async IAsyncEnumerable<AudioModuleService.Context.ContextTrack> Search(string input)
+        private async IAsyncEnumerable<AudioContext.ContextTrack> Search(string input)
         {
             SearchResponse response = Uri.IsWellFormedUriString(input, 0) 
                 ? await LavaNode.SearchAsync(input)
@@ -244,7 +245,7 @@ namespace NOVAxis.Modules
             {
                 foreach (LavaTrack track in response.Tracks)
                 {
-                    yield return new AudioModuleService.Context.ContextTrack(track)
+                    yield return new AudioContext.ContextTrack(track)
                     {
                         RequestedBy = Context.User
                     };
@@ -255,7 +256,7 @@ namespace NOVAxis.Modules
             {
                 var track = response.Tracks.First();
 
-                yield return new AudioModuleService.Context.ContextTrack(track)
+                yield return new AudioContext.ContextTrack(track)
                 {
                     RequestedBy = Context.User
                 };

@@ -2,12 +2,14 @@
 using System.Linq;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.DependencyInjection;
+
+using NOVAxis.Core;
+using NOVAxis.Services.Guild;
+
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
-
-using Microsoft.Extensions.DependencyInjection;
-using NOVAxis.Core;
 
 namespace NOVAxis.Preconditions
 {
@@ -37,7 +39,7 @@ namespace NOVAxis.Preconditions
 
                 if (_useGuildInfo)
                 {
-                    var guildService = Program.Services.GetService<Services.GuildService>();
+                    var guildService = Program.Services.GetService<GuildService>();
                     var guildInfo = await guildService.GetInfo(context);
 
                     foreach (string role in _requiredRoles)
