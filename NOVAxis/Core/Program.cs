@@ -5,7 +5,8 @@ using System.Threading.Tasks;
 
 using Microsoft.Extensions.DependencyInjection;
 
-using NOVAxis.Services;
+using NOVAxis.Services.Audio;
+using NOVAxis.Services.Guild;
 using NOVAxis.Services.Database;
 
 using Discord;

@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Threading.Tasks;
 
-using NOVAxis.Services;
 using NOVAxis.Core;
+using NOVAxis.Services.Guild;
 
 using Discord;
 using Discord.Commands;

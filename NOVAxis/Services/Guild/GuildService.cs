@@ -8,7 +8,7 @@ using NOVAxis.Services.Database;
 using Discord;
 using Discord.Commands;
 
-namespace NOVAxis.Services
+namespace NOVAxis.Services.Guild
 {
     public class GuildService
     {
