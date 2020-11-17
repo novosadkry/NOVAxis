@@ -2,9 +2,12 @@
 using System.Threading.Tasks;
 
 using NOVAxis.Core;
+
 using Discord;
+using Discord.WebSocket;
 
 using Victoria;
+using Victoria.Enums;
 using Victoria.EventArgs;
 
 namespace NOVAxis.Services.Audio
@@ -13,6 +16,7 @@ namespace NOVAxis.Services.Audio
     {
         public long AudioTimeout { get; }
 
+        private readonly LavaNode _lavaNodeInstance;
         private readonly ConcurrentDictionary<ulong, AudioContext> _guilds;
 
         public AudioModuleService(LavaNode lavaNodeInstance)
@@ -20,14 +24,34 @@ namespace NOVAxis.Services.Audio
             AudioTimeout = Program.Config.AudioTimeout;
             _guilds = new ConcurrentDictionary<ulong, AudioContext>();
 
-            lavaNodeInstance.OnTrackEnded -= AudioModuleService_TrackEnd;
-            lavaNodeInstance.OnTrackEnded += AudioModuleService_TrackEnd;
+            _lavaNodeInstance = lavaNodeInstance;
+            _lavaNodeInstance.OnTrackEnded += AudioModuleService_TrackEnd;
+
+            Program.Client.UserVoiceStateUpdated += AudioModuleService_UserVoiceStateUpdated;
+        }
+
+        ~AudioModuleService()
+        {
+            _lavaNodeInstance.OnTrackEnded -= AudioModuleService_TrackEnd;
+            Program.Client.UserVoiceStateUpdated -= AudioModuleService_UserVoiceStateUpdated;
         }
 
         public AudioContext this[ulong id]
         {
             get => _guilds.GetOrAdd(id, new AudioContext(id));
             set => _guilds[id] = value;
+        }
+
+        private async Task AudioModuleService_UserVoiceStateUpdated(SocketUser user, SocketVoiceState before, SocketVoiceState after)
+        {
+            if (before.VoiceChannel == null)
+                return;
+
+            if (_lavaNodeInstance.TryGetPlayer(before.VoiceChannel.Guild, out LavaPlayer player))
+            {
+                if (after.VoiceChannel == null && player.PlayerState == PlayerState.Playing)
+                    await _lavaNodeInstance.LeaveAsync(before.VoiceChannel);
+            }
         }
 
         private async Task AudioModuleService_TrackEnd(TrackEndedEventArgs args)
