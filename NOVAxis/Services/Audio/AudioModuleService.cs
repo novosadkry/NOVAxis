@@ -50,7 +50,14 @@ namespace NOVAxis.Services.Audio
             if (_lavaNodeInstance.TryGetPlayer(before.VoiceChannel.Guild, out LavaPlayer player))
             {
                 if (after.VoiceChannel == null && player.PlayerState == PlayerState.Playing)
+                {
+                    AudioContext context = this[before.VoiceChannel.Guild.Id];
+
+                    context.Queue.Clear();
+                    context.Timer.Dispose();
+
                     await _lavaNodeInstance.LeaveAsync(before.VoiceChannel);
+                }
             }
         }
 
