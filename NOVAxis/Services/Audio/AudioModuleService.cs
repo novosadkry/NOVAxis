@@ -44,7 +44,7 @@ namespace NOVAxis.Services.Audio
 
         private async Task AudioModuleService_UserVoiceStateUpdated(SocketUser user, SocketVoiceState before, SocketVoiceState after)
         {
-            if (before.VoiceChannel == null)
+            if (user != Program.Client.CurrentUser || before.VoiceChannel == null)
                 return;
 
             if (_lavaNodeInstance.TryGetPlayer(before.VoiceChannel.Guild, out LavaPlayer player))
