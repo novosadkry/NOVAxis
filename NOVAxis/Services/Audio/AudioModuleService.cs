@@ -71,18 +71,49 @@ namespace NOVAxis.Services.Audio
             if (service.Queue.Count == 0)
                 return;
 
-            service.Queue.Dequeue();
+            var prevTrack = service.Queue.Dequeue();
+
+            switch (service.Repeat)
+            {
+                case RepeatMode.Once:
+                    service.Queue.AddFirst(prevTrack);
+                    service.Repeat = RepeatMode.None;
+                    break;
+
+                case RepeatMode.First:
+                    service.Queue.AddFirst(prevTrack);
+                    break;
+
+                case RepeatMode.Queue:
+                    service.Queue.Enqueue(prevTrack);
+                    break;
+            }
 
             if (service.Queue.Count > 0)
             {
-                AudioContext.ContextTrack nextTrack = service.Queue.Peek();
-
+                AudioTrack nextTrack = service.Queue.Peek();
                 await args.Player.PlayAsync(nextTrack);
+
+                object[] statusEmoji =
+                {
+                    args.Player.PlayerState == PlayerState.Playing
+                        ? new Emoji("\u25B6") // Playing
+                        : new Emoji("\u23F8"), // Paused
+
+                    service.Repeat switch
+                    {
+                        RepeatMode.Once => new Emoji("\uD83D\uDD02"),
+                        RepeatMode.First => new Emoji("\uD83D\uDD01"),
+                        RepeatMode.Queue => new Emoji("\uD83D\uDD01"),
+
+                        _ => null
+                    }
+                };
 
                 await args.Player.TextChannel.SendMessageAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithAuthor("Právě přehrávám:")
-                    .WithTitle($"{new Emoji("\u25B6")} {nextTrack.Title}")
+                    .WithTitle($"{nextTrack.Title}")
                     .WithUrl(nextTrack.Url)
                     .WithThumbnailUrl(nextTrack.ThumbnailUrl)
                     .WithFields(
@@ -111,6 +142,13 @@ namespace NOVAxis.Services.Audio
                         {
                             Name = "Hlasitost:",
                             Value = $"{args.Player.Volume}%",
+                            IsInline = true
+                        },
+
+                        new EmbedFieldBuilder
+                        {
+                            Name = "Stav:",
+                            Value = $"{string.Join(' ', statusEmoji)}",
                             IsInline = true
                         }
                     ).Build());

@@ -19,7 +19,7 @@ using Victoria.Responses.Rest;
 
 namespace NOVAxis.Modules
 {
-    [Group("audio")]
+    [Group("audio"), Alias("a")]
     [RequireContext(ContextType.Guild)]
     [RequireOwner(Group = "Permission")]
     [RequireRole("DjRole", true, Group = "Permission")]
@@ -31,6 +31,7 @@ namespace NOVAxis.Modules
 
         private AudioContext service;
 
+        #region Functions
         protected override void BeforeExecute(CommandInfo command)
         {
             service = AudioModuleService[Context.Guild.Id];
@@ -49,7 +50,59 @@ namespace NOVAxis.Modules
             base.AfterExecute(command);
         }
 
-        [Command("join"), Summary("Joins a voice channel")]
+        public async void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            if (LavaNode.IsConnected && LavaNode.HasPlayer(Context.Guild))
+            {
+                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+
+                if (service.Queue.Count > 0 && player.PlayerState == PlayerState.Playing)
+                    return;
+
+                await LeaveChannel(player);
+            }
+
+            await LeaveChannel(null);
+        }
+
+        private async IAsyncEnumerable<AudioTrack> Search(string input)
+        {
+            SearchResponse response = Uri.IsWellFormedUriString(input, 0)
+                ? await LavaNode.SearchAsync(input)
+                : await LavaNode.SearchYouTubeAsync(input);
+
+            switch (response.LoadStatus)
+            {
+                case LoadStatus.LoadFailed: throw new HttpRequestException();
+                case LoadStatus.NoMatches: throw new ArgumentNullException();
+            }
+
+            // Check if search result is a playlist
+            if (!string.IsNullOrEmpty(response.Playlist.Name))
+            {
+                foreach (LavaTrack track in response.Tracks)
+                {
+                    yield return new AudioTrack(track)
+                    {
+                        RequestedBy = Context.User
+                    };
+                }
+            }
+
+            else
+            {
+                var track = response.Tracks.First();
+
+                yield return new AudioTrack(track)
+                {
+                    RequestedBy = Context.User
+                };
+            }
+        }
+        #endregion
+
+        #region Commands
+        [Command("join"), Alias("j"), Summary("Joins a voice channel")]
         public async Task JoinChannel()
         {
             IVoiceChannel voiceChannel = ((IGuildUser)Context.User).VoiceChannel;
@@ -57,7 +110,7 @@ namespace NOVAxis.Modules
             await JoinChannel(voiceChannel);
         }
 
-        [Command("join"), Summary("Joins a selected voice channel")]
+        [Command("join"), Alias("j"), Summary("Joins a selected voice channel")]
         public async Task JoinChannel(string channelname)
         {
             IVoiceChannel voiceChannel = (from ch in Context.Guild.VoiceChannels
@@ -90,6 +143,7 @@ namespace NOVAxis.Modules
             }
 
             LavaPlayer player;
+
             if (LavaNode.HasPlayer(Context.Guild))
             {
                 player = LavaNode.GetPlayer(Context.Guild);
@@ -121,7 +175,7 @@ namespace NOVAxis.Modules
                 .WithTitle($"Připojuji se ke kanálu `{voiceChannel.Name}`").Build());
         }
 
-        [Command("leave"), Alias("quit", "disconnect"), Summary("Leaves a voice channel")]
+        [Command("leave"), Alias("quit", "disconnect", "l"), Summary("Leaves a voice channel")]
         public async Task LeaveChannel()
         {
             if (!LavaNode.IsConnected)
@@ -173,9 +227,10 @@ namespace NOVAxis.Modules
 
             service.Queue.Clear();
             service.Timer.Dispose();
+            service.Repeat = RepeatMode.None;
         }
 
-        [Command("play"), Summary("Plays an audio transmission")]
+        [Command("play"), Alias("p"), Summary("Plays an audio transmission")]
         public async Task PlayAudio([Remainder]string input)
         {
             if (!LavaNode.IsConnected)
@@ -228,41 +283,6 @@ namespace NOVAxis.Modules
             }
         }
 
-        private async IAsyncEnumerable<AudioContext.ContextTrack> Search(string input)
-        {
-            SearchResponse response = Uri.IsWellFormedUriString(input, 0) 
-                ? await LavaNode.SearchAsync(input)
-                : await LavaNode.SearchYouTubeAsync(input);
-
-            switch (response.LoadStatus)
-            {
-                case LoadStatus.LoadFailed: throw new HttpRequestException();
-                case LoadStatus.NoMatches: throw new ArgumentNullException();
-            }
-
-            // Check if search result is a playlist
-            if (!string.IsNullOrEmpty(response.Playlist.Name))
-            {
-                foreach (LavaTrack track in response.Tracks)
-                {
-                    yield return new AudioContext.ContextTrack(track)
-                    {
-                        RequestedBy = Context.User
-                    };
-                }
-            }
-
-            else
-            {
-                var track = response.Tracks.First();
-
-                yield return new AudioContext.ContextTrack(track)
-                {
-                    RequestedBy = Context.User
-                };
-            }
-        }
-
         private async Task PlayAudio(LavaPlayer player, string input)
         {
             try
@@ -277,7 +297,7 @@ namespace NOVAxis.Modules
                     await ReplyAsync(embed: new EmbedBuilder()
                         .WithColor(52, 231, 231)
                         .WithAuthor("Právě přehrávám:")
-                        .WithTitle($"{new Emoji("\u25B6")} {player.Track.Title}")
+                        .WithTitle($"{player.Track.Title}")
                         .WithUrl(player.Track.Url)
                         .WithThumbnailUrl(player.Track.GetThumbnailUrl())
                         .WithFields(
@@ -307,6 +327,13 @@ namespace NOVAxis.Modules
                                 Name = "Hlasitost:",
                                 Value = $"{player.Volume}%",
                                 IsInline = true
+                            },
+
+                            new EmbedFieldBuilder
+                            {
+                                Name = "Stav:",
+                                Value = new Emoji("\u25B6"),
+                                IsInline = true
                             }
                         ).Build());
                 }
@@ -317,13 +344,13 @@ namespace NOVAxis.Modules
                     {
                         TimeSpan totalDuration = new TimeSpan();
 
-                        foreach (LavaTrack track in tracks)
+                        foreach (var track in tracks)
                             totalDuration += track.Duration;
 
                         await ReplyAsync(embed: new EmbedBuilder()
                             .WithColor(52, 231, 231)
                             .WithAuthor($"Přidáno do fronty ({tracks.Count}):")
-                            .WithTitle($"{new Emoji("\u23ED")} {service.LastTrack.Title}")
+                            .WithTitle($"{service.LastTrack.Title}")
                             .WithUrl(service.LastTrack.Url)
                             .WithThumbnailUrl(service.LastTrack.ThumbnailUrl)
                             .WithFields(
@@ -348,7 +375,7 @@ namespace NOVAxis.Modules
                         await ReplyAsync(embed: new EmbedBuilder()
                             .WithColor(52, 231, 231)
                             .WithAuthor("Přidáno do fronty:")
-                            .WithTitle($"{new Emoji("\u23ED")} {service.LastTrack.Title}")
+                            .WithTitle($"{service.LastTrack.Title}")
                             .WithUrl(service.LastTrack.Url)
                             .WithThumbnailUrl(service.LastTrack.ThumbnailUrl)
                             .WithFields(
@@ -401,7 +428,7 @@ namespace NOVAxis.Modules
             }
         }
 
-        [Command("skip"), Alias("next"), Summary("Skips to the next audio transmission")]
+        [Command("skip"), Alias("next", "n"), Summary("Skips to the next audio transmission")]
         public async Task SkipAudio()
         {
             if (LavaNode.HasPlayer(Context.Guild))
@@ -430,7 +457,7 @@ namespace NOVAxis.Modules
             }
         }
 
-        [Command("stop"), Summary("Stops the audio transmission")]
+        [Command("stop"), Alias("s"), Summary("Stops the audio transmission")]
         public async Task StopAudio()
         {
             if (LavaNode.HasPlayer(Context.Guild))
@@ -448,6 +475,8 @@ namespace NOVAxis.Modules
                 }
 
                 service.Queue.Clear();
+                service.Repeat = RepeatMode.None;
+
                 await player.StopAsync();
 
                 await ReplyAsync(embed: new EmbedBuilder()
@@ -760,11 +789,26 @@ namespace NOVAxis.Modules
                     return;
                 }
 
+                object[] statusEmoji =
+                {
+                    player.PlayerState == PlayerState.Playing
+                        ? new Emoji("\u25B6") // Playing
+                        : new Emoji("\u23F8"), // Paused
+
+                    service.Repeat switch
+                    {
+                        RepeatMode.Once => new Emoji("\uD83D\uDD02"),
+                        RepeatMode.First => new Emoji("\uD83D\uDD01"),
+                        RepeatMode.Queue => new Emoji("\uD83D\uDD01"),
+
+                        _ => null
+                    }
+                };
+
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithAuthor("Právě přehrávám:")
-                    .WithTitle(
-                        $"{(player.PlayerState == PlayerState.Playing ? new Emoji("\u25B6") : new Emoji("\u23F8"))} {player.Track.Title}")
+                    .WithTitle($"{player.Track.Title}")
                     .WithUrl(player.Track.Url)
                     .WithThumbnailUrl(player.Track.GetThumbnailUrl())
                     .WithFields(
@@ -794,6 +838,13 @@ namespace NOVAxis.Modules
                             Name = "Hlasitost:",
                             Value = $"{player.Volume}%",
                             IsInline = true
+                        },
+
+                        new EmbedFieldBuilder
+                        {
+                            Name = "Stav:",
+                            Value = $"{string.Join(' ', statusEmoji)}",
+                            IsInline = true
                         }
                     ).Build());
             }
@@ -807,7 +858,7 @@ namespace NOVAxis.Modules
             }
         }
 
-        [Command("queue"), Summary("Shows enqueued audio transmissions")]
+        [Command("queue"), Alias("q"), Summary("Shows enqueued audio transmissions")]
         public async Task AudioQueue()
         {
             if (service.Queue.Count < 1 || !LavaNode.HasPlayer(Context.Guild))
@@ -820,8 +871,8 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
-            EmbedFieldBuilder[] embedFields = new EmbedFieldBuilder[service.Queue.Count];
+            LinkedList<EmbedFieldBuilder> embedFields = new LinkedList<EmbedFieldBuilder>();
+            TimeSpan totalDuration = TimeSpan.Zero;
 
             var currentNode = service.Queue.First;
             for (int i = 0; currentNode != null; i++, currentNode = currentNode.Next)
@@ -830,30 +881,54 @@ namespace NOVAxis.Modules
 
                 if (i == 0)
                 {
-                    var emoji = player.PlayerState == PlayerState.Playing
-                        ? new Emoji("\u25B6")  // Playing
-                        : new Emoji("\u23F8"); // Paused
-
-                    embedFields[i] = new EmbedFieldBuilder
+                    var repeatEmoji = service.Repeat switch
                     {
-                        Name = $"**{emoji} {track.Title}**",
-                        Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Duration}` | [Odkaz]({track.Url})\n"
+                        RepeatMode.Once => new Emoji("\uD83D\uDD02"),
+                        RepeatMode.First => new Emoji("\uD83D\uDD01"),
+                        RepeatMode.Queue => new Emoji("\uD83D\uDD01"),
+                        _ => null
                     };
+
+                    embedFields.AddLast(new EmbedFieldBuilder
+                    {
+                        Name = $"{repeatEmoji} **{track.Title}**",
+                        Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Duration}` | [Odkaz]({track.Url})\n"
+                    });
+
+                    embedFields.AddLast(new EmbedFieldBuilder
+                    {
+                        Name = "\u200B", 
+                        Value = $"**Stopy ve frontě ({service.Queue.Count - 1}):**"
+                    });
                 }
 
                 else
                 {
-                    embedFields[i] = new EmbedFieldBuilder
+                    var repeatEmoji = service.Repeat switch
                     {
-                        Name = $"`{i}.` {track.Title}", 
-                        Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Duration}` | [Odkaz]({track.Url})"
+                        RepeatMode.Queue => new Emoji("\uD83D\uDD01"),
+                        _ => null
                     };
+
+                    embedFields.AddLast(new EmbedFieldBuilder
+                    {
+                        Name = $"{repeatEmoji} `{i}.` {track.Title}", 
+                        Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Duration}` | [Odkaz]({track.Url})"
+                    });
                 }
+
+                totalDuration += track.Duration;
             }
+
+            embedFields.AddLast(new EmbedFieldBuilder
+            {
+                Name = "\u200B",
+                Value = $"Celková doba poslechu: `{totalDuration}`"
+            });
 
             await ReplyAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
-                .WithTitle($"Stopy ve frontě ({service.Queue.Count - 1}):")
+                .WithTitle("Právě přehrávám:")
                 .WithFields(embedFields)
                 .Build());
         }
@@ -886,6 +961,60 @@ namespace NOVAxis.Modules
             await ReplyAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
                 .WithTitle("Požadovaná stopa byla úspěšně odebrána z fronty").Build());
+        }
+
+        [Command("repeat"), Summary("Repeats enqueued audio transmission")]
+        public async Task RepeatAudio(string mode = null)
+        {
+            RepeatMode repeatMode;
+
+            try { repeatMode = Enum.Parse<RepeatMode>(mode ?? string.Empty, true); }
+            catch (Exception) { repeatMode = RepeatMode.None; }
+
+            if (LavaNode.HasPlayer(Context.Guild))
+            {
+                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+
+                if (player.Track == null)
+                {
+                    await ReplyAsync(embed: new EmbedBuilder()
+                        .WithColor(255, 150, 0)
+                        .WithDescription("(Neplatný příkaz)")
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+
+                    return;
+                }
+
+                if (service.Repeat != repeatMode && repeatMode != RepeatMode.None)
+                {
+                    await ReplyAsync(embed: new EmbedBuilder()
+                        .WithColor(52, 231, 231)
+                        .WithTitle("Nadcházející stopy nyní porušují časové kontinuum")
+                        .WithDescription("(Režim opakování byl zapnut)")
+                        .Build());
+
+                    service.Repeat = repeatMode;
+                }
+
+                else
+                {
+                    await ReplyAsync(embed: new EmbedBuilder()
+                        .WithColor(52, 231, 231)
+                        .WithTitle("Nadcházející stopy nyní dodržují časové kontinuum")
+                        .WithDescription("(Režim opakování byl vypnut)")
+                        .Build());
+
+                    service.Repeat = RepeatMode.None;
+                }
+            }
+
+            else
+            {
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(255, 150, 0)
+                    .WithDescription("(Neplatný příkaz)")
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+            }
         }
 
         [Command("setrole"), Summary("Sets the guild's DJ role which is used to identify eligible users")]
@@ -941,20 +1070,6 @@ namespace NOVAxis.Modules
                     .WithTitle("Má databáze nebyla schopna rozpoznat daný prvek").Build());
             }
         }
-
-        public async void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
-        {
-            if (LavaNode.IsConnected && LavaNode.HasPlayer(Context.Guild))
-            {
-                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
-
-                if (service.Queue.Count > 0 && player.PlayerState == PlayerState.Playing)
-                    return;
-
-                await LeaveChannel(player);
-            }
-
-            await LeaveChannel(null);
-        }
+        #endregion
     }
 }
