@@ -173,7 +173,7 @@ namespace NOVAxis.Core
             if (++ShardsReady == Config.TotalShards)
             {
                 await Client_Log(new LogMessage(LogSeverity.Info, "Victoria", "Connecting"));
-                await lavaNodeInstance.ConnectAsync();
+                _ = lavaNodeInstance.ConnectAsync();
             }
         }
 
