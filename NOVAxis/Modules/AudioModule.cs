@@ -27,25 +27,24 @@ namespace NOVAxis.Modules
     {
         public LavaNode LavaNode { get; set; }
         public AudioModuleService AudioModuleService { get; set; }
+        public AudioContext AudioContext { get; private set; }
         public GuildService GuildService { get; set; }
-
-        private AudioContext service;
 
         #region Functions
         protected override void BeforeExecute(CommandInfo command)
         {
-            service = AudioModuleService[Context.Guild.Id];
+            AudioContext = AudioModuleService[Context.Guild.Id];
 
-            if (!service.Timer.IsSet)
-                service.Timer.Set(Program.Config.AudioTimeout, Timer_Elapsed);
+            if (!AudioContext.Timer.IsSet)
+                AudioContext.Timer.Set(Program.Config.AudioTimeout, Timer_Elapsed);
 
             base.BeforeExecute(command);
         }
 
         protected override void AfterExecute(CommandInfo command)
         {
-            if (service.Timer.IsSet)
-                service.Timer.Reset();
+            if (AudioContext.Timer.IsSet)
+                AudioContext.Timer.Reset();
 
             base.AfterExecute(command);
         }
@@ -56,7 +55,7 @@ namespace NOVAxis.Modules
             {
                 LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
 
-                if (service.Queue.Count > 0 && player.PlayerState == PlayerState.Playing)
+                if (AudioContext.Queue.Count > 0 && player.PlayerState == PlayerState.Playing)
                     return;
 
                 await LeaveChannel(player);
@@ -65,7 +64,7 @@ namespace NOVAxis.Modules
             await LeaveChannel(null);
         }
 
-        private async IAsyncEnumerable<AudioTrack> Search(string input)
+        public async IAsyncEnumerable<AudioTrack> Search(string input)
         {
             SearchResponse response = Uri.IsWellFormedUriString(input, 0)
                 ? await LavaNode.SearchAsync(input)
@@ -98,6 +97,28 @@ namespace NOVAxis.Modules
                     RequestedBy = Context.User
                 };
             }
+        }
+
+        public static IReadOnlyList<Emoji> GetStatusEmoji(AudioContext audioContext, LavaPlayer player = null)
+        {
+            Emoji[] statusEmoji =
+            {
+                audioContext.Repeat switch
+                {
+                    RepeatMode.Once => new Emoji("\uD83D\uDD02"),
+                    RepeatMode.First => new Emoji("\uD83D\uDD01"),
+                    RepeatMode.Queue => new Emoji("\uD83D\uDD01"),
+                    _ => null
+                },
+
+                player != null
+                    ? player.PlayerState == PlayerState.Playing
+                        ? new Emoji("\u25B6") // Playing
+                        : new Emoji("\u23F8") // Paused
+                    : null
+            };
+
+            return statusEmoji;
         }
         #endregion
 
@@ -158,7 +179,7 @@ namespace NOVAxis.Modules
                     return;
                 }
 
-                service.Queue.Clear();
+                AudioContext.Queue.Clear();
 
                 await LavaNode.LeaveAsync(voiceChannel);
                 player = await LavaNode.JoinAsync(voiceChannel, Context.Channel as ITextChannel);
@@ -225,9 +246,9 @@ namespace NOVAxis.Modules
                 await LavaNode.LeaveAsync(player.VoiceChannel);
             }
 
-            service.Queue.Clear();
-            service.Timer.Dispose();
-            service.Repeat = RepeatMode.None;
+            AudioContext.Queue.Clear();
+            AudioContext.Timer.Dispose();
+            AudioContext.Repeat = RepeatMode.None;
         }
 
         [Command("play"), Alias("p"), Summary("Plays an audio transmission")]
@@ -261,7 +282,7 @@ namespace NOVAxis.Modules
 
                 if (player.VoiceChannel != voiceChannel)
                 {
-                    service.Queue.Clear();
+                    AudioContext.Queue.Clear();
 
                     await LavaNode.LeaveAsync(voiceChannel);
                     await JoinChannel(voiceChannel);
@@ -274,7 +295,7 @@ namespace NOVAxis.Modules
 
             else
             {
-                service.Queue.Clear();
+                AudioContext.Queue.Clear();
                 await JoinChannel(voiceChannel);
 
                 LavaPlayer player = LavaNode.GetPlayer(voiceChannel.Guild);
@@ -288,11 +309,11 @@ namespace NOVAxis.Modules
             try
             {
                 var tracks = await Search(input).ToListAsync();
-                service.Queue.Enqueue(tracks);
+                AudioContext.Queue.Enqueue(tracks);
 
-                if (service.Queue.Count == 1)
+                if (AudioContext.Queue.Count == 1)
                 {
-                    await player.PlayAsync(service.Queue.First());
+                    await player.PlayAsync(AudioContext.Queue.First());
 
                     await ReplyAsync(embed: new EmbedBuilder()
                         .WithColor(52, 231, 231)
@@ -318,7 +339,7 @@ namespace NOVAxis.Modules
                             new EmbedFieldBuilder
                             {
                                 Name = "Vyžádal:",
-                                Value = service.Track.RequestedBy.Mention,
+                                Value = AudioContext.Track.RequestedBy.Mention,
                                 IsInline = true
                             },
 
@@ -350,9 +371,9 @@ namespace NOVAxis.Modules
                         await ReplyAsync(embed: new EmbedBuilder()
                             .WithColor(52, 231, 231)
                             .WithAuthor($"Přidáno do fronty ({tracks.Count}):")
-                            .WithTitle($"{service.LastTrack.Title}")
-                            .WithUrl(service.LastTrack.Url)
-                            .WithThumbnailUrl(service.LastTrack.ThumbnailUrl)
+                            .WithTitle($"{AudioContext.LastTrack.Title}")
+                            .WithUrl(AudioContext.LastTrack.Url)
+                            .WithThumbnailUrl(AudioContext.LastTrack.ThumbnailUrl)
                             .WithFields(
                                 new EmbedFieldBuilder
                                 {
@@ -364,7 +385,7 @@ namespace NOVAxis.Modules
                                 new EmbedFieldBuilder
                                 {
                                     Name = "Vyžádal:",
-                                    Value = service.LastTrack.RequestedBy.Mention,
+                                    Value = AudioContext.LastTrack.RequestedBy.Mention,
                                     IsInline = true
                                 }
                             ).Build());
@@ -375,35 +396,35 @@ namespace NOVAxis.Modules
                         await ReplyAsync(embed: new EmbedBuilder()
                             .WithColor(52, 231, 231)
                             .WithAuthor("Přidáno do fronty:")
-                            .WithTitle($"{service.LastTrack.Title}")
-                            .WithUrl(service.LastTrack.Url)
-                            .WithThumbnailUrl(service.LastTrack.ThumbnailUrl)
+                            .WithTitle($"{AudioContext.LastTrack.Title}")
+                            .WithUrl(AudioContext.LastTrack.Url)
+                            .WithThumbnailUrl(AudioContext.LastTrack.ThumbnailUrl)
                             .WithFields(
                                 new EmbedFieldBuilder
                                 {
                                     Name = "Autor:",
-                                    Value = service.LastTrack.Author,
+                                    Value = AudioContext.LastTrack.Author,
                                     IsInline = true
                                 },
 
                                 new EmbedFieldBuilder
                                 {
                                     Name = "Délka:",
-                                    Value = $"`{service.LastTrack.Duration}`",
+                                    Value = $"`{AudioContext.LastTrack.Duration}`",
                                     IsInline = true
                                 },
 
                                 new EmbedFieldBuilder
                                 {
                                     Name = "Vyžádal:",
-                                    Value = service.LastTrack.RequestedBy.Mention,
+                                    Value = AudioContext.LastTrack.RequestedBy.Mention,
                                     IsInline = true
                                 },
 
                                 new EmbedFieldBuilder
                                 {
                                     Name = "Pořadí ve frontě:",
-                                    Value = $"`{service.Queue.Count - 1}.`",
+                                    Value = $"`{AudioContext.Queue.Count - 1}.`",
                                     IsInline = true
                                 }
                             ).Build());
@@ -474,8 +495,8 @@ namespace NOVAxis.Modules
                     return;
                 }
 
-                service.Queue.Clear();
-                service.Repeat = RepeatMode.None;
+                AudioContext.Queue.Clear();
+                AudioContext.Repeat = RepeatMode.None;
 
                 await player.StopAsync();
 
@@ -789,21 +810,7 @@ namespace NOVAxis.Modules
                     return;
                 }
 
-                object[] statusEmoji =
-                {
-                    player.PlayerState == PlayerState.Playing
-                        ? new Emoji("\u25B6") // Playing
-                        : new Emoji("\u23F8"), // Paused
-
-                    service.Repeat switch
-                    {
-                        RepeatMode.Once => new Emoji("\uD83D\uDD02"),
-                        RepeatMode.First => new Emoji("\uD83D\uDD01"),
-                        RepeatMode.Queue => new Emoji("\uD83D\uDD01"),
-
-                        _ => null
-                    }
-                };
+                var statusEmoji = GetStatusEmoji(AudioContext, player);
 
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
@@ -829,7 +836,7 @@ namespace NOVAxis.Modules
                         new EmbedFieldBuilder
                         {
                             Name = "Vyžádal:",
-                            Value = service.Track.RequestedBy.Mention,
+                            Value = AudioContext.Track.RequestedBy.Mention,
                             IsInline = true
                         },
 
@@ -861,7 +868,7 @@ namespace NOVAxis.Modules
         [Command("queue"), Alias("q"), Summary("Shows enqueued audio transmissions")]
         public async Task AudioQueue()
         {
-            if (service.Queue.Count < 1 || !LavaNode.HasPlayer(Context.Guild))
+            if (AudioContext.Queue.Count < 1 || !LavaNode.HasPlayer(Context.Guild))
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
@@ -874,45 +881,39 @@ namespace NOVAxis.Modules
             LinkedList<EmbedFieldBuilder> embedFields = new LinkedList<EmbedFieldBuilder>();
             TimeSpan totalDuration = TimeSpan.Zero;
 
-            var currentNode = service.Queue.First;
+            var statusEmoji = GetStatusEmoji(AudioContext);
+
+            var currentNode = AudioContext.Queue.First;
             for (int i = 0; currentNode != null; i++, currentNode = currentNode.Next)
             {
                 var track = currentNode.Value;
 
                 if (i == 0)
                 {
-                    var repeatEmoji = service.Repeat switch
-                    {
-                        RepeatMode.Once => new Emoji("\uD83D\uDD02"),
-                        RepeatMode.First => new Emoji("\uD83D\uDD01"),
-                        RepeatMode.Queue => new Emoji("\uD83D\uDD01"),
-                        _ => null
-                    };
+                    var emoji = statusEmoji[0];
 
                     embedFields.AddLast(new EmbedFieldBuilder
                     {
-                        Name = $"{repeatEmoji} **{track.Title}**",
+                        Name = $"{emoji} **{track.Title}**",
                         Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Duration}` | [Odkaz]({track.Url})\n"
                     });
 
                     embedFields.AddLast(new EmbedFieldBuilder
                     {
                         Name = "\u200B", 
-                        Value = $"**Stopy ve frontě ({service.Queue.Count - 1}):**"
+                        Value = $"**Stopy ve frontě ({AudioContext.Queue.Count - 1}):**"
                     });
                 }
 
                 else
                 {
-                    var repeatEmoji = service.Repeat switch
-                    {
-                        RepeatMode.Queue => new Emoji("\uD83D\uDD01"),
-                        _ => null
-                    };
+                    var emoji = AudioContext.Repeat == RepeatMode.Queue
+                        ? statusEmoji[0]
+                        : null;
 
                     embedFields.AddLast(new EmbedFieldBuilder
                     {
-                        Name = $"{repeatEmoji} `{i}.` {track.Title}", 
+                        Name = $"{emoji} `{i}.` {track.Title}",
                         Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Duration}` | [Odkaz]({track.Url})"
                     });
                 }
@@ -936,7 +937,7 @@ namespace NOVAxis.Modules
         [Command("remove"), Summary("Removes an enqueued audio transmission")]
         public async Task RemoveAudio(int index)
         {
-            if (service.Queue.Count <= 1)
+            if (AudioContext.Queue.Count <= 1)
             {
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
@@ -946,7 +947,7 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            if (index <= 0 || index >= service.Queue.Count)
+            if (index <= 0 || index >= AudioContext.Queue.Count)
             {
                 await Context.Channel.SendMessageAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
@@ -956,7 +957,7 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            service.Queue.RemoveAt(index);
+            AudioContext.Queue.RemoveAt(index);
 
             await ReplyAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
@@ -985,7 +986,7 @@ namespace NOVAxis.Modules
                     return;
                 }
 
-                if (service.Repeat != repeatMode && repeatMode != RepeatMode.None)
+                if (AudioContext.Repeat != repeatMode && repeatMode != RepeatMode.None)
                 {
                     await ReplyAsync(embed: new EmbedBuilder()
                         .WithColor(52, 231, 231)
@@ -993,7 +994,7 @@ namespace NOVAxis.Modules
                         .WithDescription("(Režim opakování byl zapnut)")
                         .Build());
 
-                    service.Repeat = repeatMode;
+                    AudioContext.Repeat = repeatMode;
                 }
 
                 else
@@ -1004,7 +1005,7 @@ namespace NOVAxis.Modules
                         .WithDescription("(Režim opakování byl vypnut)")
                         .Build());
 
-                    service.Repeat = RepeatMode.None;
+                    AudioContext.Repeat = RepeatMode.None;
                 }
             }
 

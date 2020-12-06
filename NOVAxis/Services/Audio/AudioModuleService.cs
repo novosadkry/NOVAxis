@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 
 using NOVAxis.Core;
+using NOVAxis.Modules;
 
 using Discord;
 using Discord.WebSocket;
@@ -66,49 +67,35 @@ namespace NOVAxis.Services.Audio
             if (args.Player.VoiceChannel == null)
                 return;
 
-            var service = _guilds[args.Player.VoiceChannel.GuildId];
+            var audioContext = _guilds[args.Player.VoiceChannel.GuildId];
 
-            if (service.Queue.Count == 0)
+            if (audioContext.Queue.Count == 0)
                 return;
 
-            var prevTrack = service.Queue.Dequeue();
+            var prevTrack = audioContext.Queue.Dequeue();
 
-            switch (service.Repeat)
+            switch (audioContext.Repeat)
             {
                 case RepeatMode.Once:
-                    service.Queue.AddFirst(prevTrack);
-                    service.Repeat = RepeatMode.None;
+                    audioContext.Queue.AddFirst(prevTrack);
+                    audioContext.Repeat = RepeatMode.None;
                     break;
 
                 case RepeatMode.First:
-                    service.Queue.AddFirst(prevTrack);
+                    audioContext.Queue.AddFirst(prevTrack);
                     break;
 
                 case RepeatMode.Queue:
-                    service.Queue.Enqueue(prevTrack);
+                    audioContext.Queue.Enqueue(prevTrack);
                     break;
             }
 
-            if (service.Queue.Count > 0)
+            if (audioContext.Queue.Count > 0)
             {
-                AudioTrack nextTrack = service.Queue.Peek();
+                AudioTrack nextTrack = audioContext.Queue.Peek();
                 await args.Player.PlayAsync(nextTrack);
 
-                object[] statusEmoji =
-                {
-                    args.Player.PlayerState == PlayerState.Playing
-                        ? new Emoji("\u25B6") // Playing
-                        : new Emoji("\u23F8"), // Paused
-
-                    service.Repeat switch
-                    {
-                        RepeatMode.Once => new Emoji("\uD83D\uDD02"),
-                        RepeatMode.First => new Emoji("\uD83D\uDD01"),
-                        RepeatMode.Queue => new Emoji("\uD83D\uDD01"),
-
-                        _ => null
-                    }
-                };
+                var statusEmoji = AudioModule.GetStatusEmoji(audioContext, args.Player);
 
                 await args.Player.TextChannel.SendMessageAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
@@ -161,7 +148,7 @@ namespace NOVAxis.Services.Audio
                     .WithTitle("Stream audia byl úspěšně dokončen").Build());
             }
 
-            service.Timer.Reset();
+            audioContext.Timer.Reset();
         }
     }
 }
