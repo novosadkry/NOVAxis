@@ -13,6 +13,9 @@ using NOVAxis.Services.Guild;
 using Discord;
 using Discord.Commands;
 
+using Interactivity;
+using Interactivity.Pagination;
+
 using Victoria;
 using Victoria.Enums;
 using Victoria.Responses.Rest;
@@ -25,7 +28,67 @@ namespace NOVAxis.Modules
     [RequireRole("DjRole", true, Group = "Permission")]
     public class AudioModule : ModuleBase<SocketCommandContext>
     {
+        private class AudioQueuePaginator
+        {
+            private readonly int _tracksPerPage;
+            
+            public AudioQueuePaginator(int tracksPerPage)
+            {
+                _tracksPerPage = tracksPerPage;
+
+                Header = new List<EmbedFieldBuilder>();
+                Tracks = new List<EmbedFieldBuilder>();
+                Footer = new List<EmbedFieldBuilder>();
+            }
+
+            public int MaxPageIndex { get; private set; }
+            public List<EmbedFieldBuilder> Header { get; }
+            public List<EmbedFieldBuilder> Tracks { get; }
+            public List<EmbedFieldBuilder> Footer { get; }
+
+            private Task<PageBuilder> PageFactory(int pageIndex)
+            {
+                var page = new PageBuilder();
+                var content = new List<EmbedFieldBuilder>();
+
+                // Add header to first page
+                if (pageIndex == 0)
+                {
+                    page.WithTitle("Právě přehrávám:");
+                    content.AddRange(Header);
+                }
+
+                // Add tracks to page
+                content.AddRange(Tracks
+                    .Skip(pageIndex * _tracksPerPage)
+                    .Take(_tracksPerPage)
+                );
+
+                // Add footer to last page
+                if (pageIndex == MaxPageIndex)
+                    content.AddRange(Footer);
+
+                page.WithColor(System.Drawing.Color.FromArgb(52, 231, 231))
+                    .WithFields(content);
+
+                return Task.FromResult(page);
+            }
+
+            public Paginator Build()
+            {
+                MaxPageIndex = (int)Math.Floor((float)Tracks.Count / _tracksPerPage);
+
+                return new LazyPaginatorBuilder()
+                    .WithPageFactory(PageFactory)
+                    .WithMaxPageIndex(MaxPageIndex)
+                    .WithDefaultEmotes()
+                    .WithFooter(PaginatorFooter.PageNumber)
+                    .Build();
+            }
+        }
+
         public LavaNode LavaNode { get; set; }
+        public InteractivityService InteractivityService { get; set; }
         public AudioModuleService AudioModuleService { get; set; }
         public AudioContext AudioContext { get; private set; }
         public GuildService GuildService { get; set; }
@@ -878,7 +941,7 @@ namespace NOVAxis.Modules
                 return;
             }
 
-            LinkedList<EmbedFieldBuilder> embedFields = new LinkedList<EmbedFieldBuilder>();
+            AudioQueuePaginator queue = new AudioQueuePaginator(5);
             TimeSpan totalDuration = TimeSpan.Zero;
 
             var statusEmoji = GetStatusEmoji(AudioContext);
@@ -892,13 +955,13 @@ namespace NOVAxis.Modules
                 {
                     var emoji = statusEmoji[0];
 
-                    embedFields.AddLast(new EmbedFieldBuilder
+                    queue.Header.Add(new EmbedFieldBuilder
                     {
                         Name = $"{emoji} **{track.Title}**",
                         Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Duration}` | [Odkaz]({track.Url})\n"
                     });
 
-                    embedFields.AddLast(new EmbedFieldBuilder
+                    queue.Header.Add(new EmbedFieldBuilder
                     {
                         Name = "\u200B", 
                         Value = $"**Stopy ve frontě ({AudioContext.Queue.Count - 1}):**"
@@ -911,7 +974,7 @@ namespace NOVAxis.Modules
                         ? statusEmoji[0]
                         : null;
 
-                    embedFields.AddLast(new EmbedFieldBuilder
+                    queue.Tracks.Add(new EmbedFieldBuilder
                     {
                         Name = $"{emoji} `{i}.` {track.Title}",
                         Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Duration}` | [Odkaz]({track.Url})"
@@ -921,17 +984,16 @@ namespace NOVAxis.Modules
                 totalDuration += track.Duration;
             }
 
-            embedFields.AddLast(new EmbedFieldBuilder
+            queue.Footer.Add(new EmbedFieldBuilder
             {
                 Name = "\u200B",
                 Value = $"Celková doba poslechu: `{totalDuration}`"
             });
 
-            await ReplyAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle("Právě přehrávám:")
-                .WithFields(embedFields)
-                .Build());
+            await InteractivityService.SendPaginatorAsync(
+                queue.Build(), 
+                Context.Channel, 
+                TimeSpan.FromMinutes(2));
         }
 
         [Command("remove"), Summary("Removes an enqueued audio transmission")]
