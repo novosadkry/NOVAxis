@@ -25,15 +25,12 @@ namespace NOVAxis.Modules
                 var msg = await ReplyAsync(embed: new EmbedBuilder()
                     .WithAuthor(Context.User.Username, Context.User.GetAvatarUrl())
                     .WithColor(new Color(52, 231, 231))
-                    .WithTitle("Seznam příkazů byl úspěšně poslán do přímé zprávy").Build());
+                    .WithTitle("Seznam příkazů byl poslán do přímé zprávy").Build());
 
                 InteractivityService.DelayedDeleteMessageAsync(msg, TimeSpan.FromSeconds(5));
-
-                await Context.User.SendMessageAsync(embed: embed);
             }
 
-            else
-                await Context.User.SendMessageAsync(embed: embed);
+            await Context.User.SendMessageAsync(embed: embed);
         }
 
         [Command, Summary("Shows command list")]
@@ -73,7 +70,7 @@ namespace NOVAxis.Modules
                     {
                         IsInline = true,
                         Name = "**Mute**",
-                        Value = $"*{prefix}mute @user*"
+                        Value = $"*{prefix}help mute*"
                     },
 
                     new EmbedFieldBuilder
@@ -122,14 +119,14 @@ namespace NOVAxis.Modules
                     {
                         IsInline = false,
                         Name = $"**{prefix}jisho** text",
-                        Value = "*Prohledá databázi Jisho s limitem sto prvků*"
+                        Value = "*Prohledá databázi Jisho*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = false,
                         Name = $"**{prefix}jisho** text limit",
-                        Value = "*Prohledá databázi Jisho s nastaveným limitem prvků*"
+                        Value = "*Prohledá databázi Jisho s omezeným počtem výsledků*"
                     }
                 )
                 .WithFooter(new EmbedFooterBuilder
@@ -158,35 +155,35 @@ namespace NOVAxis.Modules
                     {
                         IsInline = true,
                         Name = $"**{prefix}move** @user \"channel\"",
-                        Value = "*Přesune uživatele user do channel*"
+                        Value = "*Přesune uživatele do daného kanálu*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
                         Name = $"**{prefix}move everyone** \"channel\"",
-                        Value = "*Přesune všechny uživatele ze současného kanálu do channel*"
+                        Value = "*Přesune všechny uživatele ze současného kanálu do daného kanálu*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
                         Name = $"**{prefix}move everyone** \"channel1\" \"channel2\"",
-                        Value = "*Přesune všechny uživatele z channel1 do channel2*"
+                        Value = "*Přesune všechny uživatele z jednoho kanálu do druhého*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
                         Name = $"**{prefix}move message** ID \"channel\"",
-                        Value = "*Přesune vybranou zprávu z channel1 do channel2*"
+                        Value = "*Přesune vybranou zprávu z jednoho kanálu do druhého*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
                         Name = $"**{prefix}move message** @user \"channel\"",
-                        Value = "*Přesune poslední zprávu uživatele user do channel*"
+                        Value = "*Přesune poslední zprávu uživatele do daného kanálu*"
                     }
                 )
                 .WithFooter(new EmbedFooterBuilder
@@ -214,76 +211,76 @@ namespace NOVAxis.Modules
                     {
                         IsInline = true,
                         Name = $"**{prefix}audio join**",
-                        Value = "*Připojí jádro k současnému kanálu*"
+                        Value = "*Připojí se k současnému kanálu*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
                         Name = $"**{prefix}audio seek** pozice",
-                        Value = "*Nastaví novou pozici aktivní zvukové stopy*"
+                        Value = "*Posune stopu na danou pozici*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
                         Name = $"**{prefix}audio leave**",
-                        Value = "*Odpojí jádro od připojeného kanálu*"
+                        Value = "*Odpojí se od připojeného kanálu*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
                         Name = $"**{prefix}audio stop**",
-                        Value = "*Zastaví aktivní zvukovou stopu*"
+                        Value = "*Zastaví stopu a vymaže frontu*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
                         Name = $"**{prefix}audio play** URL/název",
-                        Value = "*Přehraje vybranou zvukovou stopu*"
+                        Value = "*Přehraje vybranou stopu*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
                         Name = $"**{prefix}audio pause**",
-                        Value = "*Pozastaví aktivní zvukovou stopu*"
+                        Value = "*Pozastaví právě hrající stopu*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
                         Name = $"**{prefix}audio status**",
-                        Value = "*Zobrazí aktivní zvukovou stopu*"
+                        Value = "*Zobrazí právě hrající stopu*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
                         Name = $"**{prefix}audio resume**",
-                        Value = "*Spustí pozastavenou zvukovou stopu*"
+                        Value = "*Pokračuje v pozastavené stopě*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
                         Name = $"**{prefix}audio queue**",
-                        Value = "*Zobrazí frontu zvukových stop*"
+                        Value = "*Zobrazí frontu stop*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
                         Name = $"**{prefix}audio skip**",
-                        Value = "*Přeskočí aktivní zvukovou stopu*"
+                        Value = "*Přeskočí stopu*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = true,
-                        Name = $"**{prefix}audio remove**",
+                        Name = $"**{prefix}audio remove** pozice",
                         Value = "*Odstraní z fronty vybranou stopu*"
                     },
 
@@ -313,6 +310,13 @@ namespace NOVAxis.Modules
                         IsInline = true,
                         Name = $"**{prefix}audio setrole** @role/ID",
                         Value = "*Nastaví roli pro identifikaci oprávněných uživatelů*"
+                    },
+
+                    new EmbedFieldBuilder
+                    {
+                        IsInline = true,
+                        Name = $"**{prefix}audio repeat**",
+                        Value = "*Nastaví režim opakování*"
                     }
                 )
                 .WithFooter(new EmbedFooterBuilder
@@ -340,8 +344,8 @@ namespace NOVAxis.Modules
                     new EmbedFieldBuilder
                     {
                         IsInline = false,
-                        Name = $"**{prefix}clear** x",
-                        Value = "*Vymaže posledních x zpráv z daného kanálu*"
+                        Name = $"**{prefix}clear** počet",
+                        Value = "*Vymaže určitý počet zpráv z daného kanálu*"
                     },
 
                     new EmbedFieldBuilder
@@ -377,14 +381,14 @@ namespace NOVAxis.Modules
                     {
                         IsInline = false,
                         Name = $"**{prefix}mal anime** název",
-                        Value = "*Prohledá databázi MyAnimeList*"
+                        Value = "*Prohledá anime databázi MyAnimeList*"
                     },
 
                     new EmbedFieldBuilder
                     {
                         IsInline = false,
                         Name = $"**{prefix}mal manga** název",
-                        Value = "*Prohledá databázi MyAnimeList*"
+                        Value = "*Prohledá manga databázi MyAnimeList*"
                     }
                 )
                 .WithFooter(new EmbedFooterBuilder
@@ -427,7 +431,7 @@ namespace NOVAxis.Modules
                     {
                         IsInline = true,
                         Name = $"**{prefix}mute setrole**",
-                        Value = "*Zruší již nastavenou roli*"
+                        Value = "*Zruší nastavenou roli*"
                     }
                 )
                 .WithFooter(new EmbedFooterBuilder
