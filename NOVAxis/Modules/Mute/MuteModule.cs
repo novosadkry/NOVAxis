@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 
-namespace NOVAxis.Modules
+namespace NOVAxis.Modules.Mute
 {
     [Group("mute")]
     [RequireContext(ContextType.Guild)]

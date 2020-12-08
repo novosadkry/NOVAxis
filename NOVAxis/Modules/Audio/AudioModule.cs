@@ -14,13 +14,12 @@ using Discord;
 using Discord.Commands;
 
 using Interactivity;
-using Interactivity.Pagination;
 
 using Victoria;
 using Victoria.Enums;
 using Victoria.Responses.Rest;
 
-namespace NOVAxis.Modules
+namespace NOVAxis.Modules.Audio
 {
     [Group("audio"), Alias("a")]
     [RequireContext(ContextType.Guild)]
@@ -28,65 +27,6 @@ namespace NOVAxis.Modules
     [RequireRole("DjRole", true, Group = "Permission")]
     public class AudioModule : ModuleBase<SocketCommandContext>
     {
-        private class AudioQueuePaginator
-        {
-            private readonly int _tracksPerPage;
-            
-            public AudioQueuePaginator(int tracksPerPage)
-            {
-                _tracksPerPage = tracksPerPage;
-
-                Header = new List<EmbedFieldBuilder>();
-                Tracks = new List<EmbedFieldBuilder>();
-                Footer = new List<EmbedFieldBuilder>();
-            }
-
-            public int MaxPageIndex { get; private set; }
-            public List<EmbedFieldBuilder> Header { get; }
-            public List<EmbedFieldBuilder> Tracks { get; }
-            public List<EmbedFieldBuilder> Footer { get; }
-
-            private Task<PageBuilder> PageFactory(int pageIndex)
-            {
-                var page = new PageBuilder();
-                var content = new List<EmbedFieldBuilder>();
-
-                // Add header to first page
-                if (pageIndex == 0)
-                {
-                    page.WithTitle("Právě přehrávám:");
-                    content.AddRange(Header);
-                }
-
-                // Add tracks to page
-                content.AddRange(Tracks
-                    .Skip(pageIndex * _tracksPerPage)
-                    .Take(_tracksPerPage)
-                );
-
-                // Add footer to last page
-                if (pageIndex == MaxPageIndex)
-                    content.AddRange(Footer);
-
-                page.WithColor(System.Drawing.Color.FromArgb(52, 231, 231))
-                    .WithFields(content);
-
-                return Task.FromResult(page);
-            }
-
-            public Paginator Build()
-            {
-                MaxPageIndex = (int)Math.Floor((float)Tracks.Count / _tracksPerPage);
-
-                return new LazyPaginatorBuilder()
-                    .WithPageFactory(PageFactory)
-                    .WithMaxPageIndex(MaxPageIndex)
-                    .WithDefaultEmotes()
-                    .WithFooter(PaginatorFooter.PageNumber)
-                    .Build();
-            }
-        }
-
         public LavaNode LavaNode { get; set; }
         public InteractivityService InteractivityService { get; set; }
         public AudioModuleService AudioModuleService { get; set; }
