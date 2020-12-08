@@ -9,7 +9,7 @@ using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 
-namespace NOVAxis.Modules
+namespace NOVAxis.Modules.Move
 {
     [Group("move"), Alias("mv")]
     [RequireContext(ContextType.Guild)]

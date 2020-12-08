@@ -3,10 +3,11 @@ using System.Linq;
 using System.Threading.Tasks;
 
 using Discord;
-using Interactivity;
 using Discord.Commands;
 
-namespace NOVAxis.Modules
+using Interactivity;
+
+namespace NOVAxis.Modules.Clear
 {
     [Group("clear")]
     [RequireContext(ContextType.Guild)]

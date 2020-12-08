@@ -6,9 +6,10 @@ using NOVAxis.Services.Guild;
 
 using Discord;
 using Discord.Commands;
+
 using Interactivity;
 
-namespace NOVAxis.Modules
+namespace NOVAxis.Modules.Help
 {
     [Group("help"), Alias("?")]
     public class HelpModule : ModuleBase<SocketCommandContext>

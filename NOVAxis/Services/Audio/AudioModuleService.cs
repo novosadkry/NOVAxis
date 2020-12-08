@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 
 using NOVAxis.Core;
-using NOVAxis.Modules;
+using NOVAxis.Modules.Audio;
 
 using Discord;
 using Discord.WebSocket;
