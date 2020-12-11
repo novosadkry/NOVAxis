@@ -63,8 +63,16 @@ namespace NOVAxis.Modules.Audio
             return new LazyPaginatorBuilder()
                 .WithPageFactory(PageFactory)
                 .WithMaxPageIndex(MaxPageIndex)
+                .WithCancelledEmbed(new EmbedBuilder()
+                    .WithColor(220, 20, 60)
+                    .WithDescription("(Ukončeno uživatelem)")
+                    .WithTitle("Mé jádro přerušilo čekání na lidský vstup"))
+                .WithTimoutedEmbed(new EmbedBuilder()
+                    .WithColor(220, 20, 60)
+                    .WithDescription("(Vypršel časový limit)")
+                    .WithTitle("Mé jádro přerušilo čekání na lidský vstup"))
+                .WithFooter(PaginatorFooter.None)
                 .WithDefaultEmotes()
-                .WithFooter(PaginatorFooter.PageNumber)
                 .Build();
         }
     }
