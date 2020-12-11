@@ -17,7 +17,7 @@ namespace NOVAxis.Modules.MAL
     {
         public InteractivityService InteractivityService { get; set; }
 
-        private async Task ShowResults<T>(List<T> results) where T : MALJson.MALResult
+        private async Task<IUserMessage> ShowResults<T>(List<T> results) where T : MALJson.MALResult
         {
             if (results.Count <= 0)
                 throw new Exception("Výsledek databáze neobsahuje žádný prvek");
@@ -62,7 +62,7 @@ namespace NOVAxis.Modules.MAL
                     throw new NotImplementedException();
             }
 
-            await ReplyAsync(embed: new EmbedBuilder()
+            return await ReplyAsync(embed: new EmbedBuilder()
                 .WithTitle($"**Výsledek databáze serveru MyAnimeList.net** (počet výsledků: {results.Count})")
                 .WithDescription("(Proveďte výběr pro více informací)")
                 .WithColor(255, 26, 117)
@@ -97,7 +97,7 @@ namespace NOVAxis.Modules.MAL
                 List<MALJson.MALResult.Anime> collection = 
                     MALJson.Get<MALJson.MALResult.Anime>(result);
 
-                await ShowResults(collection);
+                var msg = await ShowResults(collection);
                 var input = await InteractivityService.NextMessageAsync(
                     timeout: TimeSpan.FromSeconds(10));
 
@@ -107,10 +107,10 @@ namespace NOVAxis.Modules.MAL
                     {
                         if (ushort.TryParse(input.Value.Content, out ushort select))
                         {
-                            if (@select > collection.Count || @select <= 0)
+                            if (select > collection.Count || select <= 0)
                                 throw new Exception("Neplatný výběr");
 
-                            MALJson.MALResult.Anime mal = collection[@select - 1];
+                            MALJson.MALResult.Anime mal = collection[select - 1];
                             mal.info = await mal.GetInfo();
 
                             await ReplyAsync(embed: new EmbedBuilder()
@@ -181,10 +181,13 @@ namespace NOVAxis.Modules.MAL
 
                 catch (Exception e)
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
-                        .WithColor(220, 20, 60)
-                        .WithDescription($"({e.Message})")
-                        .WithTitle("Mé jádro přerušilo čekání na lidský vstup").Build());
+                    await msg.ModifyAsync(prop =>
+                    {
+                        prop.Embed = new EmbedBuilder()
+                            .WithColor(220, 20, 60)
+                            .WithDescription($"({e.Message})")
+                            .WithTitle("Mé jádro přerušilo čekání na lidský vstup").Build();
+                    });
                 }              
             }
 
@@ -225,7 +228,7 @@ namespace NOVAxis.Modules.MAL
                 List<MALJson.MALResult.Manga> collection = 
                     MALJson.Get<MALJson.MALResult.Manga>(result);
 
-                await ShowResults(collection);
+                var msg = await ShowResults(collection);
                 var input = await InteractivityService.NextMessageAsync(
                     timeout: TimeSpan.FromSeconds(10));
 
@@ -235,13 +238,13 @@ namespace NOVAxis.Modules.MAL
                     {
                         if (ushort.TryParse(input.Value.Content, out ushort select))
                         {
-                            if (@select > collection.Count || @select <= 0)
+                            if (select > collection.Count || select <= 0)
                                 throw new Exception("Neplatný výběr");
 
-                            MALJson.MALResult.Manga mal = collection[@select - 1];
+                            MALJson.MALResult.Manga mal = collection[select - 1];
                             mal.info = await mal.GetInfo();
 
-                            await ReplyAsync(embed: new EmbedBuilder()
+                            msg = await ReplyAsync(embed: new EmbedBuilder()
                                 .WithAuthor($"{mal.title} (#{mal.info.rank?.ToString() ?? "?"})", url: mal.url)
                                 .WithTitle(mal.info.title_japanese)
                                 .WithThumbnailUrl(mal.image_url)
@@ -309,12 +312,13 @@ namespace NOVAxis.Modules.MAL
 
                 catch (Exception e)
                 {
-                    var msg = await ReplyAsync(embed: new EmbedBuilder()
-                        .WithColor(220, 20, 60)
-                        .WithDescription($"({e.Message})")
-                        .WithTitle("Mé jádro přerušilo čekání na lidský vstup").Build());
-
-                    InteractivityService.DelayedDeleteMessageAsync(msg, TimeSpan.FromSeconds(5));
+                    await msg.ModifyAsync(prop =>
+                    {
+                        prop.Embed = new EmbedBuilder()
+                            .WithColor(220, 20, 60)
+                            .WithDescription($"({e.Message})")
+                            .WithTitle("Mé jádro přerušilo čekání na lidský vstup").Build();
+                    });
                 }
             }
 
