@@ -11,7 +11,7 @@ using Discord.Commands;
 namespace NOVAxis.Modules.Jisho
 {
     [Group("jisho")]
-    public class JishoModule : ModuleBase<SocketCommandContext>
+    public class JishoModule : ModuleBase<ShardedCommandContext>
     {
         public const string API = "https://jisho.org/api/v1/search/words?keyword={0}";
 

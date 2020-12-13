@@ -12,7 +12,7 @@ using Interactivity;
 namespace NOVAxis.Modules.Help
 {
     [Group("help"), Alias("?")]
-    public class HelpModule : ModuleBase<SocketCommandContext>
+    public class HelpModule : ModuleBase<ShardedCommandContext>
     {
         public InteractivityService InteractivityService { get; set; }
         public GuildService GuildService { get; set; }
