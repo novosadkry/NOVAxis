@@ -246,16 +246,27 @@ namespace NOVAxis.Core
                         break;
 
                     case CommandError.UnmetPrecondition:
-                        if (result.ErrorReason.StartsWith("Invalid context for command"))
-                            await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
-                                .WithColor(220, 20, 60)
-                                .WithDescription("(Přístup odepřen)")
-                                .WithTitle("Tento příkaz nelze vyvolat přímou zprávou").Build());
-                        else
-                            await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
-                                .WithColor(220, 20, 60)
-                                .WithDescription("(Přístup odepřen)")
-                                .WithTitle("Pro operaci s tímto modulem nemáš dodatečnou kvalifikaci").Build());
+                        switch (result.ErrorReason)
+                        {
+                            case "Invalid context for command":
+                                await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
+                                    .WithColor(220, 20, 60)
+                                    .WithDescription("(Přístup odepřen)")
+                                    .WithTitle("Tento příkaz nelze vyvolat přímou zprávou").Build());
+                                break;
+                            case "User has command on cooldown":
+                                await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
+                                    .WithColor(220, 20, 60)
+                                    .WithDescription("(Příkaz je časově omezen)")
+                                    .WithTitle("Mé jádro nyní ochlazuje vybraný modul").Build());
+                                break;
+                            default:
+                                await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
+                                    .WithColor(220, 20, 60)
+                                    .WithDescription("(Přístup odepřen)")
+                                    .WithTitle("Pro operaci s tímto modulem nemáš dodatečnou kvalifikaci").Build());
+                                break;
+                        }
                         break;
 
                     default:
