@@ -6,9 +6,11 @@ using Discord;
 using Discord.Commands;
 
 using Interactivity;
+using NOVAxis.Preconditions;
 
 namespace NOVAxis.Modules.Clear
 {
+    [Cooldown(5)]
     [Group("clear")]
     [RequireContext(ContextType.Guild)]
     [RequireUserPermission(GuildPermission.ManageMessages)]
