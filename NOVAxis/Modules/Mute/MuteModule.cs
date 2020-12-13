@@ -10,7 +10,7 @@ namespace NOVAxis.Modules.Mute
     [RequireContext(ContextType.Guild)]
     [RequireUserPermission(GuildPermission.MuteMembers)]
     [RequireBotPermission(GuildPermission.ManageChannels | GuildPermission.MuteMembers | GuildPermission.ManageRoles)]
-    public class MuteModule : ModuleBase<SocketCommandContext>
+    public class MuteModule : ModuleBase<ShardedCommandContext>
     {
         public const string RoleName = "Muted";
 

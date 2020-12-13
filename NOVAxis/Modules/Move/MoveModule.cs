@@ -14,7 +14,7 @@ namespace NOVAxis.Modules.Move
     [Group("move"), Alias("mv")]
     [RequireContext(ContextType.Guild)]
     [RequireUserPermission(GuildPermission.MoveMembers)]
-    public class MoveModule : ModuleBase<SocketCommandContext>
+    public class MoveModule : ModuleBase<ShardedCommandContext>
     {
         public AudioModuleService AudioModuleService { get; set; }
 

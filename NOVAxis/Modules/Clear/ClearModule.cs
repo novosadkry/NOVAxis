@@ -14,7 +14,7 @@ namespace NOVAxis.Modules.Clear
     [Group("clear")]
     [RequireContext(ContextType.Guild)]
     [RequireUserPermission(GuildPermission.ManageMessages)]
-    public class ClearModule : ModuleBase<SocketCommandContext>
+    public class ClearModule : ModuleBase<ShardedCommandContext>
     {
         public InteractivityService InteractivityService { get; set; }
 

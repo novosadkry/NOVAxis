@@ -13,7 +13,7 @@ using Interactivity;
 namespace NOVAxis.Modules.MAL
 {
     [Group("mal")]
-    public class MALModule : ModuleBase<SocketCommandContext>
+    public class MALModule : ModuleBase<ShardedCommandContext>
     {
         public InteractivityService InteractivityService { get; set; }
 
