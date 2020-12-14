@@ -114,10 +114,12 @@ namespace NOVAxis.Modules
                                 title = "Tento příkaz nelze vyvolat přímou zprávou";
                                 description = "(Přístup odepřen)";
                                 break;
+
                             case "User has command on cooldown":
                                 title = "Mé jádro nyní ochlazuje vybraný modul";
                                 description = "(Příkaz je časově omezen)";
                                 break;
+
                             default:
                                 title = "Pro operaci s tímto modulem nemáš dodatečnou kvalifikaci";
                                 description = "(Přístup odepřen)";
@@ -132,10 +134,13 @@ namespace NOVAxis.Modules
 
                 if (!string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(description))
                 {
-                    await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
-                        .WithColor(220, 20, 60)
-                        .WithDescription(description)
-                        .WithTitle(title).Build());
+                    await Task.Run(() =>
+                    {
+                        context.Channel.SendMessageAsync(embed: new EmbedBuilder()
+                            .WithColor(220, 20, 60)
+                            .WithDescription(description)
+                            .WithTitle(title).Build());
+                    });
                 }
 
                 LogEvent?.Invoke(new LogMessage(
