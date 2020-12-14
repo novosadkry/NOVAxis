@@ -53,10 +53,10 @@
   <ItemGroup>
     <PackageReference Include="Discord.InteractivityAddon" Version="2.1.1" />
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="3.1.9" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="5.0.1" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="5.0.0" />
     <PackageReference Include="MySql.Data" Version="8.0.22" />
-    <PackageReference Include="System.ComponentModel.Composition" Version="4.7.0" />
+    <PackageReference Include="System.ComponentModel.Composition" Version="5.0.0" />
     <PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
   </ItemGroup>
   <ItemGroup>
@@ -66,7 +66,7 @@
     <PackageReference Include="Discord.Net.Rest" Version="2.2.0" />
     <PackageReference Include="Discord.Net.Webhook" Version="2.2.0" />
     <PackageReference Include="Discord.Net.WebSocket" Version="2.2.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="3.1.9" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="5.0.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="5.0.0" />
     <PackageReference Include="Microsoft.NETCore.Platforms" Version="5.0.0" />
     <PackageReference Include="Microsoft.Win32.Primitives" Version="4.3.0" />
@@ -74,16 +74,16 @@
     <PackageReference Include="System.AppContext" Version="4.3.0" />
     <PackageReference Include="System.Collections" Version="4.3.0" />
     <PackageReference Include="System.Collections.Concurrent" Version="4.3.0" />
-    <PackageReference Include="System.Collections.Immutable" Version="1.7.0" />
+    <PackageReference Include="System.Collections.Immutable" Version="5.0.0" />
     <PackageReference Include="System.ComponentModel" Version="4.3.0" />
     <PackageReference Include="System.Console" Version="4.3.1" />
     <PackageReference Include="System.Diagnostics.Debug" Version="4.3.0" />
-    <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="4.7.0" />
+    <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="5.0.0" />
     <PackageReference Include="System.Diagnostics.Tools" Version="4.3.0" />
     <PackageReference Include="System.Diagnostics.Tracing" Version="4.3.0" />
     <PackageReference Include="System.Globalization" Version="4.3.0" />
     <PackageReference Include="System.Globalization.Calendars" Version="4.3.0" />
-    <PackageReference Include="System.Interactive.Async" Version="4.0.0" />
+    <PackageReference Include="System.Interactive.Async" Version="5.0.0" />
     <PackageReference Include="System.IO" Version="4.3.0" />
     <PackageReference Include="System.IO.Compression" Version="4.3.0" />
     <PackageReference Include="System.IO.Compression.ZipFile" Version="4.3.0" />
@@ -116,6 +116,6 @@
     <PackageReference Include="System.Threading.Timer" Version="4.3.0" />
     <PackageReference Include="System.Xml.ReaderWriter" Version="4.3.1" />
     <PackageReference Include="System.Xml.XDocument" Version="4.3.0" />
-    <PackageReference Include="Victoria" Version="5.1.9" />
+    <PackageReference Include="Victoria" Version="5.1.10" />
   </ItemGroup>
 </Project>
