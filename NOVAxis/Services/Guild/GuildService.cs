@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
 
-using NOVAxis.Core;
 using NOVAxis.Services.Database;
 
 using Discord;
@@ -11,15 +10,6 @@ namespace NOVAxis.Services.Guild
 {
     public class GuildService
     {
-        public struct GuildInfo
-        {
-            public string Prefix { get; set; }
-            public ulong DjRole { get; set; }
-
-            public static GuildInfo Default => 
-                new GuildInfo {Prefix = Program.Config.DefaultPrefix};
-        }
-
         private readonly Cache<ulong, GuildInfo> _cache;
         private readonly IDatabaseService _db;
 
