@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
 using System.Threading.Tasks;
 
 using NOVAxis.Core;
@@ -18,12 +18,12 @@ namespace NOVAxis.Services.Audio
         public long AudioTimeout { get; }
 
         private readonly LavaNode _lavaNodeInstance;
-        private readonly ConcurrentDictionary<ulong, AudioContext> _guilds;
+        private readonly Cache<ulong, Lazy<AudioContext>> _guilds;
 
         public AudioModuleService(LavaNode lavaNodeInstance)
         {
             AudioTimeout = Program.Config.AudioTimeout;
-            _guilds = new ConcurrentDictionary<ulong, AudioContext>();
+            _guilds = new Cache<ulong, Lazy<AudioContext>>();
 
             _lavaNodeInstance = lavaNodeInstance;
             _lavaNodeInstance.OnTrackEnded += AudioModuleService_TrackEnd;
@@ -39,8 +39,8 @@ namespace NOVAxis.Services.Audio
 
         public AudioContext this[ulong id]
         {
-            get => _guilds.GetOrAdd(id, new AudioContext(id));
-            set => _guilds[id] = value;
+            get => _guilds.GetOrAdd(id, new Lazy<AudioContext>(() => new AudioContext(id))).Value;
+            set => _guilds[id] = new Lazy<AudioContext>(value);
         }
 
         private async Task AudioModuleService_UserVoiceStateUpdated(SocketUser user, SocketVoiceState before, SocketVoiceState after)
@@ -67,7 +67,7 @@ namespace NOVAxis.Services.Audio
             if (args.Player.VoiceChannel == null)
                 return;
 
-            var audioContext = _guilds[args.Player.VoiceChannel.GuildId];
+            var audioContext = this[args.Player.VoiceChannel.GuildId];
 
             if (audioContext.Queue.Count == 0)
                 return;
