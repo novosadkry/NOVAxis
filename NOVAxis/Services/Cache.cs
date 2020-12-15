@@ -1,30 +1,73 @@
-﻿using Microsoft.Extensions.Caching.Memory;
+﻿using System;
+
+using Microsoft.Extensions.Caching.Memory;
 
 namespace NOVAxis.Services
 {
-    class Cache<K, V>
+    public class Cache<TKey, TValue>
     {
         private readonly MemoryCache _cache;
+        private readonly MemoryCacheEntryOptions _entryOptions; 
 
-        public Cache()
+        public Cache() 
+            : this(new MemoryCacheOptions(), new MemoryCacheEntryOptions()) { }
+
+        public Cache(TimeSpan absolute, TimeSpan sliding)
+            : this(new MemoryCacheOptions(), new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = absolute,
+                SlidingExpiration = sliding
+            }) { }
+
+        public Cache(MemoryCacheOptions options, MemoryCacheEntryOptions entryOptions)
         {
-            _cache = new MemoryCache(new MemoryCacheOptions());
+            _cache = new MemoryCache(options);
+            _entryOptions = entryOptions;
         }
 
-        public V this[K key]
+        public TValue this[TKey key]
         {
             get => Get(key);
             set => Set(key, value);
         }
 
-        public V Get(K key)
+        public TValue Get(TKey key)
         {
-            return _cache.Get<V>(key.GetHashCode().ToString());
+            return _cache.Get<TValue>(key.GetHashCode().ToString());
         }
 
-        public void Set(K key, V value)
+        public TValue GetOrAdd(TKey key, TValue value)
         {
-            _cache.Set(key.GetHashCode().ToString(), value);
+            return GetOrAdd(key, entry =>
+            {
+                entry.SetOptions(_entryOptions);
+                return value;
+            });
+        }
+
+        public TValue GetOrAdd(TKey key, Func<ICacheEntry, TValue> valueFactory)
+        {
+            return _cache.GetOrCreate(key, valueFactory);
+        }
+
+        public void Set(TKey key, TValue value)
+        {
+            Set(key, value, _entryOptions);
+        }
+
+        public void Set(TKey key, TValue value, MemoryCacheEntryOptions entryOptions)
+        {
+            _cache.Set(key.GetHashCode().ToString(), value, entryOptions);
+        }
+
+        public bool TryGetValue(TKey key, out TValue result)
+        {
+            return _cache.TryGetValue(key, out result);
+        }
+
+        public void Remove(TKey key)
+        {
+            _cache.Remove(key);
         }
     }
 }

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Threading.Tasks;
 
 using NOVAxis.Core;
@@ -21,13 +20,13 @@ namespace NOVAxis.Services.Guild
                 new GuildInfo {Prefix = Program.Config.DefaultPrefix};
         }
 
-        private readonly ConcurrentDictionary<ulong, GuildInfo> _cache;
+        private readonly Cache<ulong, GuildInfo> _cache;
         private readonly IDatabaseService _db;
 
         public GuildService(IDatabaseService databaseService)
         {
             _db = databaseService;
-            _cache = new ConcurrentDictionary<ulong, GuildInfo>();
+            _cache = new Cache<ulong, GuildInfo>();
         }
 
         public async Task LoadFromDatabase()
@@ -63,28 +62,27 @@ namespace NOVAxis.Services.Guild
 
         public async Task<GuildInfo> GetInfo(ulong id)
         {
-            if (!_cache.TryGetValue(id, out _))
+            if (_cache.TryGetValue(id, out GuildInfo v)) 
+                return v;
+
+            GuildInfo info = GuildInfo.Default;
+
+            if (_db.Active)
             {
-                GuildInfo info = GuildInfo.Default;
+                await using var result = await _db.Get(
+                    "SELECT * FROM Guilds WHERE Id=@id",
+                    new Tuple<string, object>("id", id));
 
-                if (_db.Active)
+                if (result.HasRows)
                 {
-                    await using var result = await _db.Get(
-                        "SELECT * FROM Guilds WHERE Id=@id",
-                        new Tuple<string, object>("id", id));
-
-                    if (result.HasRows)
-                    {
-                        await result.ReadAsync();
-                        info.Prefix = Convert.ToString(result["Prefix"]);
-                        info.DjRole = Convert.ToUInt64(result["DjRole"]);
-                    }
+                    await result.ReadAsync();
+                    info.Prefix = Convert.ToString(result["Prefix"]);
+                    info.DjRole = Convert.ToUInt64(result["DjRole"]);
                 }
-
-                _cache[id] = info;
             }
 
-            return _cache[id];
+            _cache[id] = info;
+            return info;
         }
 
         public async Task SetInfo(ICommandContext context, GuildInfo info)
