@@ -117,27 +117,7 @@ namespace NOVAxis.Core
                 return;
             }
 
-            await Task.Run(async () =>
-            {
-                while (Client.LoginState == LoginState.LoggedIn)
-                {
-                    string input = Console.ReadLine();
-
-                    for (int i = 0; i < ProgramCommand.ProgramCommandList.Count; i++)
-                    {
-                        ProgramCommand c = ProgramCommand.ProgramCommandList[i];
-
-                        if (input == c.Name || c.Alias.Contains(input) && !string.IsNullOrWhiteSpace(input))
-                        {
-                            await c.Execute();
-                            break;
-                        }
-
-                        if (i + 1 == ProgramCommand.ProgramCommandList.Count)
-                            await Client_Log(new LogMessage(LogSeverity.Info, "Program", "Invalid ProgramCommand"));
-                    }
-                }
-            });
+            await ProgramCommand.AwaitCommands(Client, Client_Log);
         }
 
         public static async Task Exit()

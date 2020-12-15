@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -6,6 +7,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 
 using Discord;
+using Discord.Rest;
 
 namespace NOVAxis.Core
 {
@@ -25,6 +27,31 @@ namespace NOVAxis.Core
             Name = name;
             Alias = alias ?? new[] { "" };
             _command = command;
+        }
+
+        public static Task AwaitCommands(BaseDiscordClient client, Func<LogMessage, Task> log)
+        {
+            return Task.Run(async () =>
+            {
+                while (client.LoginState == LoginState.LoggedIn)
+                {
+                    string input = Console.ReadLine();
+
+                    for (int i = 0; i < ProgramCommandList.Count; i++)
+                    {
+                        ProgramCommand c = ProgramCommandList[i];
+
+                        if (input == c.Name || c.Alias.Contains(input) && !string.IsNullOrWhiteSpace(input))
+                        {
+                            await c.Execute();
+                            break;
+                        }
+
+                        if (i + 1 == ProgramCommandList.Count)
+                            await log(new LogMessage(LogSeverity.Info, "Program", "Invalid ProgramCommand"));
+                    }
+                }
+            });
         }
 
         public static readonly List<ProgramCommand> ProgramCommandList = new List<ProgramCommand>
