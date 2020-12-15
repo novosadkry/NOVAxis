@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 
 namespace NOVAxis.Services.Audio
 {
@@ -10,7 +11,7 @@ namespace NOVAxis.Services.Audio
         Queue
     }
 
-    public class AudioContext
+    public class AudioContext : IDisposable
     {
         public AudioContext(ulong id)
         {
@@ -25,5 +26,17 @@ namespace NOVAxis.Services.Audio
 
         public RepeatMode Repeat { get; set; }
         public ulong GuildId { get; }
+
+        public void Dispose()
+        {
+            Queue.Clear();
+            Timer.Dispose();
+            Repeat = RepeatMode.None;
+        }
+
+        ~AudioContext()
+        {
+            Dispose();
+        }
     }
 }

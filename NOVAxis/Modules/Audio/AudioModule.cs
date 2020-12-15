@@ -52,7 +52,7 @@ namespace NOVAxis.Modules.Audio
             base.AfterExecute(command);
         }
 
-        public async void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        private async void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
         {
             if (LavaNode.IsConnected && LavaNode.HasPlayer(Context.Guild))
             {
@@ -249,9 +249,8 @@ namespace NOVAxis.Modules.Audio
                 await LavaNode.LeaveAsync(player.VoiceChannel);
             }
 
-            AudioContext.Queue.Clear();
-            AudioContext.Timer.Dispose();
-            AudioContext.Repeat = RepeatMode.None;
+            AudioModuleService.Remove(Context.Guild.Id);
+            AudioContext.Dispose();
         }
 
         [Command("play"), Alias("p"), Summary("Plays an audio transmission")]

@@ -43,6 +43,11 @@ namespace NOVAxis.Services.Audio
             set => _guilds[id] = new Lazy<AudioContext>(value);
         }
 
+        public void Remove(ulong id)
+        {
+            _guilds.Remove(id);
+        }
+
         private async Task AudioModuleService_UserVoiceStateUpdated(SocketUser user, SocketVoiceState before, SocketVoiceState after)
         {
             if (user != Program.Client.CurrentUser || before.VoiceChannel == null)
@@ -54,8 +59,8 @@ namespace NOVAxis.Services.Audio
                 {
                     AudioContext context = this[before.VoiceChannel.Guild.Id];
 
-                    context.Queue.Clear();
-                    context.Timer.Dispose();
+                    Remove(context.GuildId);
+                    context.Dispose();
 
                     await _lavaNodeInstance.LeaveAsync(before.VoiceChannel);
                 }
