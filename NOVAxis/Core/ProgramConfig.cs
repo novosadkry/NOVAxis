@@ -105,8 +105,8 @@ namespace NOVAxis.Core
 
         public struct CacheObject
         {
-            public TimeSpan AbsoluteExpiration { get; set; }
-            public TimeSpan RelativeExpiration { get; set; }
+            public TimeSpan? AbsoluteExpiration { get; set; }
+            public TimeSpan? RelativeExpiration { get; set; }
         }
 
         public string LoginToken { get; set; }

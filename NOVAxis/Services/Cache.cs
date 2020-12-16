@@ -12,7 +12,7 @@ namespace NOVAxis.Services
         public Cache() 
             : this(new MemoryCacheOptions(), new MemoryCacheEntryOptions()) { }
 
-        public Cache(TimeSpan absolute, TimeSpan sliding)
+        public Cache(TimeSpan? absolute, TimeSpan? sliding)
             : this(new MemoryCacheOptions(), new MemoryCacheEntryOptions
             {
                 AbsoluteExpirationRelativeToNow = absolute,
