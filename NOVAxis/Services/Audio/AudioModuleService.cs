@@ -15,15 +15,18 @@ namespace NOVAxis.Services.Audio
 {
     public class AudioModuleService
     {
-        public long AudioTimeout { get; }
+        public ProgramConfig.AudioObject AudioConfig { get; }
 
         private readonly LavaNode _lavaNodeInstance;
         private readonly Cache<ulong, Lazy<AudioContext>> _guilds;
 
         public AudioModuleService(LavaNode lavaNodeInstance)
         {
-            AudioTimeout = Program.Config.AudioTimeout;
-            _guilds = new Cache<ulong, Lazy<AudioContext>>();
+            AudioConfig = Program.Config.Audio;
+            _guilds = new Cache<ulong, Lazy<AudioContext>>(
+                AudioConfig.Cache.AbsoluteExpiration, 
+                AudioConfig.Cache.RelativeExpiration
+            );
 
             _lavaNodeInstance = lavaNodeInstance;
             _lavaNodeInstance.OnTrackEnded += AudioModuleService_TrackEnd;

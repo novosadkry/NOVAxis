@@ -39,7 +39,7 @@ namespace NOVAxis.Modules.Audio
             AudioContext = AudioModuleService[Context.Guild.Id];
 
             if (!AudioContext.Timer.IsSet)
-                AudioContext.Timer.Set(Program.Config.AudioTimeout, Timer_Elapsed);
+                AudioContext.Timer.Set(AudioModuleService.AudioConfig.Timeout, Timer_Elapsed);
 
             base.BeforeExecute(command);
         }

@@ -1,0 +1,39 @@
+{
+  "LoginToken": "INSERT_LOGINTOKEN_HERE",
+  "DefaultPrefix": "~",
+  "TotalShards": 1,
+  "Activity": {
+    "Online": "pohyb atomů",
+    "Afk": "ochlazování jádra",
+    "Offline": "repair/reboot jádra",
+    "ActivityType": 2,
+    "UserStatus": 1
+  },
+  "Log": {
+    "Active": true,
+    "Severity": 3
+  },
+  "Lavalink": {
+    "Start": false,
+    "Host": "localhost",
+    "Port": 2333,
+    "Login": "123",
+    "SelfDeaf": true
+  },
+  "Database": {
+    "Active": true,
+    "DbType": "sqlite",
+    "DbHost": "localhost",
+    "DbPort": 0,
+    "DbUsername": "novaxis",
+    "DbPassword": "123",
+    "DbName": "novaxis"
+  },
+  "Audio": {
+    "Timeout": 30000,
+    "Cache": {
+      "AbsoluteExpiration": "12:00:00",
+      "RelativeExpiration": "06:00:00"
+    }
+  }
+}
