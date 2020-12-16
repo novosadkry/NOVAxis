@@ -134,7 +134,7 @@ namespace NOVAxis.Core
         public static async Task Client_Log(LogMessage arg)
         {
             ProgramConfig config =
-                Config ?? new ProgramConfig();
+                Config ?? ProgramConfig.Default;
 
             if (arg.Severity > config.Log.Severity)
                 return;
