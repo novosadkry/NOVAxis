@@ -33,10 +33,7 @@ namespace NOVAxis.Core
         public static string Version 
             => Assembly.GetExecutingAssembly().GetName().Version?.ToString().Substring(0, 5);
 
-        public static void Main(string[] args)
-            => MainAsync().GetAwaiter().GetResult();
-
-        private static async Task MainAsync()
+        public static async Task Main(string[] args)
         {
             ProgramConfig.LogEvent += Client_Log;
             Config = await ProgramConfig.LoadConfig();
