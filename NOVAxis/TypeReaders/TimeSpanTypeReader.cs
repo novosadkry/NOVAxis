@@ -1,15 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
-using Discord;
 using Discord.Commands;
 
 namespace NOVAxis.TypeReaders
 {
-    class AudioModuleTypeReader : TypeReader
+    public class TimeSpanTypeReader : TypeReader
     {
         public override Task<TypeReaderResult> ReadAsync(ICommandContext context, string input, IServiceProvider services)
         {
@@ -18,37 +14,26 @@ namespace NOVAxis.TypeReaders
                 string[] s = input.Split(':');
                 int[] parts = new int[s.Length];
 
-                TimeSpan? timeSpan = null;
-
                 for (int i = 0; i < s.Length; i++)
                 {
                     if (int.TryParse(s[i], out int x))
                         parts[i] = x;
-
                     else
                         throw new Exception();
                 }
 
-                switch (s.Length)
+                TimeSpan? timeSpan = s.Length switch
                 {
-                    case 1:
-                        timeSpan = new TimeSpan(0, 0, 0, parts[0]);
-                        break;
-
-                    case 2:
-                        timeSpan = new TimeSpan(0, 0, parts[0], parts[1]);
-                        break;
-
-                    case 3:
-                        timeSpan = new TimeSpan(0, parts[0], parts[1], parts[2]);
-                        break;
-                }
+                    1 => new TimeSpan(0, 0, 0, parts[0]),
+                    2 => new TimeSpan(0, 0, parts[0], parts[1]),
+                    3 => new TimeSpan(0, parts[0], parts[1], parts[2]),
+                    _ => null
+                };
 
                 if (timeSpan != null)
                     return Task.FromResult(TypeReaderResult.FromSuccess(timeSpan));
 
-                else
-                    throw new Exception();
+                throw new Exception();
             }
 
             catch (Exception)

@@ -39,7 +39,7 @@ namespace NOVAxis.Modules
         public async Task Setup()
         {
             await CommandService.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
-            CommandService.AddTypeReader(typeof(TimeSpan), new TypeReaders.AudioModuleTypeReader());
+            CommandService.AddTypeReader(typeof(TimeSpan), new TypeReaders.TimeSpanTypeReader());
         }
 
         private async Task MessageReceived(SocketMessage arg)
