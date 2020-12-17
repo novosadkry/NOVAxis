@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 
 using NOVAxis.Core;
+using NOVAxis.Utilities;
 using NOVAxis.Modules.Audio;
 
 using Discord;

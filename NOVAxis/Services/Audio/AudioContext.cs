@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Linq;
 
+using NOVAxis.Utilities;
+
 namespace NOVAxis.Services.Audio
 {
     public enum RepeatMode
@@ -18,7 +20,7 @@ namespace NOVAxis.Services.Audio
             GuildId = id;
         }
 
-        public AudioTimer Timer { get; set; } = new AudioTimer();
+        public Timer Timer { get; set; } = new Timer();
         public LinkedQueue<AudioTrack> Queue { get; set; } = new LinkedQueue<AudioTrack>();
 
         public AudioTrack Track => Queue.First();

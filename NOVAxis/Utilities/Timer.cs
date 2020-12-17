@@ -1,17 +1,17 @@
 ﻿using System;
 using System.Timers;
 
-namespace NOVAxis.Services.Audio
+namespace NOVAxis.Utilities
 {
-    public class AudioTimer : IDisposable
+    public class Timer : IDisposable
     {
-        private Timer _timer;
+        private System.Timers.Timer _timer;
         public bool IsSet { get; private set; }
         public bool Elapsed { get; private set; }
 
         public void Set(double interval, ElapsedEventHandler elapsedEvent)
         {
-            _timer = new Timer(interval);
+            _timer = new System.Timers.Timer(interval);
             _timer.Elapsed += (sender, e) => Elapsed = true;
             _timer.Elapsed += elapsedEvent;
             IsSet = true;

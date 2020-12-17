@@ -2,7 +2,7 @@
 
 using Microsoft.Extensions.Caching.Memory;
 
-namespace NOVAxis.Services
+namespace NOVAxis.Utilities
 {
     public class Cache<TKey, TValue>
     {
