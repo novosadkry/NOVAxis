@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
+using NOVAxis.Preconditions;
 using NOVAxis.Services.Audio;
 
 using Discord;
@@ -11,6 +12,7 @@ using Discord.WebSocket;
 
 namespace NOVAxis.Modules.Move
 {
+    [Cooldown(2)]
     [Group("move"), Alias("mv")]
     [RequireContext(ContextType.Guild)]
     [RequireUserPermission(GuildPermission.MoveMembers)]
@@ -48,10 +50,11 @@ namespace NOVAxis.Modules.Move
                 await Context.Channel.SendMessageAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný kanál)")
-                    .WithTitle($"Má databáze nebyla schopna rozpoznat daný prvek").Build());
+                    .WithTitle("Má databáze nebyla schopna rozpoznat daný prvek").Build());
             }
         }
 
+        [Cooldown(5)]
         [Command("everyone"), Alias("everybody"), Summary("Moves everyone in your channel to selected channel")]
         public async Task MoveEveryone(string channelname)
         {
@@ -68,7 +71,7 @@ namespace NOVAxis.Modules.Move
                     await Context.Channel.SendMessageAsync(embed: new EmbedBuilder()
                         .WithColor(220, 20, 60)
                         .WithDescription("(Neplatný kanál)")
-                        .WithTitle($"Mému jádru se nepodařilo získat aktuální kanál").Build());
+                        .WithTitle("Mému jádru se nepodařilo získat aktuální kanál").Build());
 
                     return;
                 }
@@ -97,10 +100,11 @@ namespace NOVAxis.Modules.Move
                 await Context.Channel.SendMessageAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný kanál)")
-                    .WithTitle($"Má databáze nebyla schopna rozpoznat daný prvek").Build());
+                    .WithTitle("Má databáze nebyla schopna rozpoznat daný prvek").Build());
             }
         }
 
+        [Cooldown(5)]
         [Command("everyone"), Summary("Moves everyone in channel1 to channel2")]
         public async Task MoveEveryoneTo(string channelname1, string channelname2)
         {
@@ -138,7 +142,7 @@ namespace NOVAxis.Modules.Move
                 await Context.Channel.SendMessageAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný kanál)")
-                    .WithTitle($"Má databáze nebyla schopna rozpoznat daný prvek").Build());
+                    .WithTitle("Má databáze nebyla schopna rozpoznat daný prvek").Build());
             }
         }
 
@@ -176,7 +180,7 @@ namespace NOVAxis.Modules.Move
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný argument)")
-                    .WithTitle($"Mému jádru se nepodařilo najít zprávu v daném limitu").Build());
+                    .WithTitle("Mému jádru se nepodařilo najít zprávu v daném limitu").Build());
             }
 
             ITextChannel channel1 = (ITextChannel)msg.Channel;
