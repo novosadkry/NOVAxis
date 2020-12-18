@@ -26,7 +26,12 @@ namespace NOVAxis.Services.Audio
             AudioConfig = Program.Config.Audio;
             _guilds = new Cache<ulong, Lazy<AudioContext>>(
                 AudioConfig.Cache.AbsoluteExpiration, 
-                AudioConfig.Cache.RelativeExpiration
+                AudioConfig.Cache.RelativeExpiration,
+                (key, value, reason, state) =>
+                {
+                    if (value is Lazy<AudioContext> { IsValueCreated: true } context)
+                        context.Value.Dispose();
+                }
             );
 
             _lavaNodeInstance = lavaNodeInstance;
@@ -61,11 +66,7 @@ namespace NOVAxis.Services.Audio
             {
                 if (after.VoiceChannel == null && player.PlayerState == PlayerState.Playing)
                 {
-                    AudioContext context = this[before.VoiceChannel.Guild.Id];
-
-                    Remove(context.GuildId);
-                    context.Dispose();
-
+                    Remove(before.VoiceChannel.Guild.Id);
                     await _lavaNodeInstance.LeaveAsync(before.VoiceChannel);
                 }
             }

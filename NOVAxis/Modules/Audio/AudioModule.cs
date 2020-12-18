@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 
-using NOVAxis.Core;
 using NOVAxis.Extensions;
 using NOVAxis.Preconditions;
 using NOVAxis.Services.Audio;
@@ -250,7 +249,6 @@ namespace NOVAxis.Modules.Audio
             }
 
             AudioModuleService.Remove(Context.Guild.Id);
-            AudioContext.Dispose();
         }
 
         [Command("play"), Alias("p"), Summary("Plays an audio transmission")]
