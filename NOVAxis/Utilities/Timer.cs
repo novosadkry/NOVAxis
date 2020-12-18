@@ -5,7 +5,9 @@ namespace NOVAxis.Utilities
 {
     public class Timer : IDisposable
     {
+        private bool _disposed;
         private System.Timers.Timer _timer;
+        
         public bool IsSet { get; private set; }
         public bool Elapsed { get; private set; }
 
@@ -28,9 +30,14 @@ namespace NOVAxis.Utilities
 
         public void Dispose()
         {
+            if (_disposed)
+                return;
+
             _timer.Dispose();
             IsSet = false;
             Elapsed = false;
+
+            _disposed = true;
         }
     }
 }

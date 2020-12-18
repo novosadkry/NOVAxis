@@ -17,7 +17,16 @@ namespace NOVAxis.Utilities
             {
                 AbsoluteExpirationRelativeToNow = absolute,
                 SlidingExpiration = sliding
-            }) { }
+            })
+        { }
+
+        public Cache(TimeSpan? absolute, TimeSpan? sliding, PostEvictionDelegate postEvictionCallback)
+            : this(new MemoryCacheOptions(), new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = absolute,
+                SlidingExpiration = sliding,
+            }.RegisterPostEvictionCallback(postEvictionCallback)) 
+        { }
 
         public Cache(MemoryCacheOptions options, MemoryCacheEntryOptions entryOptions)
         {

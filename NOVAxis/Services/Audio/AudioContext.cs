@@ -20,6 +20,9 @@ namespace NOVAxis.Services.Audio
             GuildId = id;
         }
 
+        private bool _disposed;
+        private readonly object _disposeLock = new object();
+
         public Timer Timer { get; set; } = new Timer();
         public LinkedQueue<AudioTrack> Queue { get; set; } = new LinkedQueue<AudioTrack>();
 
@@ -31,9 +34,17 @@ namespace NOVAxis.Services.Audio
 
         public void Dispose()
         {
-            Queue.Clear();
-            Timer.Dispose();
-            Repeat = RepeatMode.None;
+            lock (_disposeLock)
+            {
+                if (_disposed)
+                    return;
+
+                Queue.Clear();
+                Timer.Dispose();
+                Repeat = RepeatMode.None;
+
+                _disposed = true;
+            }
         }
 
         ~AudioContext()
