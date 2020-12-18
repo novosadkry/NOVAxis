@@ -1,11 +1,14 @@
 ﻿using System.Linq;
 using System.Threading.Tasks;
 
+using NOVAxis.Preconditions;
+
 using Discord;
 using Discord.Commands;
 
 namespace NOVAxis.Modules.Mute
 {
+    [Cooldown(1)]
     [Group("mute")]
     [RequireContext(ContextType.Guild)]
     [RequireUserPermission(GuildPermission.MuteMembers)]

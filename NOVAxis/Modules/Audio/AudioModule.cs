@@ -20,6 +20,7 @@ using Victoria.Responses.Rest;
 
 namespace NOVAxis.Modules.Audio
 {
+    [Cooldown(1)]
     [Group("audio"), Alias("a")]
     [RequireContext(ContextType.Guild)]
     [RequireOwner(Group = "Permission")]
@@ -251,6 +252,7 @@ namespace NOVAxis.Modules.Audio
             AudioModuleService.Remove(Context.Guild.Id);
         }
 
+        [Cooldown(5)]
         [Command("play"), Alias("p"), Summary("Plays an audio transmission")]
         public async Task PlayAudio([Remainder]string input)
         {

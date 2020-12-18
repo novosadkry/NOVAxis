@@ -5,11 +5,14 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 
+using NOVAxis.Preconditions;
+
 using Discord;
 using Discord.Commands;
 
 namespace NOVAxis.Modules.Jisho
 {
+    [Cooldown(5)]
     [Group("jisho")]
     public class JishoModule : ModuleBase<ShardedCommandContext>
     {

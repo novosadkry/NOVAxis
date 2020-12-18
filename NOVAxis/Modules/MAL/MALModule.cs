@@ -5,6 +5,8 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 
+using NOVAxis.Preconditions;
+
 using Discord;
 using Discord.Commands;
 
@@ -12,6 +14,7 @@ using Interactivity;
 
 namespace NOVAxis.Modules.MAL
 {
+    [Cooldown(5)]
     [Group("mal")]
     public class MALModule : ModuleBase<ShardedCommandContext>
     {

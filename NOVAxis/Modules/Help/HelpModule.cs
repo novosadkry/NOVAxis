@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 
 using NOVAxis.Core;
+using NOVAxis.Preconditions;
 using NOVAxis.Services.Guild;
 
 using Discord;
@@ -11,6 +12,7 @@ using Interactivity;
 
 namespace NOVAxis.Modules.Help
 {
+    [Cooldown(1)]
     [Group("help"), Alias("?")]
     public class HelpModule : ModuleBase<ShardedCommandContext>
     {
