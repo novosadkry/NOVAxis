@@ -2,6 +2,7 @@
 using System.Reflection;
 using System.Threading.Tasks;
 
+using NOVAxis.TypeReaders;
 using NOVAxis.Services.Guild;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -38,8 +39,8 @@ namespace NOVAxis.Modules
 
         public async Task Setup()
         {
+            CommandService.AddTypeReader<TimeSpan>(new TimeSpanTypeReader());
             await CommandService.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
-            CommandService.AddTypeReader(typeof(TimeSpan), new TypeReaders.TimeSpanTypeReader());
         }
 
         private async Task MessageReceived(SocketMessage arg)
