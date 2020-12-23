@@ -14,7 +14,7 @@ using Discord.WebSocket;
 namespace NOVAxis.Preconditions
 {
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
-    class RequireRoleAttribute : PreconditionAttribute
+    public class RequireRoleAttribute : PreconditionAttribute
     {
         private readonly string[] _requiredRoles;
         private readonly bool _useGuildInfo;
