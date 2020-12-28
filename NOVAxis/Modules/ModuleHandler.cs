@@ -85,10 +85,8 @@ namespace NOVAxis.Modules
         {
             if (!result.IsSuccess)
             {
-                string title = string.Empty; 
-                string description = string.Empty;
-
-                bool logWarning = false;
+                string title = string.Empty, description = string.Empty;
+                bool sendMessage = true, logWarning = false;
 
                 switch (result.Error)
                 {
@@ -121,6 +119,10 @@ namespace NOVAxis.Modules
                                 description = "(Příkaz je časově omezen)";
                                 break;
 
+                            case "User has command on cooldown (no warning)":
+                                sendMessage = false;
+                                break;
+
                             default:
                                 title = "Pro operaci s tímto modulem nemáš dodatečnou kvalifikaci";
                                 description = "(Přístup odepřen)";
@@ -129,11 +131,11 @@ namespace NOVAxis.Modules
                         break;
 
                     default:
-                        logWarning = true;
+                        logWarning = true; sendMessage = false;
                         break;
                 }
 
-                if (!string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(description))
+                if (sendMessage && !string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(description))
                 {
                     await Task.Run(() =>
                     {
