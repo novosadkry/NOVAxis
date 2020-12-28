@@ -14,7 +14,7 @@ namespace NOVAxis.Preconditions
         private struct CooldownInfo
         {
             public IUserMessage Message { get; set; }
-            public int Timestamp { get; set; }
+            public DateTime? Timestamp { get; set; }
         }
 
         private readonly TimeSpan _cooldown;
@@ -31,6 +31,7 @@ namespace NOVAxis.Preconditions
         public override Task<PreconditionResult> CheckPermissionsAsync(ICommandContext context, CommandInfo command, IServiceProvider services)
         {
             var cooldownInfo = _users[context.User];
+            var currentTime = DateTime.Now;
 
             /*
                 We can assume that if the cooldownInfo contains the same message as the current one,
@@ -41,13 +42,13 @@ namespace NOVAxis.Preconditions
             if (cooldownInfo.Message == context.Message)
                 return Task.FromResult(PreconditionResult.FromSuccess());
 
-            if (Environment.TickCount - cooldownInfo.Timestamp < _cooldown.TotalMilliseconds)
+            if (cooldownInfo.Timestamp.HasValue && currentTime - cooldownInfo.Timestamp < _cooldown)
                 return Task.FromResult(PreconditionResult.FromError("User has command on cooldown"));
 
             var newInfo = new CooldownInfo
             {
                 Message = context.Message,
-                Timestamp = Environment.TickCount & int.MaxValue
+                Timestamp = currentTime
             };
 
             _users[context.User] = newInfo;
