@@ -15,6 +15,7 @@ namespace NOVAxis.Preconditions
         {
             public IUserMessage Message { get; set; }
             public DateTime? Timestamp { get; set; }
+            public bool WarningTriggered { get; set; }
         }
 
         private readonly TimeSpan _cooldown;
@@ -43,15 +44,22 @@ namespace NOVAxis.Preconditions
                 return Task.FromResult(PreconditionResult.FromSuccess());
 
             if (cooldownInfo.Timestamp.HasValue && currentTime - cooldownInfo.Timestamp < _cooldown)
+            {
+                if (cooldownInfo.WarningTriggered)
+                    return Task.FromResult(PreconditionResult.FromError("User has command on cooldown (no warning)"));
+                
+                cooldownInfo.WarningTriggered = true;
+                _users[context.User] = cooldownInfo;
+                
                 return Task.FromResult(PreconditionResult.FromError("User has command on cooldown"));
+            }
 
-            var newInfo = new CooldownInfo
+            _users[context.User] = new CooldownInfo
             {
                 Message = context.Message,
                 Timestamp = currentTime
             };
-
-            _users[context.User] = newInfo;
+            
             return Task.FromResult(PreconditionResult.FromSuccess());
         }
     }
