@@ -167,6 +167,9 @@ namespace NOVAxis.Modules.Audio
             if (player.Volume == 0)
                 await player.UpdateVolumeAsync(100);
 
+            await AudioContext.InitiateDisconnectAsync(player,
+                TimeSpan.FromMilliseconds(AudioModuleService.AudioConfig.Timeout));
+
             await ReplyAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
                 .WithTitle($"Připojuji se ke kanálu `{voiceChannel.Name}`").Build());
@@ -518,6 +521,8 @@ namespace NOVAxis.Modules.Audio
                 }
 
                 await player.PauseAsync();
+                await AudioContext.InitiateDisconnectAsync(player,
+                    TimeSpan.FromMilliseconds(AudioModuleService.AudioConfig.Timeout));
 
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
@@ -561,6 +566,7 @@ namespace NOVAxis.Modules.Audio
                 }
 
                 await player.ResumeAsync();
+                await AudioContext.CancelDisconnectAsync();
 
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)

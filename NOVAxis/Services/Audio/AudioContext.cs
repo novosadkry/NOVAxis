@@ -3,7 +3,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Discord;
+
 using Victoria;
+using Victoria.Enums;
 
 namespace NOVAxis.Services.Audio
 {
@@ -47,11 +50,18 @@ namespace NOVAxis.Services.Audio
                     _disconnectTokenSource = new CancellationTokenSource();
                 }
 
-                // Leave channel if token isn't cancelled within the timeout and the context wasn't disposed
+                // Leave channel if token isn't cancelled within the timeout
                 if (!SpinWait.SpinUntil(() => _disconnectTokenSource.IsCancellationRequested, timeout))
                 {
-                    if (!_disposed) 
+                    // and the context wasn't disposed and the player isn't playing
+                    if (!_disposed && player.PlayerState != PlayerState.Playing)
+                    {
+                        player.TextChannel.SendMessageAsync(embed: new EmbedBuilder()
+                            .WithColor(52, 231, 231)
+                            .WithTitle($"Odpojuji se od kanálu `{player.VoiceChannel.Name}`").Build());
+
                         _lavaNodeInstance.LeaveAsync(player.VoiceChannel);
+                    }
                 }
             });
         }
