@@ -28,5 +28,7 @@ namespace NOVAxis.Services.Audio
         {
             return this.First();
         }
+
+        public bool Empty => Count == 0;
     }
 }
