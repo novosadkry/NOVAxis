@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
-using NOVAxis.Utilities;
+using Victoria;
 
 namespace NOVAxis.Services.Audio
 {
@@ -15,15 +17,20 @@ namespace NOVAxis.Services.Audio
 
     public class AudioContext : IDisposable
     {
-        public AudioContext(ulong id)
+        public AudioContext(LavaNode lavaNode, ulong id)
         {
+            _lavaNodeInstance = lavaNode;
+            _disconnectTokenSource = new CancellationTokenSource();
+
             GuildId = id;
         }
 
         private bool _disposed;
         private readonly object _disposeLock = new object();
 
-        public Timer Timer { get; set; } = new Timer();
+        private readonly LavaNode _lavaNodeInstance;
+        private CancellationTokenSource _disconnectTokenSource;
+
         public LinkedQueue<AudioTrack> Queue { get; set; } = new LinkedQueue<AudioTrack>();
 
         public AudioTrack Track => Queue.First();
@@ -31,6 +38,30 @@ namespace NOVAxis.Services.Audio
 
         public RepeatMode Repeat { get; set; }
         public ulong GuildId { get; }
+
+        public async Task InitiateDisconnectAsync(LavaPlayer player, TimeSpan timeout)
+        {
+            await Task.Run(() =>
+            {
+                if (_disconnectTokenSource.IsCancellationRequested)
+                {
+                    _disconnectTokenSource.Dispose();
+                    _disconnectTokenSource = new CancellationTokenSource();
+                }
+
+                // Leave channel if token isn't cancelled within the timeout
+                if (!SpinWait.SpinUntil(() => _disconnectTokenSource.Token.IsCancellationRequested, timeout))
+                    _lavaNodeInstance.LeaveAsync(player.VoiceChannel);
+            });
+        }
+
+        public Task CancelDisconnectAsync()
+        {
+            if (!_disconnectTokenSource.IsCancellationRequested)
+                _disconnectTokenSource.Cancel();
+
+            return Task.CompletedTask;
+        }
 
         public void Dispose()
         {
@@ -40,8 +71,8 @@ namespace NOVAxis.Services.Audio
                     return;
 
                 Queue.Clear();
-                Timer.Dispose();
                 Repeat = RepeatMode.None;
+                _disconnectTokenSource.Dispose();
 
                 _disposed = true;
             }

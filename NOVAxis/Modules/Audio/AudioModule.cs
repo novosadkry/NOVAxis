@@ -37,34 +37,7 @@ namespace NOVAxis.Modules.Audio
         protected override void BeforeExecute(CommandInfo command)
         {
             AudioContext = AudioModuleService[Context.Guild.Id];
-
-            if (!AudioContext.Timer.IsSet)
-                AudioContext.Timer.Set(AudioModuleService.AudioConfig.Timeout, Timer_Elapsed);
-
             base.BeforeExecute(command);
-        }
-
-        protected override void AfterExecute(CommandInfo command)
-        {
-            if (AudioContext.Timer.IsSet)
-                AudioContext.Timer.Reset();
-
-            base.AfterExecute(command);
-        }
-
-        private async void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
-        {
-            if (LavaNode.IsConnected && LavaNode.HasPlayer(Context.Guild))
-            {
-                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
-
-                if (AudioContext.Queue.Count > 0 && player.PlayerState == PlayerState.Playing)
-                    return;
-
-                await LeaveChannel(player);
-            }
-
-            await LeaveChannel(null);
         }
 
         public async IAsyncEnumerable<AudioTrack> Search(string input)

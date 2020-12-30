@@ -9,7 +9,6 @@ using Discord;
 using Discord.WebSocket;
 
 using Victoria;
-using Victoria.Enums;
 using Victoria.EventArgs;
 
 namespace NOVAxis.Services.Audio
@@ -36,6 +35,7 @@ namespace NOVAxis.Services.Audio
 
             _lavaNodeInstance = lavaNodeInstance;
             _lavaNodeInstance.OnTrackEnded += AudioModuleService_TrackEnd;
+            _lavaNodeInstance.OnTrackStarted += AudioModuleService_TrackStart;
 
             Program.Client.UserVoiceStateUpdated += AudioModuleService_UserVoiceStateUpdated;
         }
@@ -43,12 +43,14 @@ namespace NOVAxis.Services.Audio
         ~AudioModuleService()
         {
             _lavaNodeInstance.OnTrackEnded -= AudioModuleService_TrackEnd;
+            _lavaNodeInstance.OnTrackStarted -= AudioModuleService_TrackStart;
+
             Program.Client.UserVoiceStateUpdated -= AudioModuleService_UserVoiceStateUpdated;
         }
 
         public AudioContext this[ulong id]
         {
-            get => _guilds.GetOrAdd(id, new Lazy<AudioContext>(() => new AudioContext(id))).Value;
+            get => _guilds.GetOrAdd(id, new Lazy<AudioContext>(() => new AudioContext(_lavaNodeInstance, id))).Value;
             set => _guilds[id] = new Lazy<AudioContext>(value);
         }
 
@@ -72,6 +74,12 @@ namespace NOVAxis.Services.Audio
             }
         }
 
+        private async Task AudioModuleService_TrackStart(TrackStartEventArgs args)
+        {
+            var audioContext = this[args.Player.VoiceChannel.GuildId];
+            await audioContext.CancelDisconnectAsync();
+        }
+
         private async Task AudioModuleService_TrackEnd(TrackEndedEventArgs args)
         {
             if (args.Player.VoiceChannel == null)
@@ -79,29 +87,36 @@ namespace NOVAxis.Services.Audio
 
             var audioContext = this[args.Player.VoiceChannel.GuildId];
 
-            if (audioContext.Queue.Count == 0)
-                return;
-
-            var prevTrack = audioContext.Queue.Dequeue();
-
-            switch (audioContext.Repeat)
+            if (!audioContext.Queue.Empty)
             {
-                case RepeatMode.Once:
-                    audioContext.Queue.AddFirst(prevTrack);
-                    audioContext.Repeat = RepeatMode.None;
-                    break;
+                var prevTrack = audioContext.Queue.Dequeue();
 
-                case RepeatMode.First:
-                    audioContext.Queue.AddFirst(prevTrack);
-                    break;
+                switch (audioContext.Repeat)
+                {
+                    case RepeatMode.Once:
+                        audioContext.Queue.AddFirst(prevTrack);
+                        audioContext.Repeat = RepeatMode.None;
+                        break;
 
-                case RepeatMode.Queue:
-                    audioContext.Queue.Enqueue(prevTrack);
-                    break;
-            }
+                    case RepeatMode.First:
+                        audioContext.Queue.AddFirst(prevTrack);
+                        break;
 
-            if (audioContext.Queue.Count > 0)
-            {
+                    case RepeatMode.Queue:
+                        audioContext.Queue.Enqueue(prevTrack);
+                        break;
+                }
+
+                if (audioContext.Queue.Empty)
+                {
+                    await args.Player.TextChannel.SendMessageAsync(embed: new EmbedBuilder()
+                        .WithColor(52, 231, 231)
+                        .WithTitle("Stream audia byl úspěšně dokončen").Build());
+
+                    await audioContext.InitiateDisconnectAsync(args.Player, TimeSpan.FromMilliseconds(AudioConfig.Timeout));
+                    return;
+                }
+
                 AudioTrack nextTrack = audioContext.Queue.Peek();
                 await args.Player.PlayAsync(nextTrack);
 
@@ -120,28 +135,24 @@ namespace NOVAxis.Services.Audio
                             Value = nextTrack.Author,
                             IsInline = true
                         },
-
                         new EmbedFieldBuilder
                         {
                             Name = "Délka:",
                             Value = $"`{nextTrack.Duration}`",
                             IsInline = true
                         },
-
                         new EmbedFieldBuilder
                         {
                             Name = "Vyžádal:",
                             Value = nextTrack.RequestedBy.Mention,
                             IsInline = true
                         },
-
                         new EmbedFieldBuilder
                         {
                             Name = "Hlasitost:",
                             Value = $"{args.Player.Volume}%",
                             IsInline = true
                         },
-
                         new EmbedFieldBuilder
                         {
                             Name = "Stav:",
@@ -152,13 +163,7 @@ namespace NOVAxis.Services.Audio
             }
 
             else
-            {
-                await args.Player.TextChannel.SendMessageAsync(embed: new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithTitle("Stream audia byl úspěšně dokončen").Build());
-            }
-
-            audioContext.Timer.Reset();
+                await audioContext.InitiateDisconnectAsync(args.Player, TimeSpan.FromMilliseconds(AudioConfig.Timeout));
         }
     }
 }
