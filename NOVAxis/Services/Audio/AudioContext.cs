@@ -26,8 +26,6 @@ namespace NOVAxis.Services.Audio
         }
 
         private bool _disposed;
-        private readonly object _disposeLock = new object();
-
         private readonly LavaNode _lavaNodeInstance;
         private CancellationTokenSource _disconnectTokenSource;
 
@@ -49,9 +47,12 @@ namespace NOVAxis.Services.Audio
                     _disconnectTokenSource = new CancellationTokenSource();
                 }
 
-                // Leave channel if token isn't cancelled within the timeout
-                if (!SpinWait.SpinUntil(() => _disconnectTokenSource.Token.IsCancellationRequested, timeout))
-                    _lavaNodeInstance.LeaveAsync(player.VoiceChannel);
+                // Leave channel if token isn't cancelled within the timeout and the context wasn't disposed
+                if (!SpinWait.SpinUntil(() => _disconnectTokenSource.IsCancellationRequested, timeout))
+                {
+                    if (!_disposed) 
+                        _lavaNodeInstance.LeaveAsync(player.VoiceChannel);
+                }
             });
         }
 
@@ -65,17 +66,14 @@ namespace NOVAxis.Services.Audio
 
         public void Dispose()
         {
-            lock (_disposeLock)
-            {
-                if (_disposed)
-                    return;
+            if (_disposed)
+                return;
 
-                Queue.Clear();
-                Repeat = RepeatMode.None;
-                _disconnectTokenSource.Dispose();
+            Queue.Clear();
+            Repeat = RepeatMode.None;
+            _disconnectTokenSource.Dispose();
 
-                _disposed = true;
-            }
+            _disposed = true;
         }
 
         ~AudioContext()

@@ -64,7 +64,7 @@ namespace NOVAxis.Services.Audio
             if (user.Id != Program.Client.CurrentUser?.Id || before.VoiceChannel == null)
                 return;
 
-            if (_lavaNodeInstance.TryGetPlayer(before.VoiceChannel.Guild, out LavaPlayer player))
+            if (_lavaNodeInstance.HasPlayer(before.VoiceChannel.Guild))
             {
                 if (after.VoiceChannel == null)
                 {
