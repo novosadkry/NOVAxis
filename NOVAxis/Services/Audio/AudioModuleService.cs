@@ -59,12 +59,12 @@ namespace NOVAxis.Services.Audio
 
         private async Task AudioModuleService_UserVoiceStateUpdated(SocketUser user, SocketVoiceState before, SocketVoiceState after)
         {
-            if (user.Id != Program.Client.CurrentUser.Id || before.VoiceChannel == null)
+            if (user.Id != Program.Client.CurrentUser?.Id || before.VoiceChannel == null)
                 return;
 
             if (_lavaNodeInstance.TryGetPlayer(before.VoiceChannel.Guild, out LavaPlayer player))
             {
-                if (after.VoiceChannel == null && player.PlayerState == PlayerState.Playing)
+                if (after.VoiceChannel == null)
                 {
                     Remove(before.VoiceChannel.Guild.Id);
                     await _lavaNodeInstance.LeaveAsync(before.VoiceChannel);
