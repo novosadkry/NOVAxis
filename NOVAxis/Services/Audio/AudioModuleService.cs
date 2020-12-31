@@ -24,7 +24,7 @@ namespace NOVAxis.Services.Audio
         {
             AudioConfig = Program.Config.Audio;
             _guilds = new Cache<ulong, Lazy<AudioContext>>(
-                AudioConfig.Cache.AbsoluteExpiration, 
+                AudioConfig.Cache.AbsoluteExpiration,
                 AudioConfig.Cache.RelativeExpiration,
                 (key, value, reason, state) =>
                 {
@@ -113,7 +113,7 @@ namespace NOVAxis.Services.Audio
                         .WithColor(52, 231, 231)
                         .WithTitle("Stream audia byl úspěšně dokončen").Build());
 
-                    await audioContext.InitiateDisconnectAsync(args.Player, TimeSpan.FromMilliseconds(AudioConfig.Timeout));
+                    await audioContext.InitiateDisconnectAsync(args.Player, AudioConfig.Timeout.Idle);
                     return;
                 }
 
@@ -163,7 +163,7 @@ namespace NOVAxis.Services.Audio
             }
 
             else
-                await audioContext.InitiateDisconnectAsync(args.Player, TimeSpan.FromMilliseconds(AudioConfig.Timeout));
+                await audioContext.InitiateDisconnectAsync(args.Player, AudioConfig.Timeout.Idle);
         }
     }
 }

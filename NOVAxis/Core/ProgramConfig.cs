@@ -53,7 +53,12 @@ namespace NOVAxis.Core
 
             Audio = new AudioObject
             {
-                Timeout = 30000,
+                Timeout = new AudioObject.TimeoutObject
+                {
+                    Idle = TimeSpan.FromSeconds(30),
+                    Paused = TimeSpan.FromMinutes(2)
+                },
+
                 Cache = new CacheObject
                 {
                     AbsoluteExpiration = TimeSpan.FromHours(12),
@@ -99,7 +104,13 @@ namespace NOVAxis.Core
 
         public struct AudioObject
         {
-            public long Timeout { get; set; }
+            public struct TimeoutObject
+            {
+                public TimeSpan Idle { get; set; }
+                public TimeSpan Paused { get; set; }
+            }
+
+            public TimeoutObject Timeout { get; set; }
             public CacheObject Cache { get; set; }
         }
 

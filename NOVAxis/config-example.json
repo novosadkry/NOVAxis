@@ -30,10 +30,13 @@
     "DbName": "novaxis"
   },
   "Audio": {
-    "Timeout": 30000,
+    "Timeout": {
+      "Idle": "00:00:30",
+      "Paused": "00:02:00"
+    },
     "Cache": {
-      "AbsoluteExpiration": "12:00:00",
-      "RelativeExpiration": "06:00:00"
+      "AbsoluteExpiration": null,
+      "RelativeExpiration": "12:00:00"
     }
   }
 }

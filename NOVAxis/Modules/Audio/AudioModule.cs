@@ -167,8 +167,7 @@ namespace NOVAxis.Modules.Audio
             if (player.Volume == 0)
                 await player.UpdateVolumeAsync(100);
 
-            await AudioContext.InitiateDisconnectAsync(player,
-                TimeSpan.FromMilliseconds(AudioModuleService.AudioConfig.Timeout));
+            await AudioContext.InitiateDisconnectAsync(player, AudioModuleService.AudioConfig.Timeout.Idle);
 
             await ReplyAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
@@ -521,8 +520,7 @@ namespace NOVAxis.Modules.Audio
                 }
 
                 await player.PauseAsync();
-                await AudioContext.InitiateDisconnectAsync(player,
-                    TimeSpan.FromMilliseconds(AudioModuleService.AudioConfig.Timeout));
+                await AudioContext.InitiateDisconnectAsync(player, AudioModuleService.AudioConfig.Timeout.Paused);
 
                 await ReplyAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
