@@ -74,21 +74,30 @@ namespace NOVAxis.Services.Audio
             return Task.CompletedTask;
         }
 
-        public void Dispose()
+        protected virtual void Dispose(bool disposing)
         {
             if (_disposed)
                 return;
 
-            Queue.Clear();
-            Repeat = RepeatMode.None;
-            _disconnectTokenSource.Dispose();
+            if (disposing)
+            {
+                Queue.Clear();
+                Repeat = RepeatMode.None;
+                _disconnectTokenSource.Dispose();
+            }
 
             _disposed = true;
         }
 
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
         ~AudioContext()
         {
-            Dispose();
+            Dispose(false);
         }
     }
 }
