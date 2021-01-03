@@ -28,16 +28,30 @@ namespace NOVAxis.Utilities
         public void Start() => _timer.Start();
         public void Stop() => _timer.Stop();
 
-        public void Dispose()
+        protected virtual void Dispose(bool disposing)
         {
             if (_disposed)
                 return;
 
-            _timer.Dispose();
-            IsSet = false;
-            Elapsed = false;
+            if (disposing)
+            {
+                _timer.Dispose();
+                IsSet = false;
+                Elapsed = false;
+            }
 
             _disposed = true;
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        ~Timer()
+        {
+            Dispose(false);
         }
     }
 }
