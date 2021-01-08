@@ -40,9 +40,9 @@ namespace NOVAxis.Services.Audio
         public RepeatMode Repeat { get; set; }
         public ulong GuildId { get; }
 
-        public async Task InitiateDisconnectAsync(LavaPlayer player, TimeSpan timeout)
+        public Task InitiateDisconnectAsync(LavaPlayer player, TimeSpan timeout)
         {
-            await Task.Run(() =>
+            Task.Run(() =>
             {
                 if (_disconnectTokenSource.IsCancellationRequested)
                 {
@@ -64,6 +64,8 @@ namespace NOVAxis.Services.Audio
                     }
                 }
             });
+
+            return Task.CompletedTask;
         }
 
         public Task CancelDisconnectAsync()
