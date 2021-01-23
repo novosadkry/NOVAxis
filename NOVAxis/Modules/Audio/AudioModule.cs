@@ -996,6 +996,7 @@ namespace NOVAxis.Modules.Audio
             }
         }
 
+        [RequireOwner]
         [Command("setrole"), Summary("Sets the guild's DJ role which is used to identify eligible users")]
         public async Task SetDjRole(IRole role)
         {
@@ -1010,6 +1011,7 @@ namespace NOVAxis.Modules.Audio
                 .WithTitle("Konfigurace mého jádra proběhla úspešně").Build());
         }
 
+        [RequireOwner]
         [Command("setrole"), Summary("Sets the guild's DJ role which is used to identify eligible users")]
         public async Task SetDjRole(ulong roleId = 0)
         {
