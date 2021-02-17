@@ -122,56 +122,16 @@ namespace NOVAxis.Modules.MAL
                                 .WithThumbnailUrl(mal.image_url)
                                 .WithDescription(mal.synopsis)
                                 .WithColor(255, 26, 117)
-                                .WithFields(
-                                    new EmbedFieldBuilder
-                                    {
-                                        Name = "Type:",
-                                        Value = mal.type,
-                                        IsInline = true
-                                    },
 
-                                    new EmbedFieldBuilder
-                                    {
-                                        Name = "Status:",
-                                        Value = mal.info.status,
-                                        IsInline = true
-                                    },
+                                .AddField("Type:", mal.type, true)
+                                .AddField("Status:", mal.info.status, true)
+                                .AddField("Aired:", $"{mal.aired}", true)
+                                .AddField("Episodes:", mal.episodes, true)
+                                .AddField("Score:", $"{mal.score}/10", true)
+                                .AddField("Rating:", mal.info.rating, true)
+                                .AddField("Genre:", string.Join(", ", mal.info.genres.Select(x => x.name)), true)
 
-                                    new EmbedFieldBuilder
-                                    {
-                                        Name = "Aired:",
-                                        Value = $"{mal.aired}",
-                                        IsInline = true
-                                    },
-
-                                    new EmbedFieldBuilder
-                                    {
-                                        Name = "Episodes:",
-                                        Value = mal.episodes,
-                                        IsInline = true
-                                    },
-
-                                    new EmbedFieldBuilder
-                                    {
-                                        Name = "Score:",
-                                        Value = $"{mal.score}/10",
-                                        IsInline = true
-                                    },                                       
-
-                                    new EmbedFieldBuilder
-                                    {
-                                        Name = "Rating:",
-                                        Value = mal.info.rating,
-                                        IsInline = true
-                                    },
-
-                                    new EmbedFieldBuilder
-                                    {
-                                        Name = "Genre:",
-                                        Value = string.Join(", ", mal.info.genres.Select(x => x.name)),
-                                        IsInline = true
-                                    }
-                                ).Build());
+                                .Build());
                         }
 
                         else
@@ -253,56 +213,16 @@ namespace NOVAxis.Modules.MAL
                                 .WithThumbnailUrl(mal.image_url)
                                 .WithDescription(mal.synopsis)
                                 .WithColor(255, 26, 117)
-                                .WithFields(
-                                    new EmbedFieldBuilder
-                                    {
-                                        Name = "Type:",
-                                        Value = mal.type,
-                                        IsInline = true
-                                    },
 
-                                    new EmbedFieldBuilder
-                                    {
-                                        Name = "Status:",
-                                        Value = mal.info.status,
-                                        IsInline = true
-                                    },
+                                .AddField("Type:", mal.type, true)
+                                .AddField("Status:", mal.info.status, true)
+                                .AddField("Published:", $"{mal.published}", true)
+                                .AddField("Score:", $"{mal.score}/10", true)
+                                .AddField("Volumes:", mal.volumes, true)
+                                .AddField("Chapters:", mal.chapters, true)
+                                .AddField("Genre:", string.Join(", ", mal.info.genres.Select(x => x.name)), true)
 
-                                    new EmbedFieldBuilder
-                                    {
-                                        Name = "Published:",
-                                        Value = $"{mal.published}",
-                                        IsInline = true
-                                    },
-
-                                    new EmbedFieldBuilder
-                                    {
-                                        Name = "Score:",
-                                        Value = $"{mal.score}/10",
-                                        IsInline = true
-                                    },
-
-                                    new EmbedFieldBuilder
-                                    {
-                                        Name = "Volumes:",
-                                        Value = mal.volumes,
-                                        IsInline = true
-                                    },
-
-                                    new EmbedFieldBuilder
-                                    {
-                                        Name = "Chapters:",
-                                        Value = mal.chapters,
-                                        IsInline = true
-                                    },
-
-                                    new EmbedFieldBuilder
-                                    {
-                                        Name = "Genre:",
-                                        Value = string.Join(", ", mal.info.genres.Select(x => x.name)),
-                                        IsInline = true
-                                    }
-                                ).Build());
+                                .Build());
                         }
 
                         else

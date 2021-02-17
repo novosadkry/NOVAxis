@@ -42,68 +42,28 @@ namespace NOVAxis.Modules.Help
             var guildInfo = await GuildService.GetInfo(Context);
             string prefix = guildInfo.Prefix;
 
-            EmbedBuilder embed = new EmbedBuilder()
+            Embed embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
                 .WithColor(new Color(52, 231, 231))
                 .WithTitle("Příručka pro telekomunikaci s jádrem NOVAxis")
                 .WithDescription("(Seznam příkazů)")
-                .WithFields(
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = "**Help**",
-                        Value = $"*{prefix}help ___*"
-                    },                  
 
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = "**Jisho**",
-                        Value = $"*{prefix}help jisho*"
-                    },
+                .AddField("**Help**", $"*{prefix}help ___*", true)
+                .AddField("**Jisho**", $"*{prefix}help jisho*", true)
+                .AddField("**Clear**", $"*{prefix}help clear*", true)
+                .AddField("**Mute**", $"*{prefix}help mute*", true)
+                .AddField("**Move**", $"*{prefix}help move*", true)
+                .AddField("**Audio**", $"*{prefix}help audio*", true)
+                .AddField("**MAL**", $"*{prefix}help mal*", true)
 
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = "**Clear**",
-                        Value = $"*{prefix}help clear*"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = "**Mute**",
-                        Value = $"*{prefix}help mute*"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = "**Move**",
-                        Value = $"*{prefix}help move*"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = "**Audio**",
-                        Value = $"*{prefix}help audio*"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = "**MAL**",
-                        Value = $"*{prefix}help mal*"
-                    }
-                )
                 .WithFooter(new EmbedFooterBuilder
                 {
                     IconUrl = Context.Client.GetUser(Program.OwnerId).GetAvatarUrl(),
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
-                });
+                })
+                .Build();
 
-            await SendHelp(embed: embed.Build());
+            await SendHelp(embed);
         }
 
         [Command("jisho"), Alias("Jisho"), Summary("Shows command list for Jisho")]
@@ -112,34 +72,23 @@ namespace NOVAxis.Modules.Help
             var guildInfo = await GuildService.GetInfo(Context);
             string prefix = guildInfo.Prefix;
 
-            EmbedBuilder embed = new EmbedBuilder()
+            Embed embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
                 .WithColor(new Color(52, 231, 231))
                 .WithTitle("Příručka pro telekomunikaci s jádrem NOVAxis")
                 .WithDescription("(Seznam příkazů pro **jisho**)")
-                .WithFields(
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = false,
-                        Name = $"**{prefix}jisho** text",
-                        Value = "*Prohledá databázi Jisho*"
-                    },
 
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = false,
-                        Name = $"**{prefix}jisho** text limit",
-                        Value = "*Prohledá databázi Jisho s omezeným počtem výsledků*"
-                    }
-                )
+                .AddField($"**{prefix}jisho** text", "*Prohledá databázi Jisho*")
+                .AddField($"**{prefix}jisho** text limit", "*Prohledá databázi Jisho s omezeným počtem výsledků*")
+
                 .WithFooter(new EmbedFooterBuilder
                 {
                     IconUrl = Context.Client.GetUser(Program.OwnerId).GetAvatarUrl(),
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
-                });
+                })
+                .Build();
 
-
-            await SendHelp(embed: embed.Build());
+            await SendHelp(embed);
         }
 
         [Command("move"), Alias("Move"), Summary("Shows command list for Move")]
@@ -148,54 +97,26 @@ namespace NOVAxis.Modules.Help
             var guildInfo = await GuildService.GetInfo(Context);
             string prefix = guildInfo.Prefix;
 
-            EmbedBuilder embed = new EmbedBuilder()
+            Embed embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
                 .WithColor(new Color(52, 231, 231))
                 .WithTitle("Příručka pro telekomunikaci s jádrem NOVAxis")
                 .WithDescription("(Seznam příkazů pro **move**)")
-                .WithFields(
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}move** @user \"channel\"",
-                        Value = "*Přesune uživatele do daného kanálu*"
-                    },
 
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}move everyone** \"channel\"",
-                        Value = "*Přesune všechny uživatele ze současného kanálu do daného kanálu*"
-                    },
+                .AddField($"**{prefix}move** @user \"channel\"", "*Přesune uživatele do daného kanálu*", true)
+                .AddField($"**{prefix}move everyone** \"channel\"", "*Přesune všechny uživatele ze současného kanálu do daného kanálu*", true)
+                .AddField($"**{prefix}move everyone** \"channel1\" \"channel2\"", "*Přesune všechny uživatele z jednoho kanálu do druhého*", true)
+                .AddField($"**{prefix}move message** ID \"channel\"", "*Přesune vybranou zprávu z jednoho kanálu do druhého*", true)
+                .AddField($"**{prefix}move message** @user \"channel\"", "*Přesune poslední zprávu uživatele do daného kanálu*", true)
 
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}move everyone** \"channel1\" \"channel2\"",
-                        Value = "*Přesune všechny uživatele z jednoho kanálu do druhého*"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}move message** ID \"channel\"",
-                        Value = "*Přesune vybranou zprávu z jednoho kanálu do druhého*"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}move message** @user \"channel\"",
-                        Value = "*Přesune poslední zprávu uživatele do daného kanálu*"
-                    }
-                )
                 .WithFooter(new EmbedFooterBuilder
                 {
                     IconUrl = Context.Client.GetUser(Program.OwnerId).GetAvatarUrl(),
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
-                });
+                })
+                .Build();
 
-            await SendHelp(embed: embed.Build());
+            await SendHelp(embed);
         }
 
         [Command("audio"), Alias("Audio"), Summary("Shows command list for Audio")]
@@ -204,132 +125,37 @@ namespace NOVAxis.Modules.Help
             var guildInfo = await GuildService.GetInfo(Context);
             string prefix = guildInfo.Prefix;
 
-            EmbedBuilder embed = new EmbedBuilder()
+            Embed embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
                 .WithColor(new Color(52, 231, 231))
                 .WithTitle("Příručka pro telekomunikaci s jádrem NOVAxis")
                 .WithDescription("(Seznam příkazů pro **audio**)")
-                .WithFields(
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}audio join**",
-                        Value = "*Připojí se k současnému kanálu*"
-                    },
 
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}audio seek** pozice",
-                        Value = "*Posune stopu na danou pozici*"
-                    },
+                .AddField($"**{prefix}audio join**", "*Připojí se k současnému kanálu*", true)
+                .AddField($"**{prefix}audio seek** pozice", "*Posune stopu na danou pozici*", true)
+                .AddField($"**{prefix}audio leave**", "*Odpojí se od připojeného kanálu*", true)
+                .AddField($"**{prefix}audio stop**", "*Zastaví stopu a vymaže frontu*", true)
+                .AddField($"**{prefix}audio play** URL/název", "*Přehraje vybranou stopu*", true)
+                .AddField($"**{prefix}audio pause**", "*Pozastaví právě hrající stopu*", true)
+                .AddField($"**{prefix}audio status**", "*Zobrazí právě hrající stopu*", true)
+                .AddField($"**{prefix}audio resume**", "*Pokračuje v pozastavené stopě*", true)
+                .AddField($"**{prefix}audio queue**", "*Zobrazí frontu stop*", true)
+                .AddField($"**{prefix}audio skip**", "*Přeskočí stopu*", true)
+                .AddField($"**{prefix}audio remove** pozice", "*Odstraní z fronty vybranou stopu*", true)
+                .AddField($"**{prefix}audio forward** n", "*Posune pozici stopy dopředu o n sekund*", true)
+                .AddField($"**{prefix}audio volume** n", "*Nastaví hlasitost stopy na n procent*", true)
+                .AddField($"**{prefix}audio backward** n", "*Posune pozici stopy dozadu o n sekund*", true)
+                .AddField($"**{prefix}audio setrole** @role/ID", "*Nastaví roli pro identifikaci oprávněných uživatelů*", true)
+                .AddField($"**{prefix}audio repeat**", "*Nastaví režim opakování*", true)
 
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}audio leave**",
-                        Value = "*Odpojí se od připojeného kanálu*"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}audio stop**",
-                        Value = "*Zastaví stopu a vymaže frontu*"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}audio play** URL/název",
-                        Value = "*Přehraje vybranou stopu*"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}audio pause**",
-                        Value = "*Pozastaví právě hrající stopu*"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}audio status**",
-                        Value = "*Zobrazí právě hrající stopu*"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}audio resume**",
-                        Value = "*Pokračuje v pozastavené stopě*"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}audio queue**",
-                        Value = "*Zobrazí frontu stop*"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}audio skip**",
-                        Value = "*Přeskočí stopu*"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}audio remove** pozice",
-                        Value = "*Odstraní z fronty vybranou stopu*"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}audio forward** n",
-                        Value = "*Posune pozici stopy dopředu o n sekund*"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}audio volume** n",
-                        Value = "*Nastaví hlasitost stopy na n procent*"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}audio backward** n",
-                        Value = "*Posune pozici stopy dozadu o n sekund*"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}audio setrole** @role/ID",
-                        Value = "*Nastaví roli pro identifikaci oprávněných uživatelů*"
-                    },
-
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}audio repeat**",
-                        Value = "*Nastaví režim opakování*"
-                    }
-                )
                 .WithFooter(new EmbedFooterBuilder
                 {
                     IconUrl = Context.Client.GetUser(Program.OwnerId).GetAvatarUrl(),
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
-                });
+                })
+                .Build();
 
-
-            await SendHelp(embed: embed.Build());
+            await SendHelp(embed);
         }
 
         [Command("clear"), Alias("Clear"), Summary("Shows command list for Clear")]
@@ -338,34 +164,23 @@ namespace NOVAxis.Modules.Help
             var guildInfo = await GuildService.GetInfo(Context);
             string prefix = guildInfo.Prefix;
 
-            EmbedBuilder embed = new EmbedBuilder()
+            Embed embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
                 .WithColor(new Color(52, 231, 231))
                 .WithTitle("Příručka pro telekomunikaci s jádrem NOVAxis")
                 .WithDescription("(Seznam příkazů pro **clear**)")
-                .WithFields(
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = false,
-                        Name = $"**{prefix}clear** počet",
-                        Value = "*Vymaže určitý počet zpráv z daného kanálu*"
-                    },
 
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = false,
-                        Name = $"**{prefix}clear all**",
-                        Value = "*Vymaže všechny zprávy z daného kanálu*"
-                    }
-                )
+                .AddField($"**{prefix}clear** počet", "*Vymaže určitý počet zpráv z daného kanálu*")
+                .AddField($"**{prefix}clear all**", "*Vymaže všechny zprávy z daného kanálu*")
+
                 .WithFooter(new EmbedFooterBuilder
                 {
                     IconUrl = Context.Client.GetUser(Program.OwnerId).GetAvatarUrl(),
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
-                });
+                })
+                .Build();
 
-
-            await SendHelp(embed: embed.Build());
+            await SendHelp(embed);
         }
 
         [Command("mal"), Alias("Mal", "MyAnimeList", "myanimelist"), Summary("Shows command list for MAL")]
@@ -374,34 +189,23 @@ namespace NOVAxis.Modules.Help
             var guildInfo = await GuildService.GetInfo(Context);
             string prefix = guildInfo.Prefix;
 
-            EmbedBuilder embed = new EmbedBuilder()
+            Embed embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
                 .WithColor(new Color(52, 231, 231))
                 .WithTitle("Příručka pro telekomunikaci s jádrem NOVAxis")
                 .WithDescription("(Seznam příkazů pro **mal**)")
-                .WithFields(
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = false,
-                        Name = $"**{prefix}mal anime** název",
-                        Value = "*Prohledá anime databázi MyAnimeList*"
-                    },
 
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = false,
-                        Name = $"**{prefix}mal manga** název",
-                        Value = "*Prohledá manga databázi MyAnimeList*"
-                    }
-                )
+                .AddField($"**{prefix}mal anime** název", "*Prohledá anime databázi MyAnimeList*")
+                .AddField($"**{prefix}mal manga** název", "*Prohledá manga databázi MyAnimeList*")
+
                 .WithFooter(new EmbedFooterBuilder
                 {
                     IconUrl = Context.Client.GetUser(Program.OwnerId).GetAvatarUrl(),
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
-                });
+                })
+                .Build();
 
-
-            await SendHelp(embed: embed.Build());
+            await SendHelp(embed);
         }
 
         [Command("mute"), Alias("Mute"), Summary("Shows command list for Mute")]
@@ -410,41 +214,24 @@ namespace NOVAxis.Modules.Help
             var guildInfo = await GuildService.GetInfo(Context);
             string prefix = guildInfo.Prefix;
 
-            EmbedBuilder embed = new EmbedBuilder()
+            Embed embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
                 .WithColor(new Color(52, 231, 231))
                 .WithTitle("Příručka pro telekomunikaci s jádrem NOVAxis")
                 .WithDescription("(Seznam příkazů pro **mute**)")
-                .WithFields(
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}mute** @user",
-                        Value = "*Odpojí uživatele od textového kanálu*"
-                    },
 
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}mute setrole** @role/ID",
-                        Value = "*Nastaví roli pro identifikaci odpojených uživatelů*"
-                    },
+                .AddField($"**{prefix}mute** @user", "*Odpojí uživatele od textového kanálu*", true)
+                .AddField($"**{prefix}mute setrole** @role/ID", "*Nastaví roli pro identifikaci odpojených uživatelů*", true)
+                .AddField($"**{prefix}mute setrole**", "*Zruší nastavenou roli*", true)
 
-                    new EmbedFieldBuilder
-                    {
-                        IsInline = true,
-                        Name = $"**{prefix}mute setrole**",
-                        Value = "*Zruší nastavenou roli*"
-                    }
-                )
                 .WithFooter(new EmbedFooterBuilder
                 {
                     IconUrl = Context.Client.GetUser(Program.OwnerId).GetAvatarUrl(),
                     Text = $"© Kryštof Novosad | {DateTime.Now}"
-                });
+                })
+                .Build();
 
-
-            await SendHelp(embed: embed.Build());
+            await SendHelp(embed);
         }
     }
 }
