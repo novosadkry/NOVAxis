@@ -298,42 +298,14 @@ namespace NOVAxis.Modules.Audio
                         .WithTitle($"{player.Track.Title}")
                         .WithUrl(player.Track.Url)
                         .WithThumbnailUrl(player.Track.GetThumbnailUrl())
-                        .WithFields(
-                            new EmbedFieldBuilder
-                            {
-                                Name = "Autor:",
-                                Value = player.Track.Author,
-                                IsInline = true
-                            },
 
-                            new EmbedFieldBuilder
-                            {
-                                Name = "Délka:",
-                                Value = $"`{player.Track.Duration}`",
-                                IsInline = true
-                            },
+                        .AddField("Autor:", player.Track.Author, true)
+                        .AddField("Délka:", $"`{player.Track.Duration}`", true)
+                        .AddField("Vyžádal:", AudioContext.Track.RequestedBy.Mention, true)
+                        .AddField("Hlasitost:", $"{player.Volume}%", true)
 
-                            new EmbedFieldBuilder
-                            {
-                                Name = "Vyžádal:",
-                                Value = AudioContext.Track.RequestedBy.Mention,
-                                IsInline = true
-                            },
-
-                            new EmbedFieldBuilder
-                            {
-                                Name = "Hlasitost:",
-                                Value = $"{player.Volume}%",
-                                IsInline = true
-                            },
-
-                            new EmbedFieldBuilder
-                            {
-                                Name = "Stav:",
-                                Value = new Emoji("\u25B6"),
-                                IsInline = true
-                            }
-                        ).Build());
+                        .Build()
+                    );
                 }
 
                 else
@@ -351,21 +323,12 @@ namespace NOVAxis.Modules.Audio
                             .WithTitle($"{AudioContext.LastTrack.Title}")
                             .WithUrl(AudioContext.LastTrack.Url)
                             .WithThumbnailUrl(AudioContext.LastTrack.ThumbnailUrl)
-                            .WithFields(
-                                new EmbedFieldBuilder
-                                {
-                                    Name = "Délka:",
-                                    Value = $"`{totalDuration}`",
-                                    IsInline = true
-                                },
 
-                                new EmbedFieldBuilder
-                                {
-                                    Name = "Vyžádal:",
-                                    Value = AudioContext.LastTrack.RequestedBy.Mention,
-                                    IsInline = true
-                                }
-                            ).Build());
+                            .AddField("Délka:", $"`{totalDuration}`", true)
+                            .AddField("Vyžádal:", AudioContext.LastTrack.RequestedBy.Mention, true)
+
+                            .Build()
+                        );
                     }
 
                     else
@@ -376,35 +339,14 @@ namespace NOVAxis.Modules.Audio
                             .WithTitle($"{AudioContext.LastTrack.Title}")
                             .WithUrl(AudioContext.LastTrack.Url)
                             .WithThumbnailUrl(AudioContext.LastTrack.ThumbnailUrl)
-                            .WithFields(
-                                new EmbedFieldBuilder
-                                {
-                                    Name = "Autor:",
-                                    Value = AudioContext.LastTrack.Author,
-                                    IsInline = true
-                                },
 
-                                new EmbedFieldBuilder
-                                {
-                                    Name = "Délka:",
-                                    Value = $"`{AudioContext.LastTrack.Duration}`",
-                                    IsInline = true
-                                },
+                            .AddField("Autor:", AudioContext.LastTrack.Author, true)
+                            .AddField("Délka:", $"`{AudioContext.LastTrack.Duration}`", true)
+                            .AddField("Vyžádal:", AudioContext.LastTrack.RequestedBy.Mention, true)
+                            .AddField("Pořadí ve frontě:", $"`{AudioContext.Queue.Count - 1}.`", true)
 
-                                new EmbedFieldBuilder
-                                {
-                                    Name = "Vyžádal:",
-                                    Value = AudioContext.LastTrack.RequestedBy.Mention,
-                                    IsInline = true
-                                },
-
-                                new EmbedFieldBuilder
-                                {
-                                    Name = "Pořadí ve frontě:",
-                                    Value = $"`{AudioContext.Queue.Count - 1}.`",
-                                    IsInline = true
-                                }
-                            ).Build());
+                            .Build()
+                        );
                     }
                 }
             }
@@ -797,42 +739,15 @@ namespace NOVAxis.Modules.Audio
                     .WithTitle($"{player.Track.Title}")
                     .WithUrl(player.Track.Url)
                     .WithThumbnailUrl(player.Track.GetThumbnailUrl())
-                    .WithFields(
-                        new EmbedFieldBuilder
-                        {
-                            Name = "Autor:",
-                            Value = player.Track.Author,
-                            IsInline = true
-                        },
 
-                        new EmbedFieldBuilder
-                        {
-                            Name = "Pozice:",
-                            Value = $"`{player.Track.Position:hh\\:mm\\:ss} / {player.Track.Duration}`",
-                            IsInline = true
-                        },
+                    .AddField("Autor:", player.Track.Author, true)
+                    .AddField("Pozice:", $"`{player.Track.Position:hh\\:mm\\:ss} / {player.Track.Duration}`", true)
+                    .AddField("Vyžádal:", AudioContext.Track.RequestedBy.Mention, true)
+                    .AddField("Hlasitost:", $"{player.Volume}%", true)
+                    .AddField("Stav:", $"{string.Join(' ', statusEmoji)}", true)
 
-                        new EmbedFieldBuilder
-                        {
-                            Name = "Vyžádal:",
-                            Value = AudioContext.Track.RequestedBy.Mention,
-                            IsInline = true
-                        },
-
-                        new EmbedFieldBuilder
-                        {
-                            Name = "Hlasitost:",
-                            Value = $"{player.Volume}%",
-                            IsInline = true
-                        },
-
-                        new EmbedFieldBuilder
-                        {
-                            Name = "Stav:",
-                            Value = $"{string.Join(' ', statusEmoji)}",
-                            IsInline = true
-                        }
-                    ).Build());
+                    .Build()
+                );
             }
 
             else

@@ -128,38 +128,14 @@ namespace NOVAxis.Services.Audio
                     .WithTitle($"{nextTrack.Title}")
                     .WithUrl(nextTrack.Url)
                     .WithThumbnailUrl(nextTrack.ThumbnailUrl)
-                    .WithFields(
-                        new EmbedFieldBuilder
-                        {
-                            Name = "Autor:",
-                            Value = nextTrack.Author,
-                            IsInline = true
-                        },
-                        new EmbedFieldBuilder
-                        {
-                            Name = "Délka:",
-                            Value = $"`{nextTrack.Duration}`",
-                            IsInline = true
-                        },
-                        new EmbedFieldBuilder
-                        {
-                            Name = "Vyžádal:",
-                            Value = nextTrack.RequestedBy.Mention,
-                            IsInline = true
-                        },
-                        new EmbedFieldBuilder
-                        {
-                            Name = "Hlasitost:",
-                            Value = $"{args.Player.Volume}%",
-                            IsInline = true
-                        },
-                        new EmbedFieldBuilder
-                        {
-                            Name = "Stav:",
-                            Value = $"{string.Join(' ', statusEmoji)}",
-                            IsInline = true
-                        }
-                    ).Build());
+
+                    .AddField("Autor:", nextTrack.Author, true)
+                    .AddField("Délka:", $"`{nextTrack.Duration}`", true)
+                    .AddField("Vyžádal:", nextTrack.RequestedBy.Mention, true)
+                    .AddField("Hlasitost:", $"{args.Player.Volume}%", true)
+                    .AddField("Stav:", $"{string.Join(' ', statusEmoji)}", true)
+                    
+                    .Build());
             }
 
             else
