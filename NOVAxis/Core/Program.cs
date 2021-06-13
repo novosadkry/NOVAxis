@@ -31,7 +31,7 @@ namespace NOVAxis.Core
         public static ulong OwnerId => 269182357704015873L;
 
         public static string Version 
-            => Assembly.GetExecutingAssembly().GetName().Version?.ToString().Substring(0, 5);
+            => Assembly.GetExecutingAssembly().GetName().Version?.ToString()[..5];
 
         public static async Task Main(string[] args)
         {
@@ -121,7 +121,7 @@ namespace NOVAxis.Core
         {
             var lavaNodeInstance = Services.GetService<LavaNode>();
 
-            if (lavaNodeInstance.IsConnected)
+            if (lavaNodeInstance is {IsConnected: true})
                 await lavaNodeInstance.DisposeAsync();
 
             await Client.LogoutAsync();
@@ -150,7 +150,7 @@ namespace NOVAxis.Core
             if (++ShardsReady == Config.TotalShards)
             {
                 await Client_Log(new LogMessage(LogSeverity.Info, "Victoria", "Connecting"));
-                _ = lavaNodeInstance.ConnectAsync();
+                await Task.Run(() => lavaNodeInstance?.ConnectAsync());
             }
         }
     }
