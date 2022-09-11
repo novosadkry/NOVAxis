@@ -16,7 +16,7 @@ using Interactivity;
 
 using Victoria;
 using Victoria.Enums;
-using Victoria.Responses.Rest;
+using Victoria.Responses.Search;
 
 namespace NOVAxis.Modules.Audio
 {
@@ -43,13 +43,13 @@ namespace NOVAxis.Modules.Audio
         public async IAsyncEnumerable<AudioTrack> Search(string input)
         {
             SearchResponse response = Uri.IsWellFormedUriString(input, 0)
-                ? await LavaNode.SearchAsync(input)
+                ? await LavaNode.SearchAsync(SearchType.Direct, input)
                 : await LavaNode.SearchYouTubeAsync(input);
 
-            switch (response.LoadStatus)
+            switch (response.Status)
             {
-                case LoadStatus.LoadFailed: throw new HttpRequestException();
-                case LoadStatus.NoMatches: throw new ArgumentNullException();
+                case SearchStatus.LoadFailed: throw new HttpRequestException();
+                case SearchStatus.NoMatches: throw new ArgumentNullException();
             }
 
             // Check if search result is a playlist

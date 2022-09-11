@@ -35,7 +35,7 @@ namespace NOVAxis.Modules.Clear
 
                 var messages = (
                     from m in await Context.Channel.GetMessagesAsync(numberOfMessages + 1).FlattenAsync() // Add 1 to also count the user's invocation message
-                    where DateTime.UtcNow - m.Timestamp.UtcDateTime < TimeSpan.FromDays(14)                           // Removes messages older than 14 days due to Discord API limitations
+                    where DateTime.UtcNow - m.Timestamp.UtcDateTime < TimeSpan.FromDays(14)               // Removes messages older than 14 days due to Discord API limitations
                     select m).ToList();
 
                 await ((ITextChannel)Context.Channel).DeleteMessagesAsync(messages);
