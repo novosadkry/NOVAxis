@@ -44,7 +44,6 @@ namespace NOVAxis.Core
             {
                 LogLevel = Config.Log.Severity,
                 TotalShards = Config.TotalShards,
-                ExclusiveBulkDelete = true,
                 MessageCacheSize = 100
             });
 
