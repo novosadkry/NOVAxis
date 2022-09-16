@@ -12,14 +12,18 @@ using NOVAxis.Services.Database;
 
 using Discord;
 using Discord.Commands;
+using Discord.Interactions;
 using Discord.WebSocket;
 
 using Interactivity;
 using Victoria;
 
+using CommandRunMode = Discord.Commands.RunMode;
+using InteractionRunMode = Discord.Interactions.RunMode;
+
 namespace NOVAxis.Core
 {
-    public class Program
+    public static class Program
     {
         public static DiscordShardedClient Client { get; private set; }
         public static ProgramConfig Config { get; private set; }
@@ -50,7 +54,13 @@ namespace NOVAxis.Core
             var commandService = new CommandService(new CommandServiceConfig
             {
                 CaseSensitiveCommands = false,
-                DefaultRunMode = RunMode.Async,
+                DefaultRunMode = CommandRunMode.Async,
+                LogLevel = Config.Log.Severity
+            });
+
+            var interactionService = new InteractionService(Client, new InteractionServiceConfig
+            {
+                DefaultRunMode = InteractionRunMode.Async,
                 LogLevel = Config.Log.Severity
             });
 
@@ -77,13 +87,14 @@ namespace NOVAxis.Core
                 .AddSingleton(lavaNode)
                 .AddSingleton(databaseService)
                 .AddSingleton(guildService)
+                .AddSingleton(commandService)
+                .AddSingleton(interactionService)
                 .AddSingleton(new InteractivityService(Client))
                 .AddSingleton(new AudioModuleService(lavaNode))
                 .BuildServiceProvider();
 
-            Modules = new ModuleHandler(Client, Services, commandService);
+            Modules = new ModuleHandler(Client, Services, commandService, interactionService);
             Modules.LogEvent += Client_Log;
-            await Modules.Setup();
 
             Client.ShardReady += Client_Ready;
             Client.Log += Client_Log;
@@ -150,6 +161,8 @@ namespace NOVAxis.Core
             {
                 await Client_Log(new LogMessage(LogSeverity.Info, "Victoria", "Connecting"));
                 await Task.Run(() => lavaNodeInstance?.ConnectAsync());
+
+                await Modules.Setup();
             }
         }
     }

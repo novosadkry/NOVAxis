@@ -1,7 +1,13 @@
 {
   "LoginToken": "INSERT_LOGINTOKEN_HERE",
-  "DefaultPrefix": "~",
   "TotalShards": 1,
+  "Interaction": {
+    "DefaultPrefix": "~",
+    "Commands": {
+      "RegisterGlobally": false,
+      "RegisterToGuild": 0
+    }
+  },
   "Activity": {
     "Online": "pohyb atomů",
     "Afk": "ochlazování jádra",
