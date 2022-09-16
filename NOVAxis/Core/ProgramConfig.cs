@@ -11,11 +11,20 @@ namespace NOVAxis.Core
     {
         public const string ConfigPath = @"config.json";
 
-        public static ProgramConfig Default => new ProgramConfig
+        public static ProgramConfig Default => new()
         {
             LoginToken = "INSERT_LOGINTOKEN_HERE",
-            DefaultPrefix = "~",
             TotalShards = 1,
+
+            Interaction = new InteractionObject
+            {
+                DefaultPrefix = "~",
+                Commands = new InteractionObject.CommandsObject
+                {
+                    RegisterGlobally = true,
+                    RegisterToGuild = 0
+                }
+            },
 
             Activity = new ActivityObject
             {
@@ -46,6 +55,7 @@ namespace NOVAxis.Core
                 Active = true,
                 DbType = "sqlite",
                 DbHost = "localhost",
+                DbPort = 0,
                 DbUsername = "novaxis",
                 DbPassword = "123",
                 DbName = "novaxis"
@@ -66,6 +76,19 @@ namespace NOVAxis.Core
                 }
             }
         };
+
+        public struct InteractionObject
+        {
+            public struct CommandsObject
+            {
+                public bool RegisterGlobally { get; set; }
+                public ulong RegisterToGuild { get; set; }
+            }
+
+            public string DefaultPrefix { get; set; }
+            public CommandsObject Commands { get; set; }
+
+        }
 
         public struct ActivityObject
         {
@@ -120,14 +143,14 @@ namespace NOVAxis.Core
             public TimeSpan? RelativeExpiration { get; set; }
         }
 
-        public string LoginToken { get; set; }
-        public string DefaultPrefix { get; set; }
-        public int TotalShards { get; set; }
-        public ActivityObject Activity { get; set; }
-        public LogObject Log { get; set; }
-        public LavalinkObject Lavalink { get; set; }
-        public DatabaseObject Database { get; set; }
-        public AudioObject Audio { get; set; }
+        public string            LoginToken  { get; set; }
+        public int               TotalShards { get; set; }
+        public InteractionObject Interaction { get; set; }
+        public ActivityObject    Activity    { get; set; }
+        public LogObject         Log         { get; set; }
+        public LavalinkObject    Lavalink    { get; set; }
+        public DatabaseObject    Database    { get; set; }
+        public AudioObject       Audio       { get; set; }
 
         public static event Func<LogMessage, Task> LogEvent;
 

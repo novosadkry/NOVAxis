@@ -2,6 +2,7 @@
 using System.Reflection;
 using System.Threading.Tasks;
 
+using NOVAxis.Core;
 using NOVAxis.TypeReaders;
 using NOVAxis.Services.Guild;
 
@@ -9,7 +10,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Discord;
 using Discord.Commands;
+using Discord.Interactions;
 using Discord.WebSocket;
+
+using ICommandResult = Discord.Commands.IResult;
 
 namespace NOVAxis.Modules
 {
@@ -19,16 +23,26 @@ namespace NOVAxis.Modules
         private readonly IServiceProvider _services;
 
         public CommandService CommandService { get; }
+        public InteractionService InteractionService { get; }
+
         public event Func<LogMessage, Task> LogEvent;
 
-        public ModuleHandler(DiscordShardedClient client, IServiceProvider services, CommandService commandService)
+        public ModuleHandler(
+            DiscordShardedClient client, 
+            IServiceProvider services, 
+            CommandService commandService, 
+            InteractionService interactionService)
         {
             CommandService = commandService;
+            InteractionService = interactionService;
+
             _services = services;
             _client = client;
 
             _client.MessageReceived += MessageReceived;
             CommandService.CommandExecuted += CommandExecuted;
+
+            _client.InteractionCreated += InteractionCreated;
         }
 
         ~ModuleHandler()
@@ -40,13 +54,29 @@ namespace NOVAxis.Modules
         public async Task Setup()
         {
             CommandService.AddTypeReader<TimeSpan>(new TimeSpanTypeReader());
+
             await CommandService.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
+            await InteractionService.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
+
+            var config = Program.Config.Interaction.Commands;
+
+            if (config.RegisterGlobally)
+                await InteractionService.RegisterCommandsGloballyAsync();
+
+            else if (config.RegisterToGuild != 0)
+                await InteractionService.RegisterCommandsToGuildAsync(config.RegisterToGuild);
+        }
+
+        private async Task InteractionCreated(SocketInteraction arg)
+        {
+            var ctx = new ShardedInteractionContext(_client, arg);
+            await InteractionService.ExecuteCommandAsync(ctx, _services);
         }
 
         private async Task MessageReceived(SocketMessage arg)
         {
-            SocketUserMessage message = (SocketUserMessage)arg;
-            ShardedCommandContext context = new ShardedCommandContext(_client, message);
+            var message = (SocketUserMessage)arg;
+            var context = new ShardedCommandContext(_client, message);
 
             if (context.Message == null) return;
             if (context.User.IsBot) return;
@@ -81,7 +111,7 @@ namespace NOVAxis.Modules
             await CommandService.ExecuteAsync(context, argPos, _services);
         }
 
-        private async Task CommandExecuted(Optional<CommandInfo> info, ICommandContext context, IResult result)
+        private async Task CommandExecuted(Optional<CommandInfo> info, ICommandContext context, ICommandResult result)
         {
             if (!result.IsSuccess)
             {

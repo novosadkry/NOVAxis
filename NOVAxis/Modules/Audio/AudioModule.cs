@@ -10,7 +10,7 @@ using NOVAxis.Services.Audio;
 using NOVAxis.Services.Guild;
 
 using Discord;
-using Discord.Commands;
+using Discord.Interactions;
 
 using Interactivity;
 
@@ -21,11 +21,11 @@ using Victoria.Responses.Search;
 namespace NOVAxis.Modules.Audio
 {
     [Cooldown(1)]
-    [Group("audio"), Alias("a")]
+    [Group("audio", "Audio related commands")]
     [RequireContext(ContextType.Guild)]
     [RequireOwner(Group = "Permission")]
-    [RequireRole("DjRole", true, Group = "Permission")]
-    public class AudioModule : ModuleBase<ShardedCommandContext>
+    [Preconditions.RequireRole("DjRole", true, Group = "Permission")]
+    public class AudioModule : InteractionModuleBase<ShardedInteractionContext>
     {
         public LavaNode LavaNode { get; set; }
         public InteractivityService InteractivityService { get; set; }
@@ -34,7 +34,8 @@ namespace NOVAxis.Modules.Audio
         public GuildService GuildService { get; set; }
 
         #region Functions
-        protected override void BeforeExecute(CommandInfo command)
+
+        public override void BeforeExecute(ICommandInfo command)
         {
             AudioContext = AudioModuleService[Context.Guild.Id];
             base.BeforeExecute(command);
@@ -99,29 +100,15 @@ namespace NOVAxis.Modules.Audio
         #endregion
 
         #region Commands
-        [Command("join"), Alias("j"), Summary("Joins a voice channel")]
-        public async Task JoinChannel()
+
+        [SlashCommand("join", "Joins a selected voice channel")]
+        public async Task JoinChannel(IVoiceChannel voiceChannel = null)
         {
-            IVoiceChannel voiceChannel = ((IGuildUser)Context.User).VoiceChannel;
+            voiceChannel ??= ((IGuildUser)Context.User).VoiceChannel;
 
-            await JoinChannel(voiceChannel);
-        }
-
-        [Command("join"), Alias("j"), Summary("Joins a selected voice channel")]
-        public async Task JoinChannel(string channelname)
-        {
-            IVoiceChannel voiceChannel = (from ch in Context.Guild.VoiceChannels
-                                          where ch.Name.Contains(channelname)
-                                          select ch).FirstOrDefault();
-
-            await JoinChannel(voiceChannel);
-        }
-
-        private async Task JoinChannel(IVoiceChannel voiceChannel)
-        {
             if (!LavaNode.IsConnected)
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Služba není dostupná)")
                     .WithTitle("Mé jádro pravě nemůže poskytnout stabilní modul audia").Build());
@@ -131,7 +118,7 @@ namespace NOVAxis.Modules.Audio
 
             if (voiceChannel == null)
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný kanál)")
                     .WithTitle("Mému jádru se nepodařilo naladit na stejnou zvukovou frekvenci").Build());
@@ -147,7 +134,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (player.VoiceChannel == voiceChannel)
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Mé jádro už bylo naladěno na stejnou zvukovou frekvenci").Build());
@@ -169,17 +156,17 @@ namespace NOVAxis.Modules.Audio
 
             await AudioContext.InitiateDisconnectAsync(player, AudioModuleService.AudioConfig.Timeout.Idle);
 
-            await ReplyAsync(embed: new EmbedBuilder()
+            await RespondAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
                 .WithTitle($"Připojuji se ke kanálu `{voiceChannel.Name}`").Build());
         }
 
-        [Command("leave"), Alias("quit", "disconnect", "l"), Summary("Leaves a voice channel")]
+        [SlashCommand("leave", "Leaves a voice channel")]
         public async Task LeaveChannel()
         {
             if (!LavaNode.IsConnected)
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Služba není dostupná)")
                     .WithTitle("Mé jádro pravě nemůže poskytnout stabilní modul audia").Build());
@@ -189,7 +176,7 @@ namespace NOVAxis.Modules.Audio
 
             if (!LavaNode.HasPlayer(Context.Guild))
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Mé jádro musí být před odpojením naladěno na správnou frekvenci").Build());
@@ -202,7 +189,7 @@ namespace NOVAxis.Modules.Audio
 
             if (player.VoiceChannel != voiceChannel && await player.VoiceChannel.GetHumanUsers().CountAsync() > 0)
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Pro komunikaci s jádrem musíš být naladěn na stejnou frekvenci").Build());
@@ -228,12 +215,12 @@ namespace NOVAxis.Modules.Audio
         }
 
         [Cooldown(5)]
-        [Command("play"), Alias("p"), Summary("Plays an audio transmission")]
-        public async Task PlayAudio([Remainder]string input)
+        [SlashCommand("play", "Plays an audio transmission")]
+        public async Task PlayAudio(string input)
         {
             if (!LavaNode.IsConnected)
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Služba není dostupná)")
                     .WithTitle("Mé jádro pravě nemůže poskytnout stabilní modul audia").Build());
@@ -245,7 +232,7 @@ namespace NOVAxis.Modules.Audio
 
             if (voiceChannel == null)
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný kanál)")
                     .WithTitle("Mému jádru se nepodařilo naladit na stejnou zvukovou frekvenci").Build());
@@ -292,7 +279,7 @@ namespace NOVAxis.Modules.Audio
                 {
                     await player.PlayAsync(AudioContext.Queue.First());
 
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(52, 231, 231)
                         .WithAuthor("Právě přehrávám:")
                         .WithTitle($"{player.Track.Title}")
@@ -317,7 +304,7 @@ namespace NOVAxis.Modules.Audio
                         foreach (var track in tracks)
                             totalDuration += track.Duration;
 
-                        await ReplyAsync(embed: new EmbedBuilder()
+                        await RespondAsync(embed: new EmbedBuilder()
                             .WithColor(52, 231, 231)
                             .WithAuthor($"Přidáno do fronty ({tracks.Count}):")
                             .WithTitle($"{AudioContext.LastTrack.Title}")
@@ -333,7 +320,7 @@ namespace NOVAxis.Modules.Audio
 
                     else
                     {
-                        await ReplyAsync(embed: new EmbedBuilder()
+                        await RespondAsync(embed: new EmbedBuilder()
                             .WithColor(52, 231, 231)
                             .WithAuthor("Přidáno do fronty:")
                             .WithTitle($"{AudioContext.LastTrack.Title}")
@@ -353,7 +340,7 @@ namespace NOVAxis.Modules.Audio
 
             catch (HttpRequestException)
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Služba není dostupná)")
                     .WithTitle("Mé jádro pravě nemůže poskytnout stabilní stream audia").Build());
@@ -361,14 +348,14 @@ namespace NOVAxis.Modules.Audio
 
             catch (ArgumentNullException)
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný argument)")
                     .WithTitle("Mému jádru se nepodařilo v databázi nalézt požadovanou stopu").Build());
             }
         }
 
-        [Command("skip"), Alias("next", "n"), Summary("Skips to the next audio transmission")]
+        [SlashCommand("skip", "Skips to the next audio transmission")]
         public async Task SkipAudio()
         {
             if (LavaNode.HasPlayer(Context.Guild))
@@ -377,7 +364,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (player.Track == null)
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -390,14 +377,14 @@ namespace NOVAxis.Modules.Audio
 
             else
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
             }
         }
 
-        [Command("stop"), Alias("s"), Summary("Stops the audio transmission")]
+        [SlashCommand("stop", "Stops the audio transmission")]
         public async Task StopAudio()
         {
             if (LavaNode.HasPlayer(Context.Guild))
@@ -406,7 +393,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (player.Track == null)
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -419,21 +406,21 @@ namespace NOVAxis.Modules.Audio
 
                 await player.StopAsync();
 
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithTitle("Stream audia byl úspěšně zastaven").Build());
             }
 
             else
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
             }
         }
 
-        [Command("pause"), Summary("Pauses the audio transmission")]
+        [SlashCommand("pause", "Pauses the audio transmission")]
         public async Task PauseAudio()
         {
             if (LavaNode.HasPlayer(Context.Guild))
@@ -442,7 +429,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (player.Track == null)
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -452,7 +439,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (player.PlayerState == PlayerState.Paused)
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Stream audia byl dávno pozastaven (pro obnovení použíjte `~audio resume`)")
@@ -464,21 +451,21 @@ namespace NOVAxis.Modules.Audio
                 await player.PauseAsync();
                 await AudioContext.InitiateDisconnectAsync(player, AudioModuleService.AudioConfig.Timeout.Paused);
 
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithTitle("Stream audia byl úspěšně pozastaven").Build());
             }
 
             else
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
             }
         }
 
-        [Command("resume"), Summary("Resumes the audio transmission")]
+        [SlashCommand("resume", "Resumes the audio transmission")]
         public async Task ResumeAudio()
         {
             if (LavaNode.HasPlayer(Context.Guild))
@@ -487,7 +474,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (player.Track == null)
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -497,7 +484,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (player.PlayerState == PlayerState.Playing)
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Stream audia právě běží (pro pozastavení použíjte `~audio pause`)").Build());
@@ -508,21 +495,21 @@ namespace NOVAxis.Modules.Audio
                 await player.ResumeAsync();
                 await AudioContext.CancelDisconnectAsync();
 
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithTitle("Stream audia byl úspěšně obnoven").Build());
             }
 
             else
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
             }
         }
 
-        [Command("seek"), Summary("Seeks a position in the audio transmissions")]
+        [SlashCommand("seek", "Seeks a position in the audio transmissions")]
         public async Task SeekAudio(TimeSpan time)
         {
             if (LavaNode.HasPlayer(Context.Guild))
@@ -531,7 +518,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (player.Track == null)
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -541,7 +528,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (time > player.Track.Duration)
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(220, 20, 60)
                         .WithDescription("(Neplatný argument)")
                         .WithTitle("Nelze nastavit hodnotu přesahující maximální délku stopy").Build());
@@ -551,7 +538,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (time < TimeSpan.Zero)
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(220, 20, 60)
                         .WithDescription("(Neplatný argument)")
                         .WithTitle("Nelze nastavit zápornou hodnotu").Build());
@@ -559,7 +546,7 @@ namespace NOVAxis.Modules.Audio
                     return;
                 }
 
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithTitle($"Pozice audia byla úspěšně nastavena na `{time:hh\\:mm\\:ss}`").Build());
 
@@ -568,14 +555,14 @@ namespace NOVAxis.Modules.Audio
 
             else
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
             }
         }
 
-        [Command("forward"), Summary("Forwards to a position in the audio transmissions")]
+        [SlashCommand("forward", "Forwards to a position in the audio transmissions")]
         public async Task ForwardAudio(TimeSpan time)
         {
             if (LavaNode.HasPlayer(Context.Guild))
@@ -584,7 +571,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (player.Track == null)
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -594,7 +581,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (time <= TimeSpan.Zero)
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(220, 20, 60)
                         .WithDescription("(Neplatný argument)")
                         .WithTitle("Nelze posunout o zápornou nebo nulovou hodnotu").Build());
@@ -607,7 +594,7 @@ namespace NOVAxis.Modules.Audio
                 if (newTime > player.Track.Duration)
                     newTime = player.Track.Duration;
 
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime:hh\\:mm\\:ss}`").Build());
 
@@ -616,14 +603,14 @@ namespace NOVAxis.Modules.Audio
 
             else
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
             }
         }
 
-        [Command("backward"), Summary("Backwards to a position in the audio transmissions")]
+        [SlashCommand("backward", "Backwards to a position in the audio transmissions")]
         public async Task BackwardAudio(TimeSpan time)
         {
             if (LavaNode.HasPlayer(Context.Guild))
@@ -632,7 +619,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (player.Track == null)
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -642,7 +629,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (time <= TimeSpan.Zero)
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(220, 20, 60)
                         .WithDescription("(Neplatný argument)")
                         .WithTitle("Nelze posunout o zápornou nebo nulovou hodnotu").Build());
@@ -655,7 +642,7 @@ namespace NOVAxis.Modules.Audio
                 if (newTime < TimeSpan.Zero)
                     newTime = TimeSpan.Zero;
 
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime:hh\\:mm\\:ss}`").Build());
 
@@ -664,14 +651,14 @@ namespace NOVAxis.Modules.Audio
 
             else
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
             }
         }
 
-        [Command("volume"), Summary("Sets a volume of the audio transmissions")]
+        [SlashCommand("volume", "Sets a volume of the audio transmissions")]
         public async Task AudioVolume(ushort percentage)
         {
             if (LavaNode.HasPlayer(Context.Guild))
@@ -680,7 +667,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (player.Track == null)
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -690,7 +677,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (percentage > 150)
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný argument)")
                         .WithTitle("Mé jádro nepodporuje hlasitost vyšší než 150%").Build());
@@ -698,7 +685,7 @@ namespace NOVAxis.Modules.Audio
                     return;
                 }
 
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithTitle($"Hlasitost audia byla úspěšně nastavena na {percentage}%").Build());
 
@@ -707,14 +694,14 @@ namespace NOVAxis.Modules.Audio
 
             else
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
             }
         }
 
-        [Command("status"), Alias("np", "info"), Summary("Shows active audio transmissions")]
+        [SlashCommand("status", "Shows active audio transmissions")]
         public async Task AudioStatus()
         {
             if (LavaNode.HasPlayer(Context.Guild))
@@ -723,7 +710,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (player.Track == null)
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -733,7 +720,7 @@ namespace NOVAxis.Modules.Audio
 
                 var statusEmoji = GetStatusEmoji(AudioContext, player);
 
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithAuthor("Právě přehrávám:")
                     .WithTitle($"{player.Track.Title}")
@@ -752,19 +739,19 @@ namespace NOVAxis.Modules.Audio
 
             else
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
             }
         }
 
-        [Command("queue"), Alias("q"), Summary("Shows enqueued audio transmissions")]
+        [SlashCommand("queue", "Shows enqueued audio transmissions")]
         public async Task AudioQueue()
         {
             if (AudioContext.Queue.Count < 1 || !LavaNode.HasPlayer(Context.Guild))
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď se ve frontě nenachází žádná zvuková stopa").Build());
@@ -827,12 +814,12 @@ namespace NOVAxis.Modules.Audio
                 TimeSpan.FromMinutes(2));
         }
 
-        [Command("remove"), Summary("Removes an enqueued audio transmission")]
+        [SlashCommand("remove", "Removes an enqueued audio transmission")]
         public async Task RemoveAudio(int index)
         {
             if (AudioContext.Queue.Count <= 1)
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď se ve frontě nenachází žádná zvuková stopa").Build());
@@ -852,26 +839,21 @@ namespace NOVAxis.Modules.Audio
 
             AudioContext.Queue.RemoveAt(index);
 
-            await ReplyAsync(embed: new EmbedBuilder()
+            await RespondAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
                 .WithTitle("Požadovaná stopa byla úspěšně odebrána z fronty").Build());
         }
 
-        [Command("repeat"), Summary("Repeats enqueued audio transmission")]
-        public async Task RepeatAudio(string mode = null)
+        [SlashCommand("repeat", "Repeats enqueued audio transmission")]
+        public async Task RepeatAudio(RepeatMode mode = RepeatMode.None)
         {
-            RepeatMode repeatMode;
-
-            try { repeatMode = Enum.Parse<RepeatMode>(mode ?? string.Empty, true); }
-            catch (Exception) { repeatMode = RepeatMode.None; }
-
             if (LavaNode.HasPlayer(Context.Guild))
             {
                 LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
 
                 if (player.Track == null)
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -879,20 +861,20 @@ namespace NOVAxis.Modules.Audio
                     return;
                 }
 
-                if (AudioContext.Repeat != repeatMode && repeatMode != RepeatMode.None)
+                if (AudioContext.Repeat != mode && mode != RepeatMode.None)
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(52, 231, 231)
                         .WithTitle("Nadcházející stopy nyní porušují časové kontinuum")
                         .WithDescription("(Režim opakování byl zapnut)")
                         .Build());
 
-                    AudioContext.Repeat = repeatMode;
+                    AudioContext.Repeat = mode;
                 }
 
                 else
                 {
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    await RespondAsync(embed: new EmbedBuilder()
                         .WithColor(52, 231, 231)
                         .WithTitle("Nadcházející stopy nyní dodržují časové kontinuum")
                         .WithDescription("(Režim opakování byl vypnut)")
@@ -904,15 +886,19 @@ namespace NOVAxis.Modules.Audio
 
             else
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
             }
         }
 
+        /*
+
+        TODO: DEPRECATED
+
         [RequireOwner]
-        [Command("setrole"), Summary("Sets the guild's DJ role which is used to identify eligible users")]
+        [SlashCommand("setrole", "Sets the guild's DJ role which is used to identify eligible users")]
         public async Task SetDjRole(IRole role)
         {
             var guildInfo = await GuildService.GetInfo(Context);
@@ -920,14 +906,14 @@ namespace NOVAxis.Modules.Audio
 
             await GuildService.SetInfo(Context, guildInfo);
 
-            await ReplyAsync(embed: new EmbedBuilder()
+            await RespondAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
                 .WithDescription($"(Nastavena role {role.Mention})")
                 .WithTitle("Konfigurace mého jádra proběhla úspešně").Build());
         }
 
         [RequireOwner]
-        [Command("setrole"), Summary("Sets the guild's DJ role which is used to identify eligible users")]
+        [SlashCommand("setrole", "Sets the guild's DJ role which is used to identify eligible users")]
         public async Task SetDjRole(ulong roleId = 0)
         {
             IRole role = Context.Guild.GetRole(roleId);
@@ -939,7 +925,7 @@ namespace NOVAxis.Modules.Audio
 
                 await GuildService.SetInfo(Context, guildInfo);
 
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithDescription($"(Nastavená role {role.Mention})")
                     .WithTitle("Konfigurace mého jádra proběhla úspešně").Build());
@@ -952,7 +938,7 @@ namespace NOVAxis.Modules.Audio
 
                 await GuildService.SetInfo(Context, guildInfo);
 
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithDescription("(Nastavená role zrušena)")
                     .WithTitle("Konfigurace mého jádra proběhla úspešně").Build());
@@ -960,12 +946,14 @@ namespace NOVAxis.Modules.Audio
 
             else
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný argument)")
                     .WithTitle("Má databáze nebyla schopna rozpoznat daný prvek").Build());
             }
         }
+        */
+
         #endregion
     }
 }

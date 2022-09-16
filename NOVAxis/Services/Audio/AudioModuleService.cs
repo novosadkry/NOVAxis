@@ -128,13 +128,11 @@ namespace NOVAxis.Services.Audio
                     .WithTitle($"{nextTrack.Title}")
                     .WithUrl(nextTrack.Url)
                     .WithThumbnailUrl(nextTrack.ThumbnailUrl)
-
                     .AddField("Autor:", nextTrack.Author, true)
                     .AddField("Délka:", $"`{nextTrack.Duration}`", true)
                     .AddField("Vyžádal:", nextTrack.RequestedBy.Mention, true)
                     .AddField("Hlasitost:", $"{args.Player.Volume}%", true)
                     .AddField("Stav:", $"{string.Join(' ', statusEmoji)}", true)
-                    
                     .Build());
             }
 
