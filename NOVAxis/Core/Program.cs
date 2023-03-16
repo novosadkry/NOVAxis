@@ -8,7 +8,6 @@ using Microsoft.Extensions.DependencyInjection;
 using NOVAxis.Modules;
 using NOVAxis.Services.Audio;
 using NOVAxis.Services.Guild;
-using NOVAxis.Services.Database;
 
 using Discord;
 using Discord.Commands;
@@ -77,23 +76,16 @@ namespace NOVAxis.Core
             var lavaNode = new LavaNode(Client, lavaConfig);
             lavaNode.OnLog += Client_Log;
 
-            var databaseService = DatabaseService.GetService(Config.Database);
-            databaseService.LogEvent += Client_Log;
-            if (Config.Database.Active) await databaseService.Setup();
-
-            var guildService = new GuildService(databaseService);
-            if (Config.Database.Active) await guildService.LoadFromDatabase();
-
             Services = new ServiceCollection()
                 .AddSingleton(lavaNode)
-                .AddSingleton(databaseService)
-                .AddSingleton(guildService)
                 .AddSingleton(commandService)
                 .AddSingleton(interactionService)
                 .AddSingleton(new InteractivityService(Client))
                 .AddSingleton(new AudioModuleService(lavaNode))
+                .AddSingleton<GuildService>()
+                .AddDbContext<GuildDbContext>()
                 .BuildServiceProvider();
-
+ 
             Modules = new ModuleHandler(Client, Services, commandService, interactionService);
             Modules.LogEvent += Client_Log;
 
