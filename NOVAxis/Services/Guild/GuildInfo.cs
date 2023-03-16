@@ -2,8 +2,9 @@
 
 namespace NOVAxis.Services.Guild
 {
-    public struct GuildInfo
+    public class GuildInfo
     {
+        public ulong GuildId { get; set; }
         public string Prefix { get; set; }
         public ulong DjRole { get; set; }
 
