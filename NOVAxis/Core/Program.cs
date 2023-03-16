@@ -48,7 +48,8 @@ namespace NOVAxis.Core
             {
                 LogLevel = Config.Log.Severity,
                 TotalShards = Config.TotalShards,
-                MessageCacheSize = 100
+                MessageCacheSize = 100,
+                GatewayIntents = GatewayIntents.All
             });
 
             var commandService = new CommandService(new CommandServiceConfig
