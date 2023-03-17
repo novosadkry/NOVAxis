@@ -41,8 +41,12 @@ namespace NOVAxis.Modules
             InteractionService = interactionService;
 
             Client.MessageReceived += MessageReceived;
-            CommandService.CommandExecuted += CommandExecuted;
             Client.InteractionCreated += InteractionCreated;
+
+            CommandService.CommandExecuted += CommandExecuted;
+            CommandService.Log += Logger.Log;
+
+            InteractionService.Log += Logger.Log;
         }
 
         ~ModuleHandler()
