@@ -14,6 +14,7 @@ using Discord.Interactions;
 using Discord.WebSocket;
 
 using ICommandResult = Discord.Commands.IResult;
+using IResult = Discord.Interactions.IResult;
 
 namespace NOVAxis.Modules
 {
@@ -46,13 +47,8 @@ namespace NOVAxis.Modules
             CommandService.CommandExecuted += CommandExecuted;
             CommandService.Log += Logger.Log;
 
+            InteractionService.InteractionExecuted += InteractionExecuted;
             InteractionService.Log += Logger.Log;
-        }
-
-        ~ModuleHandler()
-        {
-            Client.MessageReceived -= MessageReceived;
-            CommandService.CommandExecuted -= CommandExecuted;
         }
 
         public async Task Setup()
@@ -113,6 +109,76 @@ namespace NOVAxis.Modules
             }
 
             await CommandService.ExecuteAsync(context, argPos, Services);
+        }
+
+        private async Task InteractionExecuted(ICommandInfo info, IInteractionContext context, IResult result)
+        {
+            if (!result.IsSuccess)
+            {
+                string title = string.Empty, description = string.Empty;
+                bool sendMessage = true, logWarning = false;
+
+                switch (result.Error)
+                {
+                    case InteractionCommandError.UnknownCommand:
+                        title = "Má verze jádra ještě není schopna téhle funkce";
+                        description = $"(Příkaz `{info.Name}` neexistuje)";
+                        break;
+
+                    case InteractionCommandError.BadArgs:
+                    case InteractionCommandError.ParseFailed:
+                    case InteractionCommandError.ConvertFailed:
+                        title = "Má databáze nebyla schopna rozpoznat daný prvek";
+                        description = "(Neplatný argument)";
+                        break;
+
+                    case InteractionCommandError.UnmetPrecondition:
+                        switch (result.ErrorReason)
+                        {
+                            case "Invalid context for command":
+                                title = "Tento příkaz nelze vyvolat přímou zprávou";
+                                description = "(Přístup odepřen)";
+                                break;
+
+                            case "User has command on cooldown":
+                                title = "Mé jádro nyní ochlazuje vybraný modul";
+                                description = "(Příkaz je časově omezen)";
+                                break;
+
+                            case "User has command on cooldown (no warning)":
+                                sendMessage = false;
+                                break;
+
+                            default:
+                                title = "Pro operaci s tímto modulem nemáš dodatečnou kvalifikaci";
+                                description = "(Přístup odepřen)";
+                                break;
+                        }
+                        break;
+
+                    default:
+                        logWarning = true; sendMessage = false;
+                        break;
+                }
+
+                if (sendMessage && !string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(description))
+                {
+                    await Task.Run(() =>
+                    {
+                        context.Interaction.RespondAsync(
+                            ephemeral: true, 
+                            embed: new EmbedBuilder()
+                            .WithColor(220, 20, 60)
+                            .WithDescription(description)
+                            .WithTitle(title).Build());
+                    });
+                }
+
+                await Logger.Log(new LogMessage(
+                    logWarning ? LogSeverity.Warning : LogSeverity.Verbose,
+                    "Command",
+                    $"User {context.User.Username}#{context.User.Discriminator} was unable to execute command '{info.Name}' Reason: '{result.ErrorReason}'"));
+            }
         }
 
         private async Task CommandExecuted(Optional<CommandInfo> info, ICommandContext context, ICommandResult result)

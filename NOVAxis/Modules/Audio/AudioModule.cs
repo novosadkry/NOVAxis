@@ -206,7 +206,7 @@ namespace NOVAxis.Modules.Audio
         {
             if (player != null)
             {
-                await player.TextChannel.SendMessageAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithTitle($"Odpojuji se od kanálu `{player.VoiceChannel.Name}`").Build());
 
@@ -281,7 +281,7 @@ namespace NOVAxis.Modules.Audio
                 {
                     await player.PlayAsync(AudioContext.Queue.First());
 
-                    await RespondAsync(embed: new EmbedBuilder()
+                    await ReplyAsync(embed: new EmbedBuilder()
                         .WithColor(52, 231, 231)
                         .WithAuthor("Právě přehrávám:")
                         .WithTitle($"{player.Track.Title}")
