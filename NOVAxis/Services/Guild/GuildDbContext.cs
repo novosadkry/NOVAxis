@@ -7,35 +7,36 @@ namespace NOVAxis.Services.Guild
     public class GuildDbContext : DbContext
     {
         public DbSet<GuildInfo> Guilds { get; set; }
-        public ProgramConfig.DatabaseObject Config { get; }
 
-        public GuildDbContext()
+        private ProgramConfig Config { get; }
+
+        public GuildDbContext(ProgramConfig config)
         {
-            Config = Program.Config.Database;
+            Config = config;
         }
 
-        private string ConnectionString => Config.DbType switch
+        private string ConnectionString => Config.Database.DbType switch
         {
-            "mysql" => $"Server={Config.DbHost};" +
-                       $"Port={Config.DbPort};" +
-                       $"Database={Config.DbName};" +
-                       $"Uid={Config.DbUsername};" +
-                       $"Pwd={Config.DbPassword}",
+            "mysql" => $"Server={Config.Database.DbHost};" +
+                       $"Port={Config.Database.DbPort};" +
+                       $"Database={Config.Database.DbName};" +
+                       $"Uid={Config.Database.DbUsername};" +
+                       $"Pwd={Config.Database.DbPassword}",
 
-            "sqlite" => $"Data Source={Config.DbName}.db",
+            "sqlite" => $"Data Source={Config.Database.DbName}.db",
 
             _ => throw new InvalidOperationException("Invalid DbType supplied")
         };
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
-            if (!Config.Active)
+            if (!Config.Database.Active)
             {
                 options.UseInMemoryDatabase("novaxis");
                 return;
             }
 
-            switch (Config.DbType)
+            switch (Config.Database.DbType)
             {
                 case "mysql":
                     options.UseMySQL(ConnectionString);

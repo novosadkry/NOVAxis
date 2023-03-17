@@ -7,12 +7,29 @@ using Discord;
 
 namespace NOVAxis.Core
 {
-    public static class ProgramLog
+    public class ProgramLogger
     {
+        private ProgramConfig Config { get; }
         private static string LogPathFormat => Path.Combine(".", "log", "log_{0}.txt");
         private static string LogPath => string.Format(LogPathFormat, $"{DateTime.Now.Day}.{DateTime.Now.Month}.{DateTime.Now.Year}");
 
-        public static Task ToConsole(LogMessage arg)
+        public ProgramLogger(ProgramConfig config)
+        {
+            Config = config;
+        }
+
+        public async Task Log(LogMessage arg)
+        {
+            if (arg.Severity > Config.Log.Severity)
+                return;
+
+            await ToConsole(arg);
+
+            if (Config.Log.Active)
+                await ToFile(arg);
+        }
+
+        public Task ToConsole(LogMessage arg)
         { 
             switch (arg.Severity)
             {
@@ -40,7 +57,7 @@ namespace NOVAxis.Core
             return Task.CompletedTask;
         }
 
-        public static async Task ToFile(LogMessage arg)
+        public async Task ToFile(LogMessage arg)
         {
             if (!Directory.Exists(Directory.GetParent(LogPath).FullName))
                 Directory.CreateDirectory(Directory.GetParent(LogPath).FullName);

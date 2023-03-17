@@ -15,17 +15,17 @@ namespace NOVAxis.Services.Audio
 {
     public class AudioModuleService
     {
-        public ProgramConfig.AudioObject AudioConfig { get; }
+        private DiscordShardedClient Client { get;}
+        private ProgramConfig Config { get;}
+        private LavaNode LavaNode { get;}
+        private Cache<ulong, Lazy<AudioContext>> Guilds { get; }
 
-        private readonly LavaNode _lavaNodeInstance;
-        private readonly Cache<ulong, Lazy<AudioContext>> _guilds;
-
-        public AudioModuleService(LavaNode lavaNodeInstance)
+        public AudioModuleService(DiscordShardedClient client, ProgramConfig config, LavaNode lavaNode)
         {
-            AudioConfig = Program.Config.Audio;
-            _guilds = new Cache<ulong, Lazy<AudioContext>>(
-                AudioConfig.Cache.AbsoluteExpiration,
-                AudioConfig.Cache.RelativeExpiration,
+            Config = config;
+            Guilds = new Cache<ulong, Lazy<AudioContext>>(
+                Config.Audio.Cache.AbsoluteExpiration,
+                Config.Audio.Cache.RelativeExpiration,
                 (key, value, reason, state) =>
                 {
                     if (value is Lazy<AudioContext> { IsValueCreated: true } context)
@@ -33,43 +33,44 @@ namespace NOVAxis.Services.Audio
                 }
             );
 
-            _lavaNodeInstance = lavaNodeInstance;
-            _lavaNodeInstance.OnTrackEnded += AudioModuleService_TrackEnd;
-            _lavaNodeInstance.OnTrackStarted += AudioModuleService_TrackStart;
+            LavaNode = lavaNode;
+            LavaNode.OnTrackEnded += AudioModuleService_TrackEnd;
+            LavaNode.OnTrackStarted += AudioModuleService_TrackStart;
 
-            Program.Client.UserVoiceStateUpdated += AudioModuleService_UserVoiceStateUpdated;
+            Client = client;
+            Client.UserVoiceStateUpdated += AudioModuleService_UserVoiceStateUpdated;
         }
 
         ~AudioModuleService()
         {
-            _lavaNodeInstance.OnTrackEnded -= AudioModuleService_TrackEnd;
-            _lavaNodeInstance.OnTrackStarted -= AudioModuleService_TrackStart;
+            LavaNode.OnTrackEnded -= AudioModuleService_TrackEnd;
+            LavaNode.OnTrackStarted -= AudioModuleService_TrackStart;
 
-            Program.Client.UserVoiceStateUpdated -= AudioModuleService_UserVoiceStateUpdated;
+            Client.UserVoiceStateUpdated -= AudioModuleService_UserVoiceStateUpdated;
         }
 
         public AudioContext this[ulong id]
         {
-            get => _guilds.GetOrAdd(id, new Lazy<AudioContext>(() => new AudioContext(_lavaNodeInstance, id))).Value;
-            set => _guilds[id] = new Lazy<AudioContext>(value);
+            get => Guilds.GetOrAdd(id, new Lazy<AudioContext>(() => new AudioContext(LavaNode, id))).Value;
+            set => Guilds[id] = new Lazy<AudioContext>(value);
         }
 
         public void Remove(ulong id)
         {
-            _guilds.Remove(id);
+            Guilds.Remove(id);
         }
 
         private async Task AudioModuleService_UserVoiceStateUpdated(SocketUser user, SocketVoiceState before, SocketVoiceState after)
         {
-            if (user.Id != Program.Client.CurrentUser?.Id || before.VoiceChannel == null)
+            if (user.Id != Client.CurrentUser?.Id || before.VoiceChannel == null)
                 return;
 
-            if (_lavaNodeInstance.HasPlayer(before.VoiceChannel.Guild))
+            if (LavaNode.HasPlayer(before.VoiceChannel.Guild))
             {
                 if (after.VoiceChannel == null)
                 {
                     Remove(before.VoiceChannel.Guild.Id);
-                    await _lavaNodeInstance.LeaveAsync(before.VoiceChannel);
+                    await LavaNode.LeaveAsync(before.VoiceChannel);
                 }
             }
         }
@@ -113,7 +114,7 @@ namespace NOVAxis.Services.Audio
                         .WithColor(52, 231, 231)
                         .WithTitle("Stream audia byl úspěšně dokončen").Build());
 
-                    await audioContext.InitiateDisconnectAsync(args.Player, AudioConfig.Timeout.Idle);
+                    await audioContext.InitiateDisconnectAsync(args.Player, Config.Audio.Timeout.Idle);
                     return;
                 }
 
@@ -137,7 +138,7 @@ namespace NOVAxis.Services.Audio
             }
 
             else
-                await audioContext.InitiateDisconnectAsync(args.Player, AudioConfig.Timeout.Idle);
+                await audioContext.InitiateDisconnectAsync(args.Player, Config.Audio.Timeout.Idle);
         }
     }
 }

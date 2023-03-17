@@ -152,8 +152,6 @@ namespace NOVAxis.Core
         public DatabaseObject    Database    { get; set; }
         public AudioObject       Audio       { get; set; }
 
-        public static event Func<LogMessage, Task> LogEvent;
-
         public static async Task<ProgramConfig> LoadConfig()
         {
             try
@@ -163,10 +161,7 @@ namespace NOVAxis.Core
 
             catch (FileNotFoundException)
             {
-                await LogEvent(new LogMessage(LogSeverity.Error, "Program", $"Config file ({ConfigPath}) not found"));
-                await LogEvent(new LogMessage(LogSeverity.Warning, "Program", "Forcing config reset"));
                 await ResetConfig();
-
                 return Default;
             }
         }

@@ -24,138 +24,141 @@ namespace NOVAxis.Core
 {
     public static class Program
     {
-        public static DiscordShardedClient Client { get; private set; }
-        public static ProgramConfig Config { get; private set; }
-
-        public static ModuleHandler Modules { get; private set; }
-        public static IServiceProvider Services { get; private set; }
-
         public static short ShardsReady { get; private set; }
         public static ulong OwnerId => 269182357704015873L;
 
-        public static string Version 
+        public static string Version
             => Assembly.GetExecutingAssembly().GetName().Version?.ToString()[..5];
 
-        public static async Task Main(string[] args)
+        public static async Task Main()
         {
-            ProgramConfig.LogEvent += Client_Log;
-            Config = await ProgramConfig.LoadConfig();
+            var services = await SetupServices();
 
-            await Client_Log(new LogMessage(LogSeverity.Info, "Program", "NOVAxis v" + Version));
+            var client = services.GetRequiredService<DiscordShardedClient>();
+            var config = services.GetRequiredService<ProgramConfig>();
+            var logger = services.GetRequiredService<ProgramLogger>();
 
-            Client = new DiscordShardedClient(new DiscordSocketConfig
-            {
-                LogLevel = Config.Log.Severity,
-                TotalShards = Config.TotalShards,
-                MessageCacheSize = 100,
-                GatewayIntents = GatewayIntents.All
-            });
-
-            var commandService = new CommandService(new CommandServiceConfig
-            {
-                CaseSensitiveCommands = false,
-                DefaultRunMode = CommandRunMode.Async,
-                LogLevel = Config.Log.Severity
-            });
-
-            var interactionService = new InteractionService(Client, new InteractionServiceConfig
-            {
-                DefaultRunMode = InteractionRunMode.Async,
-                LogLevel = Config.Log.Severity
-            });
-
-            var lavaConfig = new LavaConfig
-            {
-                Hostname = Config.Lavalink.Host,
-                Port = Config.Lavalink.Port,
-                Authorization = Config.Lavalink.Login,
-                SelfDeaf = Config.Lavalink.SelfDeaf,
-                LogSeverity = Config.Log.Severity
-            };
-
-            var lavaNode = new LavaNode(Client, lavaConfig);
-            lavaNode.OnLog += Client_Log;
-
-            Services = new ServiceCollection()
-                .AddSingleton(lavaNode)
-                .AddSingleton(commandService)
-                .AddSingleton(interactionService)
-                .AddSingleton(new InteractivityService(Client))
-                .AddSingleton(new AudioModuleService(lavaNode))
-                .AddSingleton<GuildService>()
-                .AddDbContext<GuildDbContext>()
-                .BuildServiceProvider();
- 
-            Modules = new ModuleHandler(Client, Services, commandService, interactionService);
-            Modules.LogEvent += Client_Log;
-
-            Client.ShardReady += Client_Ready;
-            Client.Log += Client_Log;
-
-            if (Config.Lavalink.Start)
-            {
-                await ProgramCommand.ProgramCommandList
-                    .First(x => x.Name == "lavalink")
-                    .Execute();
-            }
+            await logger.Log(new LogMessage(LogSeverity.Info, "Program", "NOVAxis v" + Version));
 
             try
             {
-                await Client.LoginAsync(TokenType.Bot, Config.LoginToken);
-                await Client.StartAsync();
+                await client.LoginAsync(TokenType.Bot, config.LoginToken);
+                await client.StartAsync();
 
-                await Client.SetGameAsync(Config.Activity.Online, type: Config.Activity.ActivityType);
-                await Client.SetStatusAsync(Config.Activity.UserStatus);
+                await client.SetGameAsync(config.Activity.Online, type: config.Activity.ActivityType);
+                await client.SetStatusAsync(config.Activity.UserStatus);
             }
 
             catch (Exception e)
             {
-                await Client_Log(new LogMessage(LogSeverity.Error, "Program",
+                await logger.Log(new LogMessage(LogSeverity.Error, "Program",
                     "The flow of execution has been halted due to an exception" +
                     $"\nReason: {e.Message}"));
                 Console.Read();
                 return;
             }
 
-            await ProgramCommand.AwaitCommands(Client, Client_Log);
-        }
-
-        public static async Task Exit()
-        {
-            var lavaNodeInstance = Services.GetService<LavaNode>();
-
-            if (lavaNodeInstance is {IsConnected: true})
-                await lavaNodeInstance.DisposeAsync();
-
-            await Client.LogoutAsync();
-            await Client.StopAsync();
-        }
-
-        public static async Task Client_Log(LogMessage arg)
-        {
-            ProgramConfig config =
-                Config ?? ProgramConfig.Default;
-
-            if (arg.Severity > config.Log.Severity)
-                return;
-
-            await ProgramLog.ToConsole(arg);
-
-            if (config.Log.Active)
-                await ProgramLog.ToFile(arg);
-        }
-
-        private static async Task Client_Ready(DiscordSocketClient shard)
-        {
-            await Client_Log(new LogMessage(LogSeverity.Info, "Shard #" + shard.ShardId, "Ready"));
-            var lavaNodeInstance = Services.GetService<LavaNode>();
-
-            if (++ShardsReady == Config.TotalShards)
+            if (config.Lavalink.Start)
             {
-                await Client_Log(new LogMessage(LogSeverity.Info, "Victoria", "Connecting"));
-                await Task.Run(() => lavaNodeInstance?.ConnectAsync());
+                await ProgramCommand.CommandList
+                    .First(x => x.Name == "lavalink")
+                    .Execute(services);
+            }
 
-                await Modules.Setup();
+            await ProgramCommand.AwaitCommands(services);
+        }
+
+        public static async Task<IServiceProvider> SetupServices()
+        {
+            var config = await ProgramConfig.LoadConfig();
+
+            var clientConfig = new DiscordSocketConfig
+            {
+                LogLevel = config.Log.Severity,
+                TotalShards = config.TotalShards,
+                MessageCacheSize = 100,
+                GatewayIntents = GatewayIntents.All
+            };
+
+            var commandServiceConfig = new CommandServiceConfig
+            {
+                CaseSensitiveCommands = false,
+                DefaultRunMode = CommandRunMode.Async,
+                LogLevel = config.Log.Severity
+            };
+
+            var interactionConfig = new InteractionServiceConfig
+            {
+                DefaultRunMode = InteractionRunMode.Async,
+                LogLevel = config.Log.Severity
+            };
+
+            var lavaConfig = new LavaConfig
+            {
+                Hostname = config.Lavalink.Host,
+                Port = config.Lavalink.Port,
+                Authorization = config.Lavalink.Login,
+                SelfDeaf = config.Lavalink.SelfDeaf,
+                LogSeverity = config.Log.Severity
+            };
+
+            var services = new ServiceCollection()
+                .AddSingleton(config)
+                .AddSingleton(clientConfig)
+                .AddSingleton(commandServiceConfig)
+                .AddSingleton(interactionConfig)
+                .AddSingleton(lavaConfig)
+                .AddSingleton<DiscordShardedClient>()
+                .AddSingleton<ProgramLogger>()
+                .AddSingleton<ModuleHandler>()
+                .AddSingleton<CommandService>()
+                .AddSingleton<InteractionService>()
+                .AddSingleton<InteractivityService>()
+                .AddSingleton<LavaNode>()
+                .AddSingleton<AudioModuleService>()
+                .AddSingleton<GuildService>()
+                .AddDbContext<GuildDbContext>()
+                .BuildServiceProvider();
+
+            var client = services.GetRequiredService<DiscordShardedClient>();
+            var logger = services.GetRequiredService<ProgramLogger>();
+            var lavaNode = services.GetService<LavaNode>();
+
+            client.Log += logger.Log;
+            client.ShardReady += shard => Client_Ready(shard, services);
+
+            lavaNode.OnLog += logger.Log;
+
+            return services;
+        }
+
+        public static async Task Exit(IServiceProvider services)
+        {
+            var client = services.GetRequiredService<DiscordShardedClient>();
+            var lavaNode = services.GetService<LavaNode>();
+
+            if (lavaNode is {IsConnected: true})
+                await lavaNode.DisposeAsync();
+
+            await client.LogoutAsync();
+            await client.StopAsync();
+        }
+
+        private static async Task Client_Ready(DiscordSocketClient shard, IServiceProvider services)
+        {
+            var config = services.GetRequiredService<ProgramConfig>();
+            var modules = services.GetRequiredService<ModuleHandler>();
+            var logger = services.GetRequiredService<ProgramLogger>();
+            var lavaNode = services.GetService<LavaNode>();
+
+            await logger.Log(new LogMessage(LogSeverity.Info, "Shard #" + shard.ShardId, "Ready"));
+
+            if (++ShardsReady == config.TotalShards)
+            {
+                await logger.Log(new LogMessage(LogSeverity.Info, "Victoria", "Connecting"));
+                await Task.Run(() => lavaNode?.ConnectAsync());
+
+                await modules.Setup();
             }
         }
     }

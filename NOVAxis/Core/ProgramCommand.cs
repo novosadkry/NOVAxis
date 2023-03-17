@@ -7,7 +7,8 @@ using System.Reflection;
 using System.Threading.Tasks;
 
 using Discord;
-using Discord.Rest;
+using Discord.WebSocket;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace NOVAxis.Core
 {
@@ -15,67 +16,74 @@ namespace NOVAxis.Core
     {
         public string Name { get; }
         public string[] Alias { get; }
-        private readonly Action _command;
+        private Func<IServiceProvider, Task> Command { get; }
 
-        public Task Execute()
+        public Task Execute(IServiceProvider services)
         {
-            return Task.Run(() => _command());
+            return Task.Run(() => Command(services));
         }
 
-        public ProgramCommand(string name, string[] alias, Action command)
+        public ProgramCommand(string name, string[] alias, Func<IServiceProvider, Task> command)
         {
             Name = name;
             Alias = alias ?? new[] { "" };
-            _command = command;
+            Command = command;
         }
 
-        public static Task AwaitCommands(BaseDiscordClient client, Func<LogMessage, Task> log)
+        public static Task AwaitCommands(IServiceProvider services)
         {
             return Task.Run(async () =>
             {
+                var client = services.GetRequiredService<DiscordShardedClient>();
+                var logger = services.GetRequiredService<ProgramLogger>();
+
                 while (client.LoginState == LoginState.LoggedIn)
                 {
                     string input = Console.ReadLine();
 
-                    for (int i = 0; i < ProgramCommandList.Count; i++)
+                    for (int i = 0; i < CommandList.Count; i++)
                     {
-                        ProgramCommand c = ProgramCommandList[i];
+                        ProgramCommand c = CommandList[i];
 
                         if (input == c.Name || c.Alias.Contains(input) && !string.IsNullOrWhiteSpace(input))
                         {
-                            await c.Execute();
+                            await c.Execute(services);
                             break;
                         }
 
-                        if (i + 1 == ProgramCommandList.Count)
-                            await log(new LogMessage(LogSeverity.Info, "Program", "Invalid ProgramCommand"));
+                        if (i + 1 == CommandList.Count)
+                            await logger.Log(new LogMessage(LogSeverity.Info, "Program", "Invalid ProgramCommand"));
                     }
                 }
             });
         }
 
-        public static readonly List<ProgramCommand> ProgramCommandList = new List<ProgramCommand>
+        public static readonly List<ProgramCommand> CommandList = new()
         {
-            new ProgramCommand("exit", new[] { "logout", "stop" }, async () => 
+            new ProgramCommand("exit", new[] { "logout", "stop" }, async services =>
             {
+                var logger = services.GetRequiredService<ProgramLogger>();
+
                 try
                 {
-                    await Program.Exit();
+                    await Program.Exit(services);
                 }
 
                 catch (Exception e)
                 {
-                    await Program.Client_Log(new LogMessage(LogSeverity.Error, "Program",
+                    await logger.Log(new LogMessage(LogSeverity.Error, "Program",
                         "An exception occurred while ending the flow of execution" +
                         $"\nReason: {e.Message}"));
                 }
             }),
 
-            new ProgramCommand("reload", null, async () => 
+            new ProgramCommand("reload", null, async services => 
             {
+                var logger = services.GetRequiredService<ProgramLogger>();
+
                 try
                 {
-                    await Program.Exit();
+                    await Program.Exit(services);
 
                     Process.Start(Path.GetFileName(Assembly.GetEntryAssembly().Location));
                     Process.GetCurrentProcess().Close();
@@ -84,58 +92,79 @@ namespace NOVAxis.Core
 
                 catch (Exception e)
                 {
-                    await Program.Client_Log(new LogMessage(LogSeverity.Error, "Program",
+                    await logger.Log(new LogMessage(LogSeverity.Error, "Program",
                         "An exception occurred while ending the flow of execution" +
                         $"\nReason: {e.Message}"));
                 }
             }),
 
-            new ProgramCommand("config_reset", null, async () => 
+            new ProgramCommand("config_reset", null, async services =>
             {
+                var logger = services.GetRequiredService<ProgramLogger>();
+                
                 await ProgramConfig.ResetConfig();
-                await Program.Client_Log(new LogMessage(LogSeverity.Info, "Program", "Forcing config reset"));
+                await logger.Log(new LogMessage(LogSeverity.Info, "Program", "Forcing config reset"));
             }),           
 
-            new ProgramCommand("clear", null, async () =>
+            new ProgramCommand("clear", null, async services =>
             {
+                var logger = services.GetRequiredService<ProgramLogger>();
+
                 Console.Clear();
-                await Program.Client_Log(new LogMessage(LogSeverity.Info, "Program", "Forcing console clear"));
+                await logger.Log(new LogMessage(LogSeverity.Info, "Program", "Forcing console clear"));
             }),
 
-            new ProgramCommand("gc", null, async () => 
+            new ProgramCommand("gc", null, async services =>
             {
+                var logger = services.GetRequiredService<ProgramLogger>();
+
                 GC.Collect();
-                await Program.Client_Log(new LogMessage(LogSeverity.Info, "Program", "Forcing GarbageCollector"));
+                await logger.Log(new LogMessage(LogSeverity.Info, "Program", "Forcing GarbageCollector"));
             }),
 
-            new ProgramCommand("alloc", null, async () => 
+            new ProgramCommand("alloc", null, async services =>
             {
-                await Program.Client_Log(new LogMessage(LogSeverity.Info, "Program", $"Memory allocated: {GC.GetTotalMemory(false):0,0} bytes"));
+                var logger = services.GetRequiredService<ProgramLogger>();
+                await logger.Log(new LogMessage(LogSeverity.Info, "Program", $"Memory allocated: {GC.GetTotalMemory(false):0,0} bytes"));
             }),
 
-            new ProgramCommand("offline", null, async () => 
+            new ProgramCommand("offline", null, async services =>
             {
-                await Program.Client.SetStatusAsync(UserStatus.DoNotDisturb);
-                await Program.Client.SetGameAsync(Program.Config.Activity.Offline, type: ActivityType.Watching);
-                await Program.Client_Log(new LogMessage(LogSeverity.Info, "Discord", "UserStatus set to 'DoNotDisturb'"));
+                var client = services.GetService<DiscordShardedClient>();
+                var logger = services.GetRequiredService<ProgramLogger>();
+                var config = services.GetService<ProgramConfig>();
+
+                await client.SetStatusAsync(UserStatus.DoNotDisturb);
+                await client.SetGameAsync(config.Activity.Offline, type: ActivityType.Watching);
+                await logger.Log(new LogMessage(LogSeverity.Info, "Discord", "UserStatus set to 'DoNotDisturb'"));
             }),
 
-            new ProgramCommand("online", null, async () => 
+            new ProgramCommand("online", null, async services =>
             {
-                await Program.Client.SetStatusAsync(UserStatus.Online);
-                await Program.Client.SetGameAsync(Program.Config.Activity.Online, type: Program.Config.Activity.ActivityType);
-                await Program.Client_Log(new LogMessage(LogSeverity.Info, "Discord", "UserStatus set to 'Online'"));
+                var client = services.GetService<DiscordShardedClient>();
+                var logger = services.GetRequiredService<ProgramLogger>();
+                var config = services.GetService<ProgramConfig>();
+
+                await client.SetStatusAsync(UserStatus.Online);
+                await client.SetGameAsync(config.Activity.Online, type: config.Activity.ActivityType);
+                await logger.Log(new LogMessage(LogSeverity.Info, "Discord", "UserStatus set to 'Online'"));
             }),
 
-            new ProgramCommand("afk", null, async () => 
+            new ProgramCommand("afk", null, async services =>
             {
-                await Program.Client.SetStatusAsync(UserStatus.AFK);
-                await Program.Client.SetGameAsync(Program.Config.Activity.Afk, type: ActivityType.Watching);
-                await Program.Client_Log(new LogMessage(LogSeverity.Info, "Discord", "UserStatus set to 'AFK'"));
+                var client = services.GetService<DiscordShardedClient>();
+                var logger = services.GetRequiredService<ProgramLogger>();
+                var config = services.GetService<ProgramConfig>();
+
+                await client.SetStatusAsync(UserStatus.AFK);
+                await client.SetGameAsync(config.Activity.Afk, type: ActivityType.Watching);
+                await logger.Log(new LogMessage(LogSeverity.Info, "Discord", "UserStatus set to 'AFK'"));
             }),
 
-            new ProgramCommand("lavalink", null, async () => 
+            new ProgramCommand("lavalink", null, async services =>
             {
+                var logger = services.GetRequiredService<ProgramLogger>();
+
                 switch (Environment.OSVersion.Platform)
                 {
                     case PlatformID.Win32NT:
@@ -146,7 +175,7 @@ namespace NOVAxis.Core
                             WorkingDirectory = Path.Combine(".", "Lavalink"),
                             UseShellExecute = true
                         });
-                        await Program.Client_Log(new LogMessage(LogSeverity.Info, "Lavalink", "Launching Lavalink node (command prompt)"));
+                        await logger.Log(new LogMessage(LogSeverity.Info, "Lavalink", "Launching Lavalink node (command prompt)"));
                         break;
 
                     case PlatformID.Unix:
@@ -156,11 +185,11 @@ namespace NOVAxis.Core
                             Arguments = "-c \"screen -dmS novaxis-lavalink java -jar Lavalink.jar\"",
                             WorkingDirectory = Path.Combine(".", "Lavalink")
                         });
-                        await Program.Client_Log(new LogMessage(LogSeverity.Info, "Lavalink", "Launching Lavalink node (screen)"));
+                        await logger.Log(new LogMessage(LogSeverity.Info, "Lavalink", "Launching Lavalink node (screen)"));
                         break;
 
                     default:
-                        await Program.Client_Log(new LogMessage(LogSeverity.Info, "Program", $"This command isn't supported on your OS ({Environment.OSVersion.Platform})"));
+                        await logger.Log(new LogMessage(LogSeverity.Info, "Program", $"This command isn't supported on your OS ({Environment.OSVersion.Platform})"));
                         return;
                 }        
             }),

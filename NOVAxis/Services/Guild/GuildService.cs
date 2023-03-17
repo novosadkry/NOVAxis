@@ -1,5 +1,7 @@
 ﻿using System.Threading.Tasks;
 
+using NOVAxis.Core;
+
 using Discord;
 using Discord.Commands;
 
@@ -7,10 +9,12 @@ namespace NOVAxis.Services.Guild
 {
     public class GuildService
     {
-        public GuildDbContext DbContext { get; }
+        private GuildDbContext DbContext { get; }
+        private ProgramConfig Config { get; }
 
-        public GuildService(GuildDbContext dbContext)
+        public GuildService(ProgramConfig config, GuildDbContext dbContext)
         {
+            Config = config;
             DbContext = dbContext;
             DbContext.Database.EnsureCreated();
         }
@@ -20,13 +24,13 @@ namespace NOVAxis.Services.Guild
             if (context.User is IGuildUser)
                 return await GetInfo(context.Guild.Id);
 
-            return GuildInfo.Default;
+            return GuildInfo.Default(Config);
         }
 
         public async Task<GuildInfo> GetInfo(ulong id)
         {
             return await DbContext.Guilds.FindAsync(id) 
-                   ?? GuildInfo.Default;
+                   ?? GuildInfo.Default(Config);
         }
 
         public async Task SetInfo(GuildInfo info)
