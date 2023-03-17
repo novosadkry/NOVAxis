@@ -77,6 +77,7 @@ namespace NOVAxis.Core
                 LogLevel = config.Log.Severity,
                 TotalShards = config.TotalShards,
                 MessageCacheSize = 100,
+                UseInteractionSnowflakeDate = false,
                 GatewayIntents = GatewayIntents.All
             };
 
