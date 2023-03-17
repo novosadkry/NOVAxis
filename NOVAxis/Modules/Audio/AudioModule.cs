@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 
+using NOVAxis.Core;
 using NOVAxis.Extensions;
 using NOVAxis.Preconditions;
 using NOVAxis.Services.Audio;
@@ -28,6 +29,7 @@ namespace NOVAxis.Modules.Audio
     public class AudioModule : InteractionModuleBase<ShardedInteractionContext>
     {
         public LavaNode LavaNode { get; set; }
+        public ProgramConfig Config { get; set; }
         public InteractivityService InteractivityService { get; set; }
         public AudioModuleService AudioModuleService { get; set; }
         public AudioContext AudioContext { get; private set; }
@@ -154,7 +156,7 @@ namespace NOVAxis.Modules.Audio
             if (player.Volume == 0)
                 await player.UpdateVolumeAsync(100);
 
-            await AudioContext.InitiateDisconnectAsync(player, AudioModuleService.AudioConfig.Timeout.Idle);
+            await AudioContext.InitiateDisconnectAsync(player, Config.Audio.Timeout.Idle);
 
             await RespondAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
@@ -449,7 +451,7 @@ namespace NOVAxis.Modules.Audio
                 }
 
                 await player.PauseAsync();
-                await AudioContext.InitiateDisconnectAsync(player, AudioModuleService.AudioConfig.Timeout.Paused);
+                await AudioContext.InitiateDisconnectAsync(player, Config.Audio.Timeout.Paused);
 
                 await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)

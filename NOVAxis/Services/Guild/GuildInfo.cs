@@ -8,7 +8,12 @@ namespace NOVAxis.Services.Guild
         public string Prefix { get; set; }
         public ulong DjRole { get; set; }
 
-        public static GuildInfo Default => 
-            new() { Prefix = Program.Config.Interaction.DefaultPrefix };
+        public static GuildInfo Default(ProgramConfig config)
+        {
+            return new GuildInfo
+            {
+                Prefix = config.Interaction.DefaultPrefix
+            };
+        }
     }
 }

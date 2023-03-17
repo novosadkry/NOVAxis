@@ -19,35 +19,35 @@ namespace NOVAxis.Modules
 {
     public class ModuleHandler
     {
-        private readonly DiscordShardedClient _client;
-        private readonly IServiceProvider _services;
+        private DiscordShardedClient Client { get; }
+        private ProgramConfig Config { get; }
+        private ProgramLogger Logger { get; }
+        private IServiceProvider Services { get; }
+        private CommandService CommandService { get; }
+        private InteractionService InteractionService { get; }
 
-        public CommandService CommandService { get; }
-        public InteractionService InteractionService { get; }
-
-        public event Func<LogMessage, Task> LogEvent;
-
-        public ModuleHandler(
-            DiscordShardedClient client, 
-            IServiceProvider services, 
-            CommandService commandService, 
+        public ModuleHandler(DiscordShardedClient client, 
+            ProgramConfig config,
+            ProgramLogger logger,
+            IServiceProvider services,
+            CommandService commandService,
             InteractionService interactionService)
         {
+            Client = client;
+            Config = config;
+            Logger = logger;
+            Services = services;
             CommandService = commandService;
             InteractionService = interactionService;
 
-            _services = services;
-            _client = client;
-
-            _client.MessageReceived += MessageReceived;
+            Client.MessageReceived += MessageReceived;
             CommandService.CommandExecuted += CommandExecuted;
-
-            _client.InteractionCreated += InteractionCreated;
+            Client.InteractionCreated += InteractionCreated;
         }
 
         ~ModuleHandler()
         {
-            _client.MessageReceived -= MessageReceived;
+            Client.MessageReceived -= MessageReceived;
             CommandService.CommandExecuted -= CommandExecuted;
         }
 
@@ -55,10 +55,10 @@ namespace NOVAxis.Modules
         {
             CommandService.AddTypeReader<TimeSpan>(new TimeSpanTypeReader());
 
-            await CommandService.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
-            await InteractionService.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
+            await CommandService.AddModulesAsync(Assembly.GetEntryAssembly(), Services);
+            await InteractionService.AddModulesAsync(Assembly.GetEntryAssembly(), Services);
 
-            var config = Program.Config.Interaction.Commands;
+            var config = Config.Interaction.Commands;
 
             if (config.RegisterGlobally)
                 await InteractionService.RegisterCommandsGloballyAsync();
@@ -69,29 +69,29 @@ namespace NOVAxis.Modules
 
         private async Task InteractionCreated(SocketInteraction arg)
         {
-            var ctx = new ShardedInteractionContext(_client, arg);
-            await InteractionService.ExecuteCommandAsync(ctx, _services);
+            var ctx = new ShardedInteractionContext(Client, arg);
+            await InteractionService.ExecuteCommandAsync(ctx, Services);
         }
 
         private async Task MessageReceived(SocketMessage arg)
         {
             var message = (SocketUserMessage)arg;
-            var context = new ShardedCommandContext(_client, message);
+            var context = new ShardedCommandContext(Client, message);
 
             if (context.Message == null) return;
             if (context.User.IsBot) return;
 
-            var guildService = _services.GetService<GuildService>();
+            var guildService = Services.GetService<GuildService>();
             var guildInfo = await guildService.GetInfo(context);
 
             string prefix = guildInfo.Prefix;
 
             int argPos = 0;
             if (!(context.Message.HasStringPrefix(prefix, ref argPos) ||
-                context.Message.HasMentionPrefix(_client.CurrentUser, ref argPos)))
+                context.Message.HasMentionPrefix(Client.CurrentUser, ref argPos)))
                 return;
 
-            switch (_client.Status)
+            switch (Client.Status)
             {
                 case UserStatus.DoNotDisturb:
                     await context.Channel.SendMessageAsync(embed: new EmbedBuilder()
@@ -108,7 +108,7 @@ namespace NOVAxis.Modules
                     return;
             }
 
-            await CommandService.ExecuteAsync(context, argPos, _services);
+            await CommandService.ExecuteAsync(context, argPos, Services);
         }
 
         private async Task CommandExecuted(Optional<CommandInfo> info, ICommandContext context, ICommandResult result)
@@ -176,7 +176,7 @@ namespace NOVAxis.Modules
                     });
                 }
 
-                LogEvent?.Invoke(new LogMessage(
+                await Logger.Log(new LogMessage(
                     logWarning ? LogSeverity.Warning : LogSeverity.Verbose,
                     "Command",
                     $"User {context.User.Username}#{context.User.Discriminator} was unable to execute command '{context.Message.Content}' Reason: '{result.ErrorReason}'"));
