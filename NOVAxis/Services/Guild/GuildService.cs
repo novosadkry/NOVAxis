@@ -16,7 +16,6 @@ namespace NOVAxis.Services.Guild
         {
             Config = config;
             DbContext = dbContext;
-            DbContext.Database.EnsureCreated();
         }
 
         public async Task<GuildInfo> GetInfo(ICommandContext context)

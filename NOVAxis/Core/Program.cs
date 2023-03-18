@@ -124,11 +124,14 @@ namespace NOVAxis.Core
             var client = services.GetRequiredService<DiscordShardedClient>();
             var logger = services.GetRequiredService<ProgramLogger>();
             var lavaNode = services.GetService<LavaNode>();
+            var guildDbContext = services.GetService<GuildDbContext>();
 
             client.Log += logger.Log;
             client.ShardReady += shard => Client_Ready(shard, services);
 
             lavaNode.OnLog += logger.Log;
+
+            await guildDbContext.Database.EnsureCreatedAsync();
 
             return services;
         }
