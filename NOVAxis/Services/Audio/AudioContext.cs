@@ -23,16 +23,16 @@ namespace NOVAxis.Services.Audio
         public AudioContext(LavaNode lavaNode, ulong id)
         {
             _lavaNodeInstance = lavaNode;
-            _disconnectTokenSource = new CancellationTokenSource();
+            _disconnectCts = new CancellationTokenSource();
 
             GuildId = id;
         }
 
         private bool _disposed;
         private readonly LavaNode _lavaNodeInstance;
-        private CancellationTokenSource _disconnectTokenSource;
+        private CancellationTokenSource _disconnectCts;
 
-        public LinkedQueue<AudioTrack> Queue { get; set; } = new LinkedQueue<AudioTrack>();
+        public LinkedQueue<AudioTrack> Queue { get; } = new();
 
         public AudioTrack Track => Queue.First();
         public AudioTrack LastTrack => Queue.Last();
@@ -42,16 +42,20 @@ namespace NOVAxis.Services.Audio
 
         public Task InitiateDisconnectAsync(LavaPlayer player, TimeSpan timeout)
         {
+            // Renew cancelled token source
+            if (_disconnectCts.IsCancellationRequested)
+            {
+                _disconnectCts.Dispose();
+                _disconnectCts = new CancellationTokenSource();
+            }
+
+            // Pass cancellation token to thread
+            var disconnectToken = _disconnectCts.Token;
+
             Task.Run(() =>
             {
-                if (_disconnectTokenSource.IsCancellationRequested)
-                {
-                    _disconnectTokenSource.Dispose();
-                    _disconnectTokenSource = new CancellationTokenSource();
-                }
-
                 // Leave channel if token isn't cancelled within the timeout
-                if (!SpinWait.SpinUntil(() => _disconnectTokenSource.IsCancellationRequested, timeout))
+                if (!SpinWait.SpinUntil(() => disconnectToken.IsCancellationRequested, timeout))
                 {
                     // and the context wasn't disposed and the player isn't playing
                     if (!_disposed && player.PlayerState != PlayerState.Playing)
@@ -63,15 +67,15 @@ namespace NOVAxis.Services.Audio
                         _lavaNodeInstance.LeaveAsync(player.VoiceChannel);
                     }
                 }
-            });
+            }, disconnectToken);
 
             return Task.CompletedTask;
         }
 
         public Task CancelDisconnectAsync()
         {
-            if (!_disconnectTokenSource.IsCancellationRequested)
-                _disconnectTokenSource.Cancel();
+            if (!_disconnectCts.IsCancellationRequested)
+                _disconnectCts.Cancel();
 
             return Task.CompletedTask;
         }
@@ -83,9 +87,8 @@ namespace NOVAxis.Services.Audio
 
             if (disposing)
             {
-                Queue.Clear();
-                Repeat = RepeatMode.None;
-                _disconnectTokenSource.Dispose();
+                _disconnectCts.Cancel();
+                _disconnectCts.Dispose();
             }
 
             _disposed = true;
