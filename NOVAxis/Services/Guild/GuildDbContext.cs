@@ -1,5 +1,6 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore;
+
 using NOVAxis.Core;
 
 namespace NOVAxis.Services.Guild
@@ -51,7 +52,8 @@ namespace NOVAxis.Services.Guild
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<GuildInfo>()
-                .HasKey(x => x.GuildId);
+                .HasMany(x => x.Roles)
+                .WithOne(x => x.Guild);
         }
     }
 }

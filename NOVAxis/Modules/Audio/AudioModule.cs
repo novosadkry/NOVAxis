@@ -24,8 +24,7 @@ namespace NOVAxis.Modules.Audio
     [Cooldown(1)]
     [Group("audio", "Audio related commands")]
     [RequireContext(ContextType.Guild)]
-    [RequireOwner(Group = "Permission")]
-    [Preconditions.RequireRole("DjRole", true, Group = "Permission")]
+    [RequireGuildRole("DjRole")]
     public class AudioModule : InteractionModuleBase<ShardedInteractionContext>
     {
         public LavaNode LavaNode { get; set; }

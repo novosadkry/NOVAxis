@@ -1,12 +1,14 @@
-﻿using NOVAxis.Core;
+﻿using System.Collections.Generic;
+
+using NOVAxis.Core;
 
 namespace NOVAxis.Services.Guild
 {
     public class GuildInfo
     {
-        public ulong GuildId { get; set; }
+        public ulong Id { get; set; }
         public string Prefix { get; set; }
-        public ulong DjRole { get; set; }
+        public List<GuildRole> Roles { get; set; }
 
         public static GuildInfo Default(ProgramConfig config)
         {
