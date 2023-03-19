@@ -14,7 +14,7 @@ namespace NOVAxis.Core
         public static ProgramConfig Default => new()
         {
             LoginToken = "INSERT_LOGINTOKEN_HERE",
-            TotalShards = 1,
+            TotalShards = null,
 
             Interaction = new InteractionObject
             {
@@ -144,7 +144,7 @@ namespace NOVAxis.Core
         }
 
         public string            LoginToken  { get; set; }
-        public int               TotalShards { get; set; }
+        public int?              TotalShards { get; set; }
         public InteractionObject Interaction { get; set; }
         public ActivityObject    Activity    { get; set; }
         public LogObject         Log         { get; set; }

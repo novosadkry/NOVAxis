@@ -154,14 +154,13 @@ namespace NOVAxis.Core
 
         private static async Task Client_Ready(DiscordSocketClient shard, IServiceProvider services)
         {
-            var config = services.GetRequiredService<ProgramConfig>();
+            var client = services.GetRequiredService<DiscordShardedClient>();
             var modules = services.GetRequiredService<ModuleHandler>();
             var logger = services.GetRequiredService<ProgramLogger>();
             var lavaNode = services.GetService<LavaNode>();
 
-            await logger.Log(new LogMessage(LogSeverity.Info, "Shard #" + shard.ShardId, "Ready"));
-
-            if (++ShardsReady == config.TotalShards)
+            // Execute after all shards are ready
+            if (++ShardsReady == client.Shards.Count)
             {
                 await logger.Log(new LogMessage(LogSeverity.Info, "Victoria", "Connecting"));
                 _ = Task.Run(() => lavaNode?.ConnectAsync()); // this way it doesn't block the main thread
