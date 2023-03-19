@@ -1,13 +1,17 @@
 ﻿using System;
+using Discord.Commands;
+using Discord;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 
 using NOVAxis.Core;
 
-namespace NOVAxis.Services.Guild
+namespace NOVAxis.Database.Guild
 {
     public class GuildDbContext : DbContext
     {
         public DbSet<GuildInfo> Guilds { get; set; }
+        public DbSet<GuildRole> GuildRoles { get; set; }
 
         private ProgramConfig Config { get; }
 
@@ -54,6 +58,51 @@ namespace NOVAxis.Services.Guild
             modelBuilder.Entity<GuildInfo>()
                 .HasMany(x => x.Roles)
                 .WithOne(x => x.Guild);
+
+            modelBuilder.Entity<GuildInfo>()
+                .Property(x => x.Id)
+                .ValueGeneratedNever();
+
+            modelBuilder.Entity<GuildRole>()
+                .Property(x => x.Id)
+                .ValueGeneratedNever();
+        }
+
+        public async Task<GuildInfo> Get(ICommandContext context)
+        {
+            if (context.User is IGuildUser)
+                return await Get(context.Guild);
+
+            return null;
+        }
+
+        public async Task<GuildInfo> Get(IInteractionContext context)
+        {
+            if (context.User is IGuildUser)
+                return await Get(context.Guild);
+
+            return null;
+        }
+
+        public async Task<GuildInfo> Get(IGuild guild)
+        {
+            return await Guilds
+                .Include(x => x.Roles)
+                .SingleOrDefaultAsync(x => x.Id == guild.Id);
+        }
+
+        public async Task<GuildInfo> Create(IGuild guild)
+        {
+            var guildInfo = new GuildInfo
+            {
+                Id = guild.Id,
+                Prefix = Config.Interaction.DefaultPrefix
+            };
+
+            Guilds.Add(guildInfo);
+            await SaveChangesAsync();
+
+            return guildInfo;
         }
     }
 }

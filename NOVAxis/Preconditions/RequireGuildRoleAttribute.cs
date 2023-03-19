@@ -2,8 +2,8 @@
 using System.Linq;
 using System.Threading.Tasks;
 
+using NOVAxis.Database.Guild;
 using Microsoft.Extensions.DependencyInjection;
-using NOVAxis.Services.Guild;
 
 using Discord;
 using Discord.Commands;
@@ -31,8 +31,16 @@ namespace NOVAxis.Preconditions
             if (context.User is not SocketGuildUser user)
                 return PreconditionResult.FromError("Invalid context for command");
 
-            var guildService = services.GetService<GuildService>();
-            var guildInfo = await guildService.GetInfo(context);
+            GuildInfo guildInfo;
+            await using (var scope = services.CreateAsyncScope())
+            {
+                guildInfo = await scope.ServiceProvider
+                    .GetService<GuildDbContext>()
+                    .Get(context);
+            }
+
+            if (guildInfo == null)
+                return PreconditionResult.FromSuccess();
 
             bool match = false;
             foreach (string role in _requiredRoles)

@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 using NOVAxis.Core;
 using NOVAxis.Preconditions;
-using NOVAxis.Services.Guild;
+using NOVAxis.Database.Guild;
 
 using Discord;
 using Discord.Commands;
@@ -16,8 +16,9 @@ namespace NOVAxis.Modules.Help
     [Group("help"), Alias("?")]
     public class HelpModule : ModuleBase<ShardedCommandContext>
     {
+        public ProgramConfig Config { get; set; }
         public InteractivityService InteractivityService { get; set; }
-        public GuildService GuildService { get; set; }
+        public GuildDbContext GuildDbContext { get; set; }
 
         private async Task SendHelp(Embed embed)
         {
@@ -39,8 +40,8 @@ namespace NOVAxis.Modules.Help
         [Command, Summary("Shows command list")]
         public async Task ShowHelp()
         {
-            var guildInfo = await GuildService.GetInfo(Context);
-            string prefix = guildInfo.Prefix;
+            var guildInfo = await GuildDbContext.Get(Context);
+            string prefix = guildInfo?.Prefix ?? Config.Interaction.DefaultPrefix;
 
             Embed embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
@@ -69,8 +70,8 @@ namespace NOVAxis.Modules.Help
         [Command("jisho"), Alias("Jisho"), Summary("Shows command list for Jisho")]
         public async Task ShowJishoHelp()
         {
-            var guildInfo = await GuildService.GetInfo(Context);
-            string prefix = guildInfo.Prefix;
+            var guildInfo = await GuildDbContext.Get(Context);
+            string prefix = guildInfo?.Prefix ?? Config.Interaction.DefaultPrefix;
 
             Embed embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
@@ -94,8 +95,8 @@ namespace NOVAxis.Modules.Help
         [Command("move"), Alias("Move"), Summary("Shows command list for Move")]
         public async Task ShowMoveHelp()
         {
-            var guildInfo = await GuildService.GetInfo(Context);
-            string prefix = guildInfo.Prefix;
+            var guildInfo = await GuildDbContext.Get(Context);
+            string prefix = guildInfo?.Prefix ?? Config.Interaction.DefaultPrefix;
 
             Embed embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
@@ -122,8 +123,8 @@ namespace NOVAxis.Modules.Help
         [Command("audio"), Alias("Audio"), Summary("Shows command list for Audio")]
         public async Task ShowAudioHelp()
         {
-            var guildInfo = await GuildService.GetInfo(Context);
-            string prefix = guildInfo.Prefix;
+            var guildInfo = await GuildDbContext.Get(Context);
+            string prefix = guildInfo?.Prefix ?? Config.Interaction.DefaultPrefix;
 
             Embed embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
@@ -161,8 +162,8 @@ namespace NOVAxis.Modules.Help
         [Command("clear"), Alias("Clear"), Summary("Shows command list for Clear")]
         public async Task ShowChatHelp()
         {
-            var guildInfo = await GuildService.GetInfo(Context);
-            string prefix = guildInfo.Prefix;
+            var guildInfo = await GuildDbContext.Get(Context);
+            string prefix = guildInfo?.Prefix ?? Config.Interaction.DefaultPrefix;
 
             Embed embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
@@ -186,8 +187,8 @@ namespace NOVAxis.Modules.Help
         [Command("mal"), Alias("Mal", "MyAnimeList", "myanimelist"), Summary("Shows command list for MAL")]
         public async Task ShowMALHelp()
         {
-            var guildInfo = await GuildService.GetInfo(Context);
-            string prefix = guildInfo.Prefix;
+            var guildInfo = await GuildDbContext.Get(Context);
+            string prefix = guildInfo?.Prefix ?? Config.Interaction.DefaultPrefix;
 
             Embed embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
@@ -211,8 +212,8 @@ namespace NOVAxis.Modules.Help
         [Command("mute"), Alias("Mute"), Summary("Shows command list for Mute")]
         public async Task ShowMuteHelp()
         {
-            var guildInfo = await GuildService.GetInfo(Context);
-            string prefix = guildInfo.Prefix;
+            var guildInfo = await GuildDbContext.Get(Context);
+            string prefix = guildInfo?.Prefix ?? Config.Interaction.DefaultPrefix;
 
             Embed embed = new EmbedBuilder()
                 .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })

@@ -7,8 +7,8 @@ using System.Threading.Tasks;
 using NOVAxis.Core;
 using NOVAxis.Extensions;
 using NOVAxis.Preconditions;
+using NOVAxis.Database.Guild;
 using NOVAxis.Services.Audio;
-using NOVAxis.Services.Guild;
 
 using Discord;
 using Discord.Interactions;
@@ -24,7 +24,7 @@ namespace NOVAxis.Modules.Audio
     [Cooldown(1)]
     [Group("audio", "Audio related commands")]
     [RequireContext(ContextType.Guild)]
-    [RequireGuildRole("DjRole")]
+    [RequireGuildRole("DJ")]
     public class AudioModule : InteractionModuleBase<ShardedInteractionContext>
     {
         public LavaNode LavaNode { get; set; }
@@ -32,7 +32,7 @@ namespace NOVAxis.Modules.Audio
         public InteractivityService InteractivityService { get; set; }
         public AudioModuleService AudioModuleService { get; set; }
         public AudioContext AudioContext { get; private set; }
-        public GuildService GuildService { get; set; }
+        public GuildDbContext GuildDbContext { get; set; }
 
         #region Functions
 
@@ -894,50 +894,43 @@ namespace NOVAxis.Modules.Audio
             }
         }
 
-        /*
-
-        TODO: DEPRECATED
-
-        [RequireOwner]
-        [SlashCommand("setrole", "Sets the guild's DJ role which is used to identify eligible users")]
-        public async Task SetDjRole(IRole role)
+        [RequireUserPermission(GuildPermission.Administrator)]
+        [SlashCommand("setdj", "Sets the guild's DJ role which is used to identify eligible users")]
+        public async Task SetDjRole(IRole newRole = null)
         {
-            var guildInfo = await GuildService.GetInfo(Context);
-            guildInfo.DjRole = role.Id;
+            var guildInfo = await GuildDbContext.Get(Context) ??
+                            await GuildDbContext.Create(Context.Guild);
 
-            await GuildService.SetInfo(Context, guildInfo);
+            var currentRole = guildInfo.Roles.Find(x => x.Name == "DJ");
 
-            await RespondAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithDescription($"(Nastavena role {role.Mention})")
-                .WithTitle("Konfigurace mého jádra proběhla úspešně").Build());
-        }
-
-        [RequireOwner]
-        [SlashCommand("setrole", "Sets the guild's DJ role which is used to identify eligible users")]
-        public async Task SetDjRole(ulong roleId = 0)
-        {
-            IRole role = Context.Guild.GetRole(roleId);
-
-            if (role != null)
+            if (newRole != null)
             {
-                var guildInfo = await GuildService.GetInfo(Context);
-                guildInfo.DjRole = role.Id;
+                if (currentRole != null)
+                {
+                    GuildDbContext.GuildRoles.Remove(currentRole);
+                    await GuildDbContext.SaveChangesAsync();
+                }
 
-                await GuildService.SetInfo(Context, guildInfo);
+                GuildDbContext.GuildRoles.Add(new GuildRole
+                {
+                    Name = "DJ",
+                    Id = newRole.Id,
+                    Guild = guildInfo,
+                });
 
                 await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
-                    .WithDescription($"(Nastavená role {role.Mention})")
+                    .WithDescription($"(Nastavena role {newRole.Mention})")
                     .WithTitle("Konfigurace mého jádra proběhla úspešně").Build());
             }
 
-            else if (roleId == 0)
+            else
             {
-                var guildInfo = await GuildService.GetInfo(Context);
-                guildInfo.DjRole = 0;
-
-                await GuildService.SetInfo(Context, guildInfo);
+                if (currentRole != null)
+                {
+                    GuildDbContext.GuildRoles.Remove(currentRole);
+                    await GuildDbContext.SaveChangesAsync();
+                }
 
                 await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
@@ -945,15 +938,8 @@ namespace NOVAxis.Modules.Audio
                     .WithTitle("Konfigurace mého jádra proběhla úspešně").Build());
             }
 
-            else
-            {
-                await RespondAsync(embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný argument)")
-                    .WithTitle("Má databáze nebyla schopna rozpoznat daný prvek").Build());
-            }
+            await GuildDbContext.SaveChangesAsync();
         }
-        */
 
         #endregion
     }
