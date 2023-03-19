@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 using NOVAxis.Core;
 using NOVAxis.TypeReaders;
-using NOVAxis.Services.Guild;
+using NOVAxis.Database.Guild;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -75,16 +75,21 @@ namespace NOVAxis.Modules
 
         private async Task MessageReceived(SocketMessage arg)
         {
-            var message = (SocketUserMessage)arg;
+            var message = (SocketUserMessage) arg;
             var context = new ShardedCommandContext(Client, message);
 
             if (context.Message == null) return;
             if (context.User.IsBot) return;
 
-            var guildService = Services.GetService<GuildService>();
-            var guildInfo = await guildService.GetInfo(context);
+            string prefix;
+            await using (var scope = Services.CreateAsyncScope())
+            {
+                var guildInfo = await scope.ServiceProvider
+                    .GetService<GuildDbContext>()
+                    .Get(context);
 
-            string prefix = guildInfo.Prefix;
+                prefix = guildInfo?.Prefix ?? Config.Interaction.DefaultPrefix;
+            }
 
             int argPos = 0;
             if (!(context.Message.HasStringPrefix(prefix, ref argPos) ||
@@ -113,6 +118,8 @@ namespace NOVAxis.Modules
 
         private async Task InteractionExecuted(ICommandInfo info, IInteractionContext context, IResult result)
         {
+            var slashCommandData = context.Interaction.Data as SocketSlashCommandData;
+
             if (!result.IsSuccess)
             {
                 string title = string.Empty, description = string.Empty;
@@ -122,7 +129,7 @@ namespace NOVAxis.Modules
                 {
                     case InteractionCommandError.UnknownCommand:
                         title = "Má verze jádra ještě není schopna téhle funkce";
-                        description = $"(Příkaz `{info.Name}` neexistuje)";
+                        description = $"(Příkaz `{slashCommandData?.Name}` neexistuje)";
                         break;
 
                     case InteractionCommandError.BadArgs:
@@ -177,7 +184,7 @@ namespace NOVAxis.Modules
                 await Logger.Log(new LogMessage(
                     logWarning ? LogSeverity.Warning : LogSeverity.Verbose,
                     "Command",
-                    $"User {context.User.Username}#{context.User.Discriminator} was unable to execute command '{info.Name}' Reason: '{result.ErrorReason}'"));
+                    $"User {context.User.Username}#{context.User.Discriminator} was unable to execute command '{slashCommandData?.Name}' Reason: '{result.ErrorReason}'"));
             }
         }
 

@@ -1,8 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
-
-namespace NOVAxis.Services.Guild
+﻿namespace NOVAxis.Database.Guild
 {
-    [Table("GuildRoles")]
     public class GuildRole
     {
         public GuildInfo Guild { get; set; }

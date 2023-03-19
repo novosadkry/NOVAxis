@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 
 using NOVAxis.Modules;
+using NOVAxis.Database.Guild;
 using NOVAxis.Services.Audio;
-using NOVAxis.Services.Guild;
 
 using Discord;
 using Discord.Commands;
@@ -117,7 +117,6 @@ namespace NOVAxis.Core
                 .AddSingleton<InteractivityService>()
                 .AddSingleton<LavaNode>()
                 .AddSingleton<AudioModuleService>()
-                .AddSingleton<GuildService>()
                 .AddDbContext<GuildDbContext>()
                 .BuildServiceProvider();
 
