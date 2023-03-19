@@ -1,6 +1,6 @@
 {
   "LoginToken": "INSERT_LOGINTOKEN_HERE",
-  "TotalShards": 1,
+  "TotalShards": null,
   "Interaction": {
     "DefaultPrefix": "~",
     "Commands": {
