@@ -78,7 +78,12 @@ namespace NOVAxis.Core
                 TotalShards = config.TotalShards,
                 MessageCacheSize = 100,
                 UseInteractionSnowflakeDate = false,
-                GatewayIntents = GatewayIntents.All
+                GatewayIntents = GatewayIntents.All ^ (
+                    GatewayIntents.GuildPresences | 
+                    GatewayIntents.GuildScheduledEvents | 
+                    GatewayIntents.GuildInvites |
+                    GatewayIntents.DirectMessageTyping |
+                    GatewayIntents.GuildMessageTyping)
             };
 
             var commandServiceConfig = new CommandServiceConfig
@@ -159,7 +164,7 @@ namespace NOVAxis.Core
             if (++ShardsReady == config.TotalShards)
             {
                 await logger.Log(new LogMessage(LogSeverity.Info, "Victoria", "Connecting"));
-                await Task.Run(() => lavaNode?.ConnectAsync());
+                _ = Task.Run(() => lavaNode?.ConnectAsync()); // this way it doesn't block the main thread
 
                 await modules.Setup();
             }
