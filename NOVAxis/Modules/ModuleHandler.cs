@@ -53,7 +53,7 @@ namespace NOVAxis.Modules
 
         public async Task Setup()
         {
-            CommandService.AddTypeReader<TimeSpan>(new TimeSpanTypeReader());
+            CommandService.AddTypeReader<TimeSpan>(new TimeSpanTypeReader(), true);
 
             await CommandService.AddModulesAsync(Assembly.GetEntryAssembly(), Services);
             await InteractionService.AddModulesAsync(Assembly.GetEntryAssembly(), Services);
