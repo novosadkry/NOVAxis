@@ -121,7 +121,7 @@ namespace NOVAxis.Core
                 .AddSingleton<InteractionService>()
                 .AddSingleton<InteractivityService>()
                 .AddSingleton<LavaNode>()
-                .AddSingleton<AudioModuleService>()
+                .AddSingleton<AudioService>()
                 .AddDbContext<GuildDbContext>()
                 .BuildServiceProvider();
 

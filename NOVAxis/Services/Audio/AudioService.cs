@@ -12,14 +12,14 @@ using Victoria.EventArgs;
 
 namespace NOVAxis.Services.Audio
 {
-    public class AudioModuleService
+    public class AudioService
     {
         private DiscordShardedClient Client { get;}
         private ProgramConfig Config { get;}
         private LavaNode LavaNode { get;}
         private Cache<ulong, AudioContext> Guilds { get; }
 
-        public AudioModuleService(DiscordShardedClient client, ProgramConfig config, LavaNode lavaNode)
+        public AudioService(DiscordShardedClient client, ProgramConfig config, LavaNode lavaNode)
         {
             Config = config;
             Guilds = new Cache<ulong, AudioContext>(
@@ -35,7 +35,7 @@ namespace NOVAxis.Services.Audio
             Client.UserVoiceStateUpdated += AudioModuleService_UserVoiceStateUpdated;
         }
 
-        ~AudioModuleService()
+        ~AudioService()
         {
             LavaNode.OnTrackEnded -= AudioModuleService_TrackEnd;
             LavaNode.OnTrackStarted -= AudioModuleService_TrackStart;

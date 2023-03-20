@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 
 using NOVAxis.Preconditions;
-using NOVAxis.Services.Audio;
 
 using Discord;
 using Discord.Commands;
@@ -18,8 +17,6 @@ namespace NOVAxis.Modules.Move
     [RequireUserPermission(GuildPermission.MoveMembers)]
     public class MoveModule : ModuleBase<ShardedCommandContext>
     {
-        public AudioModuleService AudioModuleService { get; set; }
-
         [Command, Summary("Moves user to selected channel")]
         public async Task MoveSomeone(IGuildUser user, string channelname)
         {
