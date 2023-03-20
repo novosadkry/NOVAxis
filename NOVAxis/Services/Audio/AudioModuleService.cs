@@ -1,5 +1,4 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 
 using NOVAxis.Core;
 using NOVAxis.Utilities;
@@ -18,19 +17,14 @@ namespace NOVAxis.Services.Audio
         private DiscordShardedClient Client { get;}
         private ProgramConfig Config { get;}
         private LavaNode LavaNode { get;}
-        private Cache<ulong, Lazy<AudioContext>> Guilds { get; }
+        private Cache<ulong, AudioContext> Guilds { get; }
 
         public AudioModuleService(DiscordShardedClient client, ProgramConfig config, LavaNode lavaNode)
         {
             Config = config;
-            Guilds = new Cache<ulong, Lazy<AudioContext>>(
+            Guilds = new Cache<ulong, AudioContext>(
                 Config.Audio.Cache.AbsoluteExpiration,
-                Config.Audio.Cache.RelativeExpiration,
-                (key, value, reason, state) =>
-                {
-                    if (value is Lazy<AudioContext> { IsValueCreated: true } context)
-                        context.Value.Dispose();
-                }
+                Config.Audio.Cache.RelativeExpiration
             );
 
             LavaNode = lavaNode;
@@ -51,8 +45,8 @@ namespace NOVAxis.Services.Audio
 
         public AudioContext this[ulong id]
         {
-            get => Guilds.GetOrAdd(id, new Lazy<AudioContext>(() => new AudioContext(LavaNode, id))).Value;
-            set => Guilds[id] = new Lazy<AudioContext>(value);
+            get => Guilds.GetOrAdd(id, new AudioContext(LavaNode, id));
+            set => Guilds[id] = value;
         }
 
         public void Remove(ulong id)

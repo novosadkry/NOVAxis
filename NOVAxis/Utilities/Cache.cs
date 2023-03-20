@@ -4,10 +4,11 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace NOVAxis.Utilities
 {
-    public class Cache<TKey, TValue>
+    public class Cache<TKey, TValue> : IDisposable
     {
+        private bool _disposed;
         private readonly MemoryCache _cache;
-        private readonly MemoryCacheEntryOptions _entryOptions; 
+        private readonly MemoryCacheEntryOptions _entryOptions;
 
         public Cache() 
             : this(new MemoryCacheOptions(), new MemoryCacheEntryOptions()) { }
@@ -20,18 +21,15 @@ namespace NOVAxis.Utilities
             })
         { }
 
-        public Cache(TimeSpan? absolute, TimeSpan? sliding, PostEvictionDelegate postEvictionCallback)
-            : this(new MemoryCacheOptions(), new MemoryCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = absolute,
-                SlidingExpiration = sliding,
-            }.RegisterPostEvictionCallback(postEvictionCallback)) 
-        { }
-
         public Cache(MemoryCacheOptions options, MemoryCacheEntryOptions entryOptions)
         {
             _cache = new MemoryCache(options);
             _entryOptions = entryOptions;
+            _entryOptions.RegisterPostEvictionCallback((_, value, _, _) =>
+            {
+                if (value is IDisposable context)
+                    context.Dispose();
+            });
         }
 
         public TValue this[TKey key]
@@ -42,7 +40,7 @@ namespace NOVAxis.Utilities
 
         public TValue Get(TKey key)
         {
-            return _cache.Get<TValue>(key.GetHashCode().ToString());
+            return _cache.Get<TValue>(key);
         }
 
         public TValue GetOrAdd(TKey key, TValue value)
@@ -66,7 +64,7 @@ namespace NOVAxis.Utilities
 
         public void Set(TKey key, TValue value, MemoryCacheEntryOptions entryOptions)
         {
-            _cache.Set(key.GetHashCode().ToString(), value, entryOptions);
+            _cache.Set(key, value, entryOptions);
         }
 
         public bool TryGetValue(TKey key, out TValue result)
@@ -77,6 +75,28 @@ namespace NOVAxis.Utilities
         public void Remove(TKey key)
         {
             _cache.Remove(key);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed)
+                return;
+
+            if (disposing)
+                _cache.Dispose();
+
+            _disposed = true;
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        ~Cache()
+        {
+            Dispose(false);
         }
     }
 }
