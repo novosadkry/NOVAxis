@@ -30,7 +30,7 @@ namespace NOVAxis.Modules.Audio
         public LavaNode LavaNode { get; set; }
         public ProgramConfig Config { get; set; }
         public InteractivityService InteractivityService { get; set; }
-        public AudioModuleService AudioModuleService { get; set; }
+        public AudioService AudioService { get; set; }
         public AudioContext AudioContext { get; private set; }
         public GuildDbContext GuildDbContext { get; set; }
 
@@ -38,7 +38,7 @@ namespace NOVAxis.Modules.Audio
 
         public override void BeforeExecute(ICommandInfo command)
         {
-            AudioContext = AudioModuleService[Context.Guild.Id];
+            AudioContext = AudioService[Context.Guild.Id];
             base.BeforeExecute(command);
         }
 
@@ -212,7 +212,7 @@ namespace NOVAxis.Modules.Audio
                 await LavaNode.LeaveAsync(player.VoiceChannel);
             }
 
-            AudioModuleService.Remove(Context.Guild.Id);
+            AudioService.Remove(Context.Guild.Id);
         }
 
         [Cooldown(5)]

@@ -22,14 +22,14 @@ namespace NOVAxis.Services.Audio
     {
         public AudioContext(LavaNode lavaNode, ulong id)
         {
-            _lavaNodeInstance = lavaNode;
+            _lavaNode = lavaNode;
             _disconnectCts = new CancellationTokenSource();
 
             GuildId = id;
         }
 
         private bool _disposed;
-        private readonly LavaNode _lavaNodeInstance;
+        private readonly LavaNode _lavaNode;
         private CancellationTokenSource _disconnectCts;
 
         public LinkedQueue<AudioTrack> Queue { get; } = new();
@@ -64,7 +64,7 @@ namespace NOVAxis.Services.Audio
                             .WithColor(52, 231, 231)
                             .WithTitle($"Odpojuji se od kanálu `{player.VoiceChannel.Name}`").Build());
 
-                        _lavaNodeInstance.LeaveAsync(player.VoiceChannel);
+                        _lavaNode.LeaveAsync(player.VoiceChannel);
                     }
                 }
             }, disconnectToken);
