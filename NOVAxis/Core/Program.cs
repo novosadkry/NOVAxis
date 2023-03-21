@@ -78,12 +78,8 @@ namespace NOVAxis.Core
                 TotalShards = config.TotalShards,
                 MessageCacheSize = 100,
                 UseInteractionSnowflakeDate = false,
-                GatewayIntents = GatewayIntents.All ^ (
-                    GatewayIntents.GuildPresences | 
-                    GatewayIntents.GuildScheduledEvents | 
-                    GatewayIntents.GuildInvites |
-                    GatewayIntents.DirectMessageTyping |
-                    GatewayIntents.GuildMessageTyping)
+                GatewayIntents = GatewayIntents.All,
+                LogGatewayIntentWarnings = false
             };
 
             var commandServiceConfig = new CommandServiceConfig
@@ -123,19 +119,21 @@ namespace NOVAxis.Core
                 .AddSingleton<LavaNode>()
                 .AddSingleton<AudioService>()
                 .AddDbContext<GuildDbContext>()
-                .BuildServiceProvider();
+                .BuildServiceProvider(true);
 
             var client = services.GetRequiredService<DiscordShardedClient>();
             var logger = services.GetRequiredService<ProgramLogger>();
             var lavaNode = services.GetService<LavaNode>();
-            var guildDbContext = services.GetService<GuildDbContext>();
 
             client.Log += logger.Log;
             client.ShardReady += shard => Client_Ready(shard, services);
 
             lavaNode.OnLog += logger.Log;
 
-            await guildDbContext.Database.EnsureCreatedAsync();
+            await using var scope = services.CreateAsyncScope();
+            await scope.ServiceProvider
+                .GetService<GuildDbContext>()
+                .Database.EnsureCreatedAsync();
 
             return services;
         }
