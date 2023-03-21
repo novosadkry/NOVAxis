@@ -55,8 +55,9 @@ namespace NOVAxis.Modules
         {
             CommandService.AddTypeReader<TimeSpan>(new TimeSpanTypeReader(), true);
 
-            await CommandService.AddModulesAsync(Assembly.GetEntryAssembly(), Services);
-            await InteractionService.AddModulesAsync(Assembly.GetEntryAssembly(), Services);
+            await using var scope = Services.CreateAsyncScope();
+            await CommandService.AddModulesAsync(Assembly.GetEntryAssembly(), scope.ServiceProvider);
+            await InteractionService.AddModulesAsync(Assembly.GetEntryAssembly(), scope.ServiceProvider);
 
             var config = Config.Interaction.Commands;
 
