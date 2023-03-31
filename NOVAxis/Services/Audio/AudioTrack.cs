@@ -1,7 +1,7 @@
 ﻿using NOVAxis.Extensions;
 
 using Discord;
-using Victoria;
+using Victoria.Player;
 
 namespace NOVAxis.Services.Audio
 {

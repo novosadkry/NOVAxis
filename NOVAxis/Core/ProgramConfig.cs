@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 
 using Discord;
 using Newtonsoft.Json;
+using Microsoft.Extensions.Logging;
 
 namespace NOVAxis.Core
 {
@@ -38,12 +39,11 @@ namespace NOVAxis.Core
             Log = new LogObject
             {
                 Active = true,
-                Severity = LogSeverity.Debug
+                Level = LogLevel.Debug
             },
 
             Lavalink = new LavalinkObject
             {
-                Start = false,
                 Host = "localhost",
                 Port = 2333,
                 Login = "123",
@@ -112,7 +112,6 @@ namespace NOVAxis.Core
 
         public struct LavalinkObject
         {
-            public bool Start { get; set; }
             public string Host { get; set; }
             public ushort Port { get; set; }
             public string Login { get; set; }
@@ -122,7 +121,7 @@ namespace NOVAxis.Core
         public struct LogObject
         {
             public bool Active { get; set; }
-            public LogSeverity Severity { get; set; }
+            public LogLevel Level { get; set; }
         }
 
         public struct AudioObject

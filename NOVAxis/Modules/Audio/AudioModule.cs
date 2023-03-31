@@ -15,8 +15,7 @@ using Discord.Interactions;
 
 using Interactivity;
 
-using Victoria;
-using Victoria.Enums;
+using Victoria.Player;
 using Victoria.Responses.Search;
 
 namespace NOVAxis.Modules.Audio
@@ -27,7 +26,7 @@ namespace NOVAxis.Modules.Audio
     [RequireGuildRole("DJ")]
     public class AudioModule : InteractionModuleBase<ShardedInteractionContext>
     {
-        public LavaNode LavaNode { get; set; }
+        public AudioNode AudioNode { get; set; }
         public ProgramConfig Config { get; set; }
         public InteractivityService InteractivityService { get; set; }
         public AudioService AudioService { get; set; }
@@ -45,8 +44,8 @@ namespace NOVAxis.Modules.Audio
         public async IAsyncEnumerable<AudioTrack> Search(string input)
         {
             SearchResponse response = Uri.IsWellFormedUriString(input, 0)
-                ? await LavaNode.SearchAsync(SearchType.Direct, input)
-                : await LavaNode.SearchYouTubeAsync(input);
+                ? await AudioNode.SearchAsync(SearchType.Direct, input)
+                : await AudioNode.SearchAsync(SearchType.YouTube, input);
 
             switch (response.Status)
             {
@@ -57,7 +56,7 @@ namespace NOVAxis.Modules.Audio
             // Check if search result is a playlist
             if (!string.IsNullOrEmpty(response.Playlist.Name))
             {
-                foreach (LavaTrack track in response.Tracks)
+                foreach (var track in response.Tracks)
                 {
                     yield return new AudioTrack(track)
                     {
@@ -77,7 +76,7 @@ namespace NOVAxis.Modules.Audio
             }
         }
 
-        public static IReadOnlyList<Emoji> GetStatusEmoji(AudioContext audioContext, LavaPlayer player = null)
+        public static IReadOnlyList<Emoji> GetStatusEmoji(AudioContext audioContext, AudioPlayer player = null)
         {
             Emoji[] statusEmoji =
             {
@@ -108,7 +107,7 @@ namespace NOVAxis.Modules.Audio
             var guildUser = Context.User as IGuildUser;
             voiceChannel ??= guildUser?.VoiceChannel;
 
-            if (!LavaNode.IsConnected)
+            if (!AudioNode.IsConnected)
             {
                 await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
@@ -131,14 +130,10 @@ namespace NOVAxis.Modules.Audio
             await JoinChannel(voiceChannel);
         }
 
-        private async Task<bool> JoinChannel(IVoiceChannel voiceChannel)
+        private async Task<AudioPlayer> JoinChannel(IVoiceChannel voiceChannel)
         {
-            LavaPlayer player;
-
-            if (LavaNode.HasPlayer(Context.Guild))
+            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
             {
-                player = LavaNode.GetPlayer(Context.Guild);
-
                 if (player.VoiceChannel == voiceChannel)
                 {
                     await RespondAsync(embed: new EmbedBuilder()
@@ -146,20 +141,20 @@ namespace NOVAxis.Modules.Audio
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Mé jádro už bylo naladěno na stejnou zvukovou frekvenci").Build());
 
-                    return false;
+                    return null;
                 }
 
                 AudioContext.Queue.Clear();
 
-                await LavaNode.LeaveAsync(voiceChannel);
-                player = await LavaNode.JoinAsync(voiceChannel, Context.Channel as ITextChannel);
+                await AudioNode.LeaveAsync(voiceChannel);
+                player = await AudioNode.JoinAsync(voiceChannel, Context.Channel as ITextChannel);
             }
 
             else
-                player = await LavaNode.JoinAsync(voiceChannel, Context.Channel as ITextChannel);
+                player = await AudioNode.JoinAsync(voiceChannel, Context.Channel as ITextChannel);
 
             if (player.Volume == 0)
-                await player.UpdateVolumeAsync(100);
+                await player.SetVolumeAsync(100);
 
             await AudioContext.InitiateDisconnectAsync(player, Config.Audio.Timeout.Idle);
             
@@ -167,13 +162,13 @@ namespace NOVAxis.Modules.Audio
                 .WithColor(52, 231, 231)
                 .WithTitle($"Připojuji se ke kanálu `{voiceChannel.Name}`").Build());
 
-            return true;
+            return player;
         }
 
         [SlashCommand("leave", "Leaves a voice channel")]
         public async Task CmdLeaveChannel()
         {
-            if (!LavaNode.IsConnected)
+            if (!AudioNode.IsConnected)
             {
                 await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
@@ -183,7 +178,7 @@ namespace NOVAxis.Modules.Audio
                 return;
             }
 
-            if (!LavaNode.HasPlayer(Context.Guild))
+            if (!AudioNode.TryGetPlayer(Context.Guild, out var player))
             {
                 await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
@@ -196,7 +191,6 @@ namespace NOVAxis.Modules.Audio
             var guildUser = Context.User as IGuildUser;
             var voiceChannel = guildUser?.VoiceChannel;
 
-            var player = LavaNode.GetPlayer(Context.Guild);
             var usersInChannel = await player.VoiceChannel.GetHumanUsers().CountAsync();
 
             if (player.VoiceChannel != voiceChannel && usersInChannel > 0)
@@ -212,7 +206,7 @@ namespace NOVAxis.Modules.Audio
             await LeaveChannel(player);
         }
 
-        private async Task LeaveChannel(LavaPlayer player)
+        private async Task LeaveChannel(AudioPlayer player)
         {
             if (player != null)
             {
@@ -220,7 +214,7 @@ namespace NOVAxis.Modules.Audio
                     .WithColor(52, 231, 231)
                     .WithTitle($"Odpojuji se od kanálu `{player.VoiceChannel.Name}`").Build());
 
-                await LavaNode.LeaveAsync(player.VoiceChannel);
+                await AudioNode.LeaveAsync(player.VoiceChannel);
             }
 
             AudioService.Remove(Context.Guild.Id);
@@ -230,7 +224,7 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("play", "Plays an audio transmission")]
         public async Task CmdPlayAudio(string input)
         {
-            if (!LavaNode.IsConnected)
+            if (!AudioNode.IsConnected)
             {
                 await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
@@ -253,18 +247,14 @@ namespace NOVAxis.Modules.Audio
                 return;
             }
 
-            if (LavaNode.HasPlayer(Context.Guild))
+            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
             {
-                var player = LavaNode.GetPlayer(voiceChannel.Guild);
-
                 if (player.VoiceChannel != voiceChannel)
                 {
                     AudioContext.Queue.Clear();
 
-                    await LavaNode.LeaveAsync(voiceChannel);
-                    if (!await JoinChannel(voiceChannel)) return;
-
-                    player = LavaNode.GetPlayer(voiceChannel.Guild);
+                    await AudioNode.LeaveAsync(voiceChannel);
+                    player = await JoinChannel(voiceChannel);
                 }
 
                 await PlayAudio(player, input);
@@ -273,14 +263,13 @@ namespace NOVAxis.Modules.Audio
             else
             {
                 AudioContext.Queue.Clear();
-                if (!await JoinChannel(voiceChannel)) return;
+                player = await JoinChannel(voiceChannel);
 
-                var player = LavaNode.GetPlayer(voiceChannel.Guild);
                 await PlayAudio(player, input);
             }
         }
 
-        private async Task PlayAudio(LavaPlayer player, string input)
+        private async Task PlayAudio(AudioPlayer player, string input)
         {
             try
             {
@@ -367,10 +356,8 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("skip", "Skips to the next audio transmission")]
         public async Task CmdSkipAudio()
         {
-            if (LavaNode.HasPlayer(Context.Guild))
+            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
             {
-                var player = LavaNode.GetPlayer(Context.Guild);
-
                 if (player.Track == null)
                 {
                     await RespondAsync(embed: new EmbedBuilder()
@@ -400,10 +387,8 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("stop", "Stops the audio transmission")]
         public async Task CmdStopAudio()
         {
-            if (LavaNode.HasPlayer(Context.Guild))
+            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
             {
-                var player = LavaNode.GetPlayer(Context.Guild);
-
                 if (player.Track == null)
                 {
                     await RespondAsync(embed: new EmbedBuilder()
@@ -436,10 +421,8 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("pause", "Pauses the audio transmission")]
         public async Task CmdPauseAudio()
         {
-            if (LavaNode.HasPlayer(Context.Guild))
+            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
             {
-                var player = LavaNode.GetPlayer(Context.Guild);
-
                 if (player.Track == null)
                 {
                     await RespondAsync(embed: new EmbedBuilder()
@@ -481,10 +464,8 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("resume", "Resumes the audio transmission")]
         public async Task CmdResumeAudio()
         {
-            if (LavaNode.HasPlayer(Context.Guild))
+            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
             {
-                var player = LavaNode.GetPlayer(Context.Guild);
-
                 if (player.Track == null)
                 {
                     await RespondAsync(embed: new EmbedBuilder()
@@ -525,10 +506,8 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("seek", "Seeks a position in the audio transmissions")]
         public async Task CmdSeekAudio(TimeSpan time)
         {
-            if (LavaNode.HasPlayer(Context.Guild))
+            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
             {
-                var player = LavaNode.GetPlayer(Context.Guild);
-
                 if (player.Track == null)
                 {
                     await RespondAsync(embed: new EmbedBuilder()
@@ -578,10 +557,8 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("forward", "Forwards to a position in the audio transmissions")]
         public async Task CmdForwardAudio(TimeSpan time)
         {
-            if (LavaNode.HasPlayer(Context.Guild))
+            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
             {
-                var player = LavaNode.GetPlayer(Context.Guild);
-
                 if (player.Track == null)
                 {
                     await RespondAsync(embed: new EmbedBuilder()
@@ -626,10 +603,8 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("backward", "Backwards to a position in the audio transmissions")]
         public async Task CmdBackwardAudio(TimeSpan time)
         {
-            if (LavaNode.HasPlayer(Context.Guild))
+            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
             {
-                var player = LavaNode.GetPlayer(Context.Guild);
-
                 if (player.Track == null)
                 {
                     await RespondAsync(embed: new EmbedBuilder()
@@ -674,10 +649,8 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("volume", "Sets a volume of the audio transmissions")]
         public async Task CmdAudioVolume(ushort percentage)
         {
-            if (LavaNode.HasPlayer(Context.Guild))
+            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
             {
-                var player = LavaNode.GetPlayer(Context.Guild);
-
                 if (player.Track == null)
                 {
                     await RespondAsync(embed: new EmbedBuilder()
@@ -702,7 +675,7 @@ namespace NOVAxis.Modules.Audio
                     .WithColor(52, 231, 231)
                     .WithTitle($"Hlasitost audia byla úspěšně nastavena na {percentage}%").Build());
 
-                await player.UpdateVolumeAsync(percentage);
+                await player.SetVolumeAsync(percentage);
             }
 
             else
@@ -717,10 +690,8 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("status", "Shows active audio transmissions")]
         public async Task CmdAudioStatus()
         {
-            if (LavaNode.HasPlayer(Context.Guild))
+            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
             {
-                var player = LavaNode.GetPlayer(Context.Guild);
-
                 if (player.Track == null)
                 {
                     await RespondAsync(embed: new EmbedBuilder()
@@ -760,7 +731,7 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("queue", "Shows enqueued audio transmissions")]
         public async Task CmdAudioQueue()
         {
-            if (AudioContext.Queue.Count < 1 || !LavaNode.HasPlayer(Context.Guild))
+            if (AudioContext.Queue.Count < 1 || !AudioNode.HasPlayer(Context.Guild))
             {
                 await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
@@ -858,10 +829,8 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("repeat", "Repeats enqueued audio transmission")]
         public async Task CmdRepeatAudio(RepeatMode mode = RepeatMode.None)
         {
-            if (LavaNode.HasPlayer(Context.Guild))
+            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
             {
-                var player = LavaNode.GetPlayer(Context.Guild);
-
                 if (player.Track == null)
                 {
                     await RespondAsync(embed: new EmbedBuilder()
