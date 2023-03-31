@@ -3,9 +3,11 @@ using System.Reflection;
 using System.Threading.Tasks;
 
 using NOVAxis.Core;
+using NOVAxis.Extensions;
 using NOVAxis.TypeReaders;
 using NOVAxis.Database.Guild;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 
 using Discord;
@@ -22,14 +24,14 @@ namespace NOVAxis.Modules
     {
         private DiscordShardedClient Client { get; }
         private ProgramConfig Config { get; }
-        private ProgramLogger Logger { get; }
+        private ILogger<ModuleHandler> Logger { get; }
         private IServiceProvider Services { get; }
         private CommandService CommandService { get; }
         private InteractionService InteractionService { get; }
 
         public ModuleHandler(DiscordShardedClient client, 
             ProgramConfig config,
-            ProgramLogger logger,
+            ILogger<ModuleHandler> logger,
             IServiceProvider services,
             CommandService commandService,
             InteractionService interactionService)
@@ -45,10 +47,10 @@ namespace NOVAxis.Modules
             Client.InteractionCreated += InteractionCreated;
 
             CommandService.CommandExecuted += CommandExecuted;
-            CommandService.Log += Logger.Log;
+            CommandService.Log += logger.Log;
 
             InteractionService.InteractionExecuted += InteractionExecuted;
-            InteractionService.Log += Logger.Log;
+            InteractionService.Log += logger.Log;
         }
 
         public async Task Setup()

@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 
-namespace NOVAxis.Services.Audio
+namespace NOVAxis.Utilities
 {
     public class LinkedQueue<T> : LinkedList<T>
     {
@@ -24,11 +24,20 @@ namespace NOVAxis.Services.Audio
             return value;
         }
 
+        public bool TryDequeue(out T value)
+        {
+            value = this.FirstOrDefault();
+            if (value == null) return false;
+
+            RemoveFirst();
+            return true;
+        }
+
         public T Peek()
         {
             return this.First();
         }
 
-        public bool Empty => Count == 0;
+        public bool IsEmpty => Count == 0;
     }
 }

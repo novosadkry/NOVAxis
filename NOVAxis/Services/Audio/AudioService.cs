@@ -7,8 +7,7 @@ using NOVAxis.Modules.Audio;
 using Discord;
 using Discord.WebSocket;
 
-using Victoria;
-using Victoria.EventArgs;
+using Victoria.Node.EventArgs;
 
 namespace NOVAxis.Services.Audio
 {
@@ -16,10 +15,10 @@ namespace NOVAxis.Services.Audio
     {
         private DiscordShardedClient Client { get;}
         private ProgramConfig Config { get;}
-        private LavaNode LavaNode { get;}
+        private AudioNode AudioNode { get;}
         private Cache<ulong, AudioContext> Guilds { get; }
 
-        public AudioService(DiscordShardedClient client, ProgramConfig config, LavaNode lavaNode)
+        public AudioService(DiscordShardedClient client, ProgramConfig config, AudioNode audioNode)
         {
             Config = config;
             Guilds = new Cache<ulong, AudioContext>(
@@ -27,9 +26,9 @@ namespace NOVAxis.Services.Audio
                 Config.Audio.Cache.RelativeExpiration
             );
 
-            LavaNode = lavaNode;
-            LavaNode.OnTrackEnded += AudioModuleService_TrackEnd;
-            LavaNode.OnTrackStarted += AudioModuleService_TrackStart;
+            AudioNode = audioNode;
+            AudioNode.OnTrackEnd += AudioModuleService_TrackEnd;
+            AudioNode.OnTrackStart += AudioModuleService_TrackStart;
 
             Client = client;
             Client.UserVoiceStateUpdated += AudioModuleService_UserVoiceStateUpdated;
@@ -37,15 +36,15 @@ namespace NOVAxis.Services.Audio
 
         ~AudioService()
         {
-            LavaNode.OnTrackEnded -= AudioModuleService_TrackEnd;
-            LavaNode.OnTrackStarted -= AudioModuleService_TrackStart;
+            AudioNode.OnTrackEnd -= AudioModuleService_TrackEnd;
+            AudioNode.OnTrackStart -= AudioModuleService_TrackStart;
 
             Client.UserVoiceStateUpdated -= AudioModuleService_UserVoiceStateUpdated;
         }
 
         public AudioContext this[ulong id]
         {
-            get => Guilds.GetOrAdd(id, new AudioContext(LavaNode, id));
+            get => Guilds.GetOrAdd(id, new AudioContext(AudioNode, id));
             set => Guilds[id] = value;
         }
 
@@ -59,63 +58,62 @@ namespace NOVAxis.Services.Audio
             if (user.Id != Client.CurrentUser?.Id || before.VoiceChannel == null)
                 return;
 
-            if (LavaNode.HasPlayer(before.VoiceChannel.Guild))
+            if (AudioNode.HasPlayer(before.VoiceChannel.Guild))
             {
                 if (after.VoiceChannel == null)
                 {
                     Remove(before.VoiceChannel.Guild.Id);
-                    await LavaNode.LeaveAsync(before.VoiceChannel);
+                    await AudioNode.LeaveAsync(before.VoiceChannel);
                 }
             }
         }
 
-        private async Task AudioModuleService_TrackStart(TrackStartEventArgs args)
+        private async Task AudioModuleService_TrackStart(TrackStartEventArg<AudioPlayer, AudioTrack> args)
         {
             var audioContext = this[args.Player.VoiceChannel.GuildId];
             await audioContext.CancelDisconnectAsync();
         }
 
-        private async Task AudioModuleService_TrackEnd(TrackEndedEventArgs args)
+        private async Task AudioModuleService_TrackEnd(TrackEndEventArg<AudioPlayer, AudioTrack> args)
         {
-            if (args.Player.VoiceChannel == null)
+            var player = args.Player;
+            var context = this[player.VoiceChannel.GuildId];
+
+            if (player.VoiceChannel == null)
                 return;
 
-            var audioContext = this[args.Player.VoiceChannel.GuildId];
-
-            if (!audioContext.Queue.Empty)
+            if (context.Queue.TryDequeue(out var prevTrack))
             {
-                var prevTrack = audioContext.Queue.Dequeue();
-
-                switch (audioContext.Repeat)
+                switch (context.Repeat)
                 {
                     case RepeatMode.Once:
-                        audioContext.Queue.AddFirst(prevTrack);
-                        audioContext.Repeat = RepeatMode.None;
+                        context.Queue.AddFirst(prevTrack);
+                        context.Repeat = RepeatMode.None;
                         break;
 
                     case RepeatMode.First:
-                        audioContext.Queue.AddFirst(prevTrack);
+                        context.Queue.AddFirst(prevTrack);
                         break;
 
                     case RepeatMode.Queue:
-                        audioContext.Queue.Enqueue(prevTrack);
+                        context.Queue.Enqueue(prevTrack);
                         break;
                 }
 
-                if (audioContext.Queue.Empty)
+                if (context.Queue.IsEmpty)
                 {
                     await args.Player.TextChannel.SendMessageAsync(embed: new EmbedBuilder()
                         .WithColor(52, 231, 231)
                         .WithTitle("Stream audia byl úspěšně dokončen").Build());
 
-                    await audioContext.InitiateDisconnectAsync(args.Player, Config.Audio.Timeout.Idle);
+                    await context.InitiateDisconnectAsync(args.Player, Config.Audio.Timeout.Idle);
                     return;
                 }
 
-                AudioTrack nextTrack = audioContext.Queue.Peek();
+                var nextTrack = context.Queue.Peek();
                 await args.Player.PlayAsync(nextTrack);
 
-                var statusEmoji = AudioModule.GetStatusEmoji(audioContext, args.Player);
+                var statusEmoji = AudioModule.GetStatusEmoji(context, args.Player);
 
                 await args.Player.TextChannel.SendMessageAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
@@ -132,7 +130,7 @@ namespace NOVAxis.Services.Audio
             }
 
             else
-                await audioContext.InitiateDisconnectAsync(args.Player, Config.Audio.Timeout.Idle);
+                await context.InitiateDisconnectAsync(args.Player, Config.Audio.Timeout.Idle);
         }
     }
 }

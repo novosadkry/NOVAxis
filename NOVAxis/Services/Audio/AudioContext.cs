@@ -3,10 +3,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Discord;
+using NOVAxis.Utilities;
 
-using Victoria;
-using Victoria.Enums;
+using Discord;
+using Victoria.Player;
 
 namespace NOVAxis.Services.Audio
 {
@@ -20,16 +20,16 @@ namespace NOVAxis.Services.Audio
 
     public class AudioContext : IDisposable
     {
-        public AudioContext(LavaNode lavaNode, ulong id)
+        public AudioContext(AudioNode audioNode, ulong id)
         {
-            _lavaNode = lavaNode;
+            _audioNode = audioNode;
             _disconnectCts = new CancellationTokenSource();
 
             GuildId = id;
         }
 
         private bool _disposed;
-        private readonly LavaNode _lavaNode;
+        private readonly AudioNode _audioNode;
         private CancellationTokenSource _disconnectCts;
 
         public LinkedQueue<AudioTrack> Queue { get; } = new();
@@ -40,7 +40,7 @@ namespace NOVAxis.Services.Audio
         public RepeatMode Repeat { get; set; }
         public ulong GuildId { get; }
 
-        public Task InitiateDisconnectAsync(LavaPlayer player, TimeSpan timeout)
+        public Task InitiateDisconnectAsync(AudioPlayer player, TimeSpan timeout)
         {
             // Renew cancelled token source
             if (_disconnectCts.IsCancellationRequested)
@@ -64,7 +64,7 @@ namespace NOVAxis.Services.Audio
                             .WithColor(52, 231, 231)
                             .WithTitle($"Odpojuji se od kanálu `{player.VoiceChannel.Name}`").Build());
 
-                        _lavaNode.LeaveAsync(player.VoiceChannel);
+                        _audioNode.LeaveAsync(player.VoiceChannel);
                     }
                 }
             }, disconnectToken);

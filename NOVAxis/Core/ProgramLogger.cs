@@ -1,69 +1,67 @@
 ﻿using System;
-using System.IO;
-using System.Text;
-using System.Threading.Tasks;
 
 using Discord;
+using Microsoft.Extensions.Logging;
 
 namespace NOVAxis.Core
 {
-    public class ProgramLogger
+    public class ProgramLogger : ILogger
     {
+        private string Source { get; }
         private ProgramConfig Config { get; }
-        private static string LogPathFormat => Path.Combine(".", "log", "log_{0}.txt");
-        private static string LogPath => string.Format(LogPathFormat, $"{DateTime.Now.Day}.{DateTime.Now.Month}.{DateTime.Now.Year}");
 
-        public ProgramLogger(ProgramConfig config)
+        public ProgramLogger(string source, ProgramConfig config)
         {
+            Source = source;
             Config = config;
         }
 
-        public async Task Log(LogMessage arg)
+        public bool IsEnabled(LogLevel logLevel) => logLevel >= Config.Log.Level;
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull => default;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
         {
-            if (arg.Severity > Config.Log.Severity)
+            if (!IsEnabled(logLevel))
                 return;
 
-            await ToConsole(arg);
-
-            if (Config.Log.Active)
-                await ToFile(arg);
-        }
-
-        public Task ToConsole(LogMessage arg)
-        { 
-            switch (arg.Severity)
+            var logColor = logLevel switch
             {
-                case LogSeverity.Warning:
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    break;
+                LogLevel.Warning => ConsoleColor.Yellow,
+                LogLevel.Error or LogLevel.Critical => ConsoleColor.Red,
+                LogLevel.Trace or LogLevel.Debug => ConsoleColor.DarkGray,
+                _ => ConsoleColor.White
+            };
 
-                case LogSeverity.Error:
-                case LogSeverity.Critical:
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    break;
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.Write($"{DateTime.Now} ");
+            Console.ForegroundColor = logColor;
+            Console.Write($"{logLevel,-11} ");
 
-                case LogSeverity.Debug:
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    break;
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.Write($"[{Source}] ");
 
-                default:
-                    Console.ForegroundColor = ConsoleColor.Gray;
-                    break;
-            }
+            Console.ForegroundColor = logColor;
+            Console.WriteLine($"{formatter(state, exception)}");
 
-            Console.WriteLine($"[{DateTime.Now}] {arg.Source} | <{arg.Severity}> {arg.Message} {arg.Exception}");
             Console.ForegroundColor = ConsoleColor.Gray;
-
-            return Task.CompletedTask;
         }
 
-        public async Task ToFile(LogMessage arg)
+        public static string MessageFormatter(LogMessage msg, Exception error)
         {
-            if (!Directory.Exists(Directory.GetParent(LogPath).FullName))
-                Directory.CreateDirectory(Directory.GetParent(LogPath).FullName);
-
-            await using StreamWriter writer = new StreamWriter(LogPath, true, Encoding.UTF8);
-            await writer.WriteLineAsync($"[{DateTime.Now}] {arg.Source} | <{arg.Severity}> {arg.Message}");
+            return $"<{msg.Source}> {msg.Message} {error}";
         }
+    }
+
+    public class ProgramLoggerProvider : ILoggerProvider
+    {
+        private ProgramConfig Config { get; }
+
+        public ProgramLoggerProvider(ProgramConfig config)
+            { Config = config; }
+
+        public ILogger CreateLogger(string source) =>
+            new ProgramLogger(source, Config);
+
+        public void Dispose() { }
     }
 }

@@ -1,11 +1,12 @@
 ﻿using System;
-using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 
 using NOVAxis.Modules;
+using NOVAxis.Extensions;
 using NOVAxis.Database.Guild;
 using NOVAxis.Services.Audio;
 
@@ -15,14 +16,14 @@ using Discord.Interactions;
 using Discord.WebSocket;
 
 using Interactivity;
-using Victoria;
+using Victoria.Node;
 
 using CommandRunMode = Discord.Commands.RunMode;
 using InteractionRunMode = Discord.Interactions.RunMode;
 
 namespace NOVAxis.Core
 {
-    public static class Program
+    public class Program
     {
         public static short ShardsReady { get; private set; }
         public static ulong OwnerId => 269182357704015873L;
@@ -36,9 +37,9 @@ namespace NOVAxis.Core
 
             var client = services.GetRequiredService<DiscordShardedClient>();
             var config = services.GetRequiredService<ProgramConfig>();
-            var logger = services.GetRequiredService<ProgramLogger>();
+            var logger = services.GetRequiredService<ILogger<Program>>();
 
-            await logger.Log(new LogMessage(LogSeverity.Info, "Program", "NOVAxis v" + Version));
+            logger.LogInformation("NOVAxis v" + Version);
 
             try
             {
@@ -51,18 +52,10 @@ namespace NOVAxis.Core
 
             catch (Exception e)
             {
-                await logger.Log(new LogMessage(LogSeverity.Error, "Program",
-                    "The flow of execution has been halted due to an exception" +
-                    $"\nReason: {e.Message}"));
+                logger.LogError("The flow of execution has been halted due to an exception" + 
+                                $"\nReason: {e.Message}");
                 Console.Read();
                 return;
-            }
-
-            if (config.Lavalink.Start)
-            {
-                await ProgramCommand.CommandList
-                    .First(x => x.Name == "lavalink")
-                    .Execute(services);
             }
 
             await ProgramCommand.AwaitCommands(services);
@@ -74,7 +67,7 @@ namespace NOVAxis.Core
 
             var clientConfig = new DiscordSocketConfig
             {
-                LogLevel = config.Log.Severity,
+                LogLevel = config.Log.Level.ToSeverity(),
                 TotalShards = config.TotalShards,
                 MessageCacheSize = 100,
                 UseInteractionSnowflakeDate = false,
@@ -86,22 +79,21 @@ namespace NOVAxis.Core
             {
                 CaseSensitiveCommands = false,
                 DefaultRunMode = CommandRunMode.Async,
-                LogLevel = config.Log.Severity
+                LogLevel = config.Log.Level.ToSeverity()
             };
 
             var interactionConfig = new InteractionServiceConfig
             {
                 DefaultRunMode = InteractionRunMode.Async,
-                LogLevel = config.Log.Severity
+                LogLevel = config.Log.Level.ToSeverity()
             };
 
-            var lavaConfig = new LavaConfig
+            var audioNodeConfig = new NodeConfiguration
             {
                 Hostname = config.Lavalink.Host,
                 Port = config.Lavalink.Port,
                 Authorization = config.Lavalink.Login,
-                SelfDeaf = config.Lavalink.SelfDeaf,
-                LogSeverity = config.Log.Severity
+                SelfDeaf = config.Lavalink.SelfDeaf
             };
 
             var services = new ServiceCollection()
@@ -109,26 +101,24 @@ namespace NOVAxis.Core
                 .AddSingleton(clientConfig)
                 .AddSingleton(commandServiceConfig)
                 .AddSingleton(interactionConfig)
-                .AddSingleton(lavaConfig)
+                .AddSingleton(audioNodeConfig)
                 .AddSingleton<DiscordShardedClient>()
                 .AddSingleton<ProgramLogger>()
                 .AddSingleton<ModuleHandler>()
                 .AddSingleton<CommandService>()
                 .AddSingleton<InteractionService>()
                 .AddSingleton<InteractivityService>()
-                .AddSingleton<LavaNode>()
+                .AddSingleton<AudioNode>()
                 .AddSingleton<AudioService>()
                 .AddDbContext<GuildDbContext>()
+                .AddLogging(builder => builder.AddProgramLogger())
                 .BuildServiceProvider(true);
 
             var client = services.GetRequiredService<DiscordShardedClient>();
-            var logger = services.GetRequiredService<ProgramLogger>();
-            var lavaNode = services.GetService<LavaNode>();
+            var logger = services.GetService<ILogger<DiscordShardedClient>>();
 
             client.Log += logger.Log;
             client.ShardReady += shard => Client_Ready(shard, services);
-
-            lavaNode.OnLog += logger.Log;
 
             await using var scope = services.CreateAsyncScope();
             await scope.ServiceProvider
@@ -141,10 +131,10 @@ namespace NOVAxis.Core
         public static async Task Exit(IServiceProvider services)
         {
             var client = services.GetRequiredService<DiscordShardedClient>();
-            var lavaNode = services.GetService<LavaNode>();
+            var audioNode = services.GetService<AudioNode>();
 
-            if (lavaNode is {IsConnected: true})
-                await lavaNode.DisposeAsync();
+            if (audioNode is {IsConnected: true})
+                await audioNode.DisposeAsync();
 
             await client.LogoutAsync();
             await client.StopAsync();
@@ -154,14 +144,14 @@ namespace NOVAxis.Core
         {
             var client = services.GetRequiredService<DiscordShardedClient>();
             var modules = services.GetRequiredService<ModuleHandler>();
-            var logger = services.GetRequiredService<ProgramLogger>();
-            var lavaNode = services.GetService<LavaNode>();
+            var logger = services.GetRequiredService<ILogger<Program>>();
+            var audioNode = services.GetService<AudioNode>();
 
             // Execute after all shards are ready
             if (++ShardsReady == client.Shards.Count)
             {
                 await logger.Log(new LogMessage(LogSeverity.Info, "Victoria", "Connecting"));
-                _ = Task.Run(() => lavaNode?.ConnectAsync()); // this way it doesn't block the main thread
+                _ = Task.Run(() => audioNode?.ConnectAsync()); // this way it doesn't block the main thread
 
                 await modules.Setup();
             }

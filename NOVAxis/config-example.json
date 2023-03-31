@@ -17,10 +17,9 @@
   },
   "Log": {
     "Active": true,
-    "Severity": 3
+    "Level": 3
   },
   "Lavalink": {
-    "Start": false,
     "Host": "localhost",
     "Port": 2333,
     "Login": "123",
