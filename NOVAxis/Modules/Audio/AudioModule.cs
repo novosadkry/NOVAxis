@@ -109,7 +109,7 @@ namespace NOVAxis.Modules.Audio
 
             if (!AudioNode.IsConnected)
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Služba není dostupná)")
                     .WithTitle("Mé jádro pravě nemůže poskytnout stabilní modul audia").Build());
@@ -119,7 +119,7 @@ namespace NOVAxis.Modules.Audio
 
             if (voiceChannel == null)
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný kanál)")
                     .WithTitle("Mému jádru se nepodařilo naladit na stejnou zvukovou frekvenci").Build());
@@ -136,7 +136,7 @@ namespace NOVAxis.Modules.Audio
             {
                 if (player.VoiceChannel == voiceChannel)
                 {
-                    await RespondAsync(embed: new EmbedBuilder()
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Mé jádro už bylo naladěno na stejnou zvukovou frekvenci").Build());
@@ -170,7 +170,7 @@ namespace NOVAxis.Modules.Audio
         {
             if (!AudioNode.IsConnected)
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Služba není dostupná)")
                     .WithTitle("Mé jádro pravě nemůže poskytnout stabilní modul audia").Build());
@@ -180,7 +180,7 @@ namespace NOVAxis.Modules.Audio
 
             if (!AudioNode.TryGetPlayer(Context.Guild, out var player))
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Mé jádro musí být před odpojením naladěno na správnou frekvenci").Build());
@@ -195,7 +195,7 @@ namespace NOVAxis.Modules.Audio
 
             if (player.VoiceChannel != voiceChannel && usersInChannel > 0)
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Pro komunikaci s jádrem musíš být naladěn na stejnou frekvenci").Build());
@@ -226,7 +226,7 @@ namespace NOVAxis.Modules.Audio
         {
             if (!AudioNode.IsConnected)
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Služba není dostupná)")
                     .WithTitle("Mé jádro pravě nemůže poskytnout stabilní modul audia").Build());
@@ -239,7 +239,7 @@ namespace NOVAxis.Modules.Audio
 
             if (voiceChannel == null)
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný kanál)")
                     .WithTitle("Mému jádru se nepodařilo naladit na stejnou zvukovou frekvenci").Build());
@@ -338,7 +338,7 @@ namespace NOVAxis.Modules.Audio
 
             catch (HttpRequestException)
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Služba není dostupná)")
                     .WithTitle("Mé jádro pravě nemůže poskytnout stabilní stream audia").Build());
@@ -346,7 +346,7 @@ namespace NOVAxis.Modules.Audio
 
             catch (ArgumentNullException)
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný argument)")
                     .WithTitle("Mému jádru se nepodařilo v databázi nalézt požadovanou stopu").Build());
@@ -360,7 +360,7 @@ namespace NOVAxis.Modules.Audio
             {
                 if (player.Track == null)
                 {
-                    await RespondAsync(embed: new EmbedBuilder()
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -368,7 +368,7 @@ namespace NOVAxis.Modules.Audio
                     return;
                 }
 
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithTitle("Stream audia byl úspěšně přeskočen").Build());
 
@@ -377,7 +377,7 @@ namespace NOVAxis.Modules.Audio
 
             else
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -391,7 +391,7 @@ namespace NOVAxis.Modules.Audio
             {
                 if (player.Track == null)
                 {
-                    await RespondAsync(embed: new EmbedBuilder()
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -411,7 +411,7 @@ namespace NOVAxis.Modules.Audio
 
             else
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -425,7 +425,7 @@ namespace NOVAxis.Modules.Audio
             {
                 if (player.Track == null)
                 {
-                    await RespondAsync(embed: new EmbedBuilder()
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -435,7 +435,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (player.PlayerState == PlayerState.Paused)
                 {
-                    await RespondAsync(embed: new EmbedBuilder()
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Stream audia byl dávno pozastaven (pro obnovení použíjte `~audio resume`)")
@@ -454,7 +454,7 @@ namespace NOVAxis.Modules.Audio
 
             else
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -468,7 +468,7 @@ namespace NOVAxis.Modules.Audio
             {
                 if (player.Track == null)
                 {
-                    await RespondAsync(embed: new EmbedBuilder()
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -478,7 +478,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (player.PlayerState == PlayerState.Playing)
                 {
-                    await RespondAsync(embed: new EmbedBuilder()
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Stream audia právě běží (pro pozastavení použíjte `~audio pause`)").Build());
@@ -496,7 +496,7 @@ namespace NOVAxis.Modules.Audio
 
             else
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -510,7 +510,7 @@ namespace NOVAxis.Modules.Audio
             {
                 if (player.Track == null)
                 {
-                    await RespondAsync(embed: new EmbedBuilder()
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -520,7 +520,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (time > player.Track.Duration)
                 {
-                    await RespondAsync(embed: new EmbedBuilder()
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(220, 20, 60)
                         .WithDescription("(Neplatný argument)")
                         .WithTitle("Nelze nastavit hodnotu přesahující maximální délku stopy").Build());
@@ -530,7 +530,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (time < TimeSpan.Zero)
                 {
-                    await RespondAsync(embed: new EmbedBuilder()
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(220, 20, 60)
                         .WithDescription("(Neplatný argument)")
                         .WithTitle("Nelze nastavit zápornou hodnotu").Build());
@@ -547,7 +547,7 @@ namespace NOVAxis.Modules.Audio
 
             else
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -561,7 +561,7 @@ namespace NOVAxis.Modules.Audio
             {
                 if (player.Track == null)
                 {
-                    await RespondAsync(embed: new EmbedBuilder()
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -571,7 +571,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (time <= TimeSpan.Zero)
                 {
-                    await RespondAsync(embed: new EmbedBuilder()
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(220, 20, 60)
                         .WithDescription("(Neplatný argument)")
                         .WithTitle("Nelze posunout o zápornou nebo nulovou hodnotu").Build());
@@ -593,7 +593,7 @@ namespace NOVAxis.Modules.Audio
 
             else
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -607,7 +607,7 @@ namespace NOVAxis.Modules.Audio
             {
                 if (player.Track == null)
                 {
-                    await RespondAsync(embed: new EmbedBuilder()
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -617,7 +617,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (time <= TimeSpan.Zero)
                 {
-                    await RespondAsync(embed: new EmbedBuilder()
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(220, 20, 60)
                         .WithDescription("(Neplatný argument)")
                         .WithTitle("Nelze posunout o zápornou nebo nulovou hodnotu").Build());
@@ -639,7 +639,7 @@ namespace NOVAxis.Modules.Audio
 
             else
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -653,7 +653,7 @@ namespace NOVAxis.Modules.Audio
             {
                 if (player.Track == null)
                 {
-                    await RespondAsync(embed: new EmbedBuilder()
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -663,7 +663,7 @@ namespace NOVAxis.Modules.Audio
 
                 if (percentage > 150)
                 {
-                    await RespondAsync(embed: new EmbedBuilder()
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný argument)")
                         .WithTitle("Mé jádro nepodporuje hlasitost vyšší než 150%").Build());
@@ -680,7 +680,7 @@ namespace NOVAxis.Modules.Audio
 
             else
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -694,7 +694,7 @@ namespace NOVAxis.Modules.Audio
             {
                 if (player.Track == null)
                 {
-                    await RespondAsync(embed: new EmbedBuilder()
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -721,7 +721,7 @@ namespace NOVAxis.Modules.Audio
 
             else
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -733,7 +733,7 @@ namespace NOVAxis.Modules.Audio
         {
             if (AudioContext.Queue.Count < 1 || !AudioNode.HasPlayer(Context.Guild))
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď se ve frontě nenachází žádná zvuková stopa").Build());
@@ -801,7 +801,7 @@ namespace NOVAxis.Modules.Audio
         {
             if (AudioContext.Queue.Count <= 1)
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď se ve frontě nenachází žádná zvuková stopa").Build());
@@ -811,7 +811,7 @@ namespace NOVAxis.Modules.Audio
 
             if (index <= 0 || index >= AudioContext.Queue.Count)
             {
-                await Context.Channel.SendMessageAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatná pozice)")
                     .WithTitle("Požadovaná stopa se ve frontě nenachází").Build());
@@ -833,7 +833,7 @@ namespace NOVAxis.Modules.Audio
             {
                 if (player.Track == null)
                 {
-                    await RespondAsync(embed: new EmbedBuilder()
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -866,7 +866,7 @@ namespace NOVAxis.Modules.Audio
 
             else
             {
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
                     .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
@@ -897,7 +897,7 @@ namespace NOVAxis.Modules.Audio
                     Guild = guildInfo,
                 });
 
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithDescription($"(Nastavena role {newRole.Mention})")
                     .WithTitle("Konfigurace mého jádra proběhla úspešně").Build());
@@ -911,7 +911,7 @@ namespace NOVAxis.Modules.Audio
                     await GuildDbContext.SaveChangesAsync();
                 }
 
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithDescription("(Nastavená role zrušena)")
                     .WithTitle("Konfigurace mého jádra proběhla úspešně").Build());
