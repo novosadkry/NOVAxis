@@ -103,9 +103,10 @@ namespace NOVAxis.Modules.Audio
         #region Commands
 
         [SlashCommand("join", "Joins a selected voice channel")]
-        public async Task JoinChannel(IVoiceChannel voiceChannel = null)
+        public async Task CmdJoinChannel(IVoiceChannel voiceChannel = null)
         {
-            voiceChannel ??= ((IGuildUser)Context.User).VoiceChannel;
+            var guildUser = Context.User as IGuildUser;
+            voiceChannel ??= guildUser?.VoiceChannel;
 
             if (!LavaNode.IsConnected)
             {
@@ -127,6 +128,11 @@ namespace NOVAxis.Modules.Audio
                 return;
             }
 
+            await JoinChannel(voiceChannel);
+        }
+
+        private async Task<bool> JoinChannel(IVoiceChannel voiceChannel)
+        {
             LavaPlayer player;
 
             if (LavaNode.HasPlayer(Context.Guild))
@@ -140,7 +146,7 @@ namespace NOVAxis.Modules.Audio
                         .WithDescription("(Neplatný příkaz)")
                         .WithTitle("Mé jádro už bylo naladěno na stejnou zvukovou frekvenci").Build());
 
-                    return;
+                    return false;
                 }
 
                 AudioContext.Queue.Clear();
@@ -156,14 +162,16 @@ namespace NOVAxis.Modules.Audio
                 await player.UpdateVolumeAsync(100);
 
             await AudioContext.InitiateDisconnectAsync(player, Config.Audio.Timeout.Idle);
-
+            
             await RespondAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
                 .WithTitle($"Připojuji se ke kanálu `{voiceChannel.Name}`").Build());
+
+            return true;
         }
 
         [SlashCommand("leave", "Leaves a voice channel")]
-        public async Task LeaveChannel()
+        public async Task CmdLeaveChannel()
         {
             if (!LavaNode.IsConnected)
             {
@@ -185,10 +193,13 @@ namespace NOVAxis.Modules.Audio
                 return;
             }
 
-            LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
-            IVoiceChannel voiceChannel = ((IGuildUser)Context.User).VoiceChannel;
+            var guildUser = Context.User as IGuildUser;
+            var voiceChannel = guildUser?.VoiceChannel;
 
-            if (player.VoiceChannel != voiceChannel && await player.VoiceChannel.GetHumanUsers().CountAsync() > 0)
+            var player = LavaNode.GetPlayer(Context.Guild);
+            var usersInChannel = await player.VoiceChannel.GetHumanUsers().CountAsync();
+
+            if (player.VoiceChannel != voiceChannel && usersInChannel > 0)
             {
                 await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
@@ -217,7 +228,7 @@ namespace NOVAxis.Modules.Audio
 
         [Cooldown(5)]
         [SlashCommand("play", "Plays an audio transmission")]
-        public async Task PlayAudio(string input)
+        public async Task CmdPlayAudio(string input)
         {
             if (!LavaNode.IsConnected)
             {
@@ -229,7 +240,8 @@ namespace NOVAxis.Modules.Audio
                 return;
             }
 
-            IVoiceChannel voiceChannel = ((IGuildUser)Context.User).VoiceChannel;
+            var guildUser = Context.User as IGuildUser;
+            var voiceChannel = guildUser?.VoiceChannel;
 
             if (voiceChannel == null)
             {
@@ -243,14 +255,14 @@ namespace NOVAxis.Modules.Audio
 
             if (LavaNode.HasPlayer(Context.Guild))
             {
-                LavaPlayer player = LavaNode.GetPlayer(voiceChannel.Guild);
+                var player = LavaNode.GetPlayer(voiceChannel.Guild);
 
                 if (player.VoiceChannel != voiceChannel)
                 {
                     AudioContext.Queue.Clear();
 
                     await LavaNode.LeaveAsync(voiceChannel);
-                    await JoinChannel(voiceChannel);
+                    if (!await JoinChannel(voiceChannel)) return;
 
                     player = LavaNode.GetPlayer(voiceChannel.Guild);
                 }
@@ -261,10 +273,9 @@ namespace NOVAxis.Modules.Audio
             else
             {
                 AudioContext.Queue.Clear();
-                await JoinChannel(voiceChannel);
+                if (!await JoinChannel(voiceChannel)) return;
 
-                LavaPlayer player = LavaNode.GetPlayer(voiceChannel.Guild);
-
+                var player = LavaNode.GetPlayer(voiceChannel.Guild);
                 await PlayAudio(player, input);
             }
         }
@@ -280,27 +291,28 @@ namespace NOVAxis.Modules.Audio
                 {
                     await player.PlayAsync(AudioContext.Queue.First());
 
-                    await ReplyAsync(embed: new EmbedBuilder()
+                    var embed = new EmbedBuilder()
                         .WithColor(52, 231, 231)
                         .WithAuthor("Právě přehrávám:")
                         .WithTitle($"{player.Track.Title}")
                         .WithUrl(player.Track.Url)
                         .WithThumbnailUrl(player.Track.GetThumbnailUrl())
-
                         .AddField("Autor:", player.Track.Author, true)
                         .AddField("Délka:", $"`{player.Track.Duration}`", true)
                         .AddField("Vyžádal:", AudioContext.Track.RequestedBy.Mention, true)
                         .AddField("Hlasitost:", $"{player.Volume}%", true)
+                        .Build();
 
-                        .Build()
-                    );
+                    _ = Context.Interaction.HasResponded
+                        ? await FollowupAsync(embed: embed)
+                        : await ReplyAsync(embed: embed);
                 }
 
                 else
                 {
                     if (tracks.Count > 1)
                     {
-                        TimeSpan totalDuration = new TimeSpan();
+                        var totalDuration = new TimeSpan();
 
                         foreach (var track in tracks)
                             totalDuration += track.Duration;
@@ -311,10 +323,8 @@ namespace NOVAxis.Modules.Audio
                             .WithTitle($"{AudioContext.LastTrack.Title}")
                             .WithUrl(AudioContext.LastTrack.Url)
                             .WithThumbnailUrl(AudioContext.LastTrack.ThumbnailUrl)
-
                             .AddField("Délka:", $"`{totalDuration}`", true)
                             .AddField("Vyžádal:", AudioContext.LastTrack.RequestedBy.Mention, true)
-
                             .Build()
                         );
                     }
@@ -327,12 +337,10 @@ namespace NOVAxis.Modules.Audio
                             .WithTitle($"{AudioContext.LastTrack.Title}")
                             .WithUrl(AudioContext.LastTrack.Url)
                             .WithThumbnailUrl(AudioContext.LastTrack.ThumbnailUrl)
-
                             .AddField("Autor:", AudioContext.LastTrack.Author, true)
                             .AddField("Délka:", $"`{AudioContext.LastTrack.Duration}`", true)
                             .AddField("Vyžádal:", AudioContext.LastTrack.RequestedBy.Mention, true)
                             .AddField("Pořadí ve frontě:", $"`{AudioContext.Queue.Count - 1}.`", true)
-
                             .Build()
                         );
                     }
@@ -357,11 +365,11 @@ namespace NOVAxis.Modules.Audio
         }
 
         [SlashCommand("skip", "Skips to the next audio transmission")]
-        public async Task SkipAudio()
+        public async Task CmdSkipAudio()
         {
             if (LavaNode.HasPlayer(Context.Guild))
             {
-                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+                var player = LavaNode.GetPlayer(Context.Guild);
 
                 if (player.Track == null)
                 {
@@ -372,6 +380,10 @@ namespace NOVAxis.Modules.Audio
 
                     return;
                 }
+
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithTitle("Stream audia byl úspěšně přeskočen").Build());
 
                 await player.StopAsync();
             }
@@ -386,11 +398,11 @@ namespace NOVAxis.Modules.Audio
         }
 
         [SlashCommand("stop", "Stops the audio transmission")]
-        public async Task StopAudio()
+        public async Task CmdStopAudio()
         {
             if (LavaNode.HasPlayer(Context.Guild))
             {
-                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+                var player = LavaNode.GetPlayer(Context.Guild);
 
                 if (player.Track == null)
                 {
@@ -405,11 +417,11 @@ namespace NOVAxis.Modules.Audio
                 AudioContext.Queue.Clear();
                 AudioContext.Repeat = RepeatMode.None;
 
-                await player.StopAsync();
-
-                await RespondAsync(embed: new EmbedBuilder()
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithTitle("Stream audia byl úspěšně zastaven").Build());
+
+                await player.StopAsync();
             }
 
             else
@@ -422,11 +434,11 @@ namespace NOVAxis.Modules.Audio
         }
 
         [SlashCommand("pause", "Pauses the audio transmission")]
-        public async Task PauseAudio()
+        public async Task CmdPauseAudio()
         {
             if (LavaNode.HasPlayer(Context.Guild))
             {
-                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+                var player = LavaNode.GetPlayer(Context.Guild);
 
                 if (player.Track == null)
                 {
@@ -467,11 +479,11 @@ namespace NOVAxis.Modules.Audio
         }
 
         [SlashCommand("resume", "Resumes the audio transmission")]
-        public async Task ResumeAudio()
+        public async Task CmdResumeAudio()
         {
             if (LavaNode.HasPlayer(Context.Guild))
             {
-                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+                var player = LavaNode.GetPlayer(Context.Guild);
 
                 if (player.Track == null)
                 {
@@ -511,11 +523,11 @@ namespace NOVAxis.Modules.Audio
         }
 
         [SlashCommand("seek", "Seeks a position in the audio transmissions")]
-        public async Task SeekAudio(TimeSpan time)
+        public async Task CmdSeekAudio(TimeSpan time)
         {
             if (LavaNode.HasPlayer(Context.Guild))
             {
-                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+                var player = LavaNode.GetPlayer(Context.Guild);
 
                 if (player.Track == null)
                 {
@@ -564,11 +576,11 @@ namespace NOVAxis.Modules.Audio
         }
 
         [SlashCommand("forward", "Forwards to a position in the audio transmissions")]
-        public async Task ForwardAudio(TimeSpan time)
+        public async Task CmdForwardAudio(TimeSpan time)
         {
             if (LavaNode.HasPlayer(Context.Guild))
             {
-                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+                var player = LavaNode.GetPlayer(Context.Guild);
 
                 if (player.Track == null)
                 {
@@ -590,7 +602,7 @@ namespace NOVAxis.Modules.Audio
                     return;
                 }
 
-                TimeSpan newTime = player.Track.Position + time;
+                var newTime = player.Track.Position + time;
 
                 if (newTime > player.Track.Duration)
                     newTime = player.Track.Duration;
@@ -612,11 +624,11 @@ namespace NOVAxis.Modules.Audio
         }
 
         [SlashCommand("backward", "Backwards to a position in the audio transmissions")]
-        public async Task BackwardAudio(TimeSpan time)
+        public async Task CmdBackwardAudio(TimeSpan time)
         {
             if (LavaNode.HasPlayer(Context.Guild))
             {
-                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+                var player = LavaNode.GetPlayer(Context.Guild);
 
                 if (player.Track == null)
                 {
@@ -638,7 +650,7 @@ namespace NOVAxis.Modules.Audio
                     return;
                 }
 
-                TimeSpan newTime = player.Track.Position - time;
+                var newTime = player.Track.Position - time;
 
                 if (newTime < TimeSpan.Zero)
                     newTime = TimeSpan.Zero;
@@ -660,11 +672,11 @@ namespace NOVAxis.Modules.Audio
         }
 
         [SlashCommand("volume", "Sets a volume of the audio transmissions")]
-        public async Task AudioVolume(ushort percentage)
+        public async Task CmdAudioVolume(ushort percentage)
         {
             if (LavaNode.HasPlayer(Context.Guild))
             {
-                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+                var player = LavaNode.GetPlayer(Context.Guild);
 
                 if (player.Track == null)
                 {
@@ -703,11 +715,11 @@ namespace NOVAxis.Modules.Audio
         }
 
         [SlashCommand("status", "Shows active audio transmissions")]
-        public async Task AudioStatus()
+        public async Task CmdAudioStatus()
         {
             if (LavaNode.HasPlayer(Context.Guild))
             {
-                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+                var player = LavaNode.GetPlayer(Context.Guild);
 
                 if (player.Track == null)
                 {
@@ -727,13 +739,11 @@ namespace NOVAxis.Modules.Audio
                     .WithTitle($"{player.Track.Title}")
                     .WithUrl(player.Track.Url)
                     .WithThumbnailUrl(player.Track.GetThumbnailUrl())
-
                     .AddField("Autor:", player.Track.Author, true)
                     .AddField("Pozice:", $"`{player.Track.Position:hh\\:mm\\:ss} / {player.Track.Duration}`", true)
                     .AddField("Vyžádal:", AudioContext.Track.RequestedBy.Mention, true)
                     .AddField("Hlasitost:", $"{player.Volume}%", true)
                     .AddField("Stav:", $"{string.Join(' ', statusEmoji)}", true)
-
                     .Build()
                 );
             }
@@ -748,7 +758,7 @@ namespace NOVAxis.Modules.Audio
         }
 
         [SlashCommand("queue", "Shows enqueued audio transmissions")]
-        public async Task AudioQueue()
+        public async Task CmdAudioQueue()
         {
             if (AudioContext.Queue.Count < 1 || !LavaNode.HasPlayer(Context.Guild))
             {
@@ -760,8 +770,8 @@ namespace NOVAxis.Modules.Audio
                 return;
             }
 
-            AudioQueuePaginator queue = new AudioQueuePaginator(5);
-            TimeSpan totalDuration = TimeSpan.Zero;
+            var queue = new AudioQueuePaginator(5);
+            var totalDuration = TimeSpan.Zero;
 
             var statusEmoji = GetStatusEmoji(AudioContext);
 
@@ -816,7 +826,7 @@ namespace NOVAxis.Modules.Audio
         }
 
         [SlashCommand("remove", "Removes an enqueued audio transmission")]
-        public async Task RemoveAudio(int index)
+        public async Task CmdRemoveAudio(int index)
         {
             if (AudioContext.Queue.Count <= 1)
             {
@@ -846,11 +856,11 @@ namespace NOVAxis.Modules.Audio
         }
 
         [SlashCommand("repeat", "Repeats enqueued audio transmission")]
-        public async Task RepeatAudio(RepeatMode mode = RepeatMode.None)
+        public async Task CmdRepeatAudio(RepeatMode mode = RepeatMode.None)
         {
             if (LavaNode.HasPlayer(Context.Guild))
             {
-                LavaPlayer player = LavaNode.GetPlayer(Context.Guild);
+                var player = LavaNode.GetPlayer(Context.Guild);
 
                 if (player.Track == null)
                 {
@@ -896,7 +906,7 @@ namespace NOVAxis.Modules.Audio
 
         [RequireUserPermission(GuildPermission.Administrator)]
         [SlashCommand("setdj", "Sets the guild's DJ role which is used to identify eligible users")]
-        public async Task SetDjRole(IRole newRole = null)
+        public async Task CmdSetDjRole(IRole newRole = null)
         {
             var guildInfo = await GuildDbContext.Get(Context) ??
                             await GuildDbContext.Create(Context.Guild);
