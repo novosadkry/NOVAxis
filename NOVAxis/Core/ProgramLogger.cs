@@ -32,8 +32,8 @@ namespace NOVAxis.Core
                 _ => ConsoleColor.White
             };
 
-            Console.ForegroundColor = ConsoleColor.Blue;
             Console.Write($"{DateTime.Now} ");
+
             Console.ForegroundColor = logColor;
             Console.Write($"{logLevel,-11} ");
 
@@ -43,7 +43,7 @@ namespace NOVAxis.Core
             Console.ForegroundColor = logColor;
             Console.WriteLine($"{formatter(state, exception)}");
 
-            Console.ForegroundColor = ConsoleColor.Gray;
+            Console.ResetColor();
         }
 
         public static string MessageFormatter(LogMessage msg, Exception error)

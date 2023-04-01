@@ -25,6 +25,7 @@ namespace NOVAxis.Core
 {
     public class Program
     {
+        public static bool IsRunning { get; private set; }
         public static short ShardsReady { get; private set; }
         public static ulong OwnerId => 269182357704015873L;
 
@@ -33,6 +34,8 @@ namespace NOVAxis.Core
 
         public static async Task Main()
         {
+            IsRunning = true;
+
             var services = await SetupServices();
 
             var client = services.GetRequiredService<DiscordShardedClient>();
@@ -137,7 +140,8 @@ namespace NOVAxis.Core
                 await audioNode.DisposeAsync();
 
             await client.LogoutAsync();
-            await client.StopAsync();
+
+            IsRunning = false;
         }
 
         private static async Task Client_Ready(DiscordSocketClient shard, IServiceProvider services)
