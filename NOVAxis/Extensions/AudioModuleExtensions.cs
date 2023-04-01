@@ -2,13 +2,13 @@
 using System.Linq;
 
 using Discord;
-using NOVAxis.Services.Audio;
+using Victoria.Player;
 
 namespace NOVAxis.Extensions
 {
     public static class AudioModuleExtensions
     {
-        public static string GetThumbnailUrl(this AudioTrack track)
+        public static string GetThumbnailUrl(this LavaTrack track)
         {
             string id = System.Web.HttpUtility.ParseQueryString(track.Url)[0];
             return $"https://img.youtube.com/vi/{id}/hqdefault.jpg";
