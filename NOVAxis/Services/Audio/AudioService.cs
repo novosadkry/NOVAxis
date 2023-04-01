@@ -7,6 +7,7 @@ using NOVAxis.Modules.Audio;
 using Discord;
 using Discord.WebSocket;
 
+using Victoria.Player;
 using Victoria.Node.EventArgs;
 
 namespace NOVAxis.Services.Audio
@@ -68,13 +69,13 @@ namespace NOVAxis.Services.Audio
             }
         }
 
-        private async Task AudioModuleService_TrackStart(TrackStartEventArg<AudioPlayer, AudioTrack> args)
+        private async Task AudioModuleService_TrackStart(TrackStartEventArg<AudioPlayer, LavaTrack> args)
         {
             var audioContext = this[args.Player.VoiceChannel.GuildId];
             await audioContext.CancelDisconnectAsync();
         }
 
-        private async Task AudioModuleService_TrackEnd(TrackEndEventArg<AudioPlayer, AudioTrack> args)
+        private async Task AudioModuleService_TrackEnd(TrackEndEventArg<AudioPlayer, LavaTrack> args)
         {
             var player = args.Player;
             var context = this[player.VoiceChannel.GuildId];

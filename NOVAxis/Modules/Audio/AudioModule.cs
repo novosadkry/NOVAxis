@@ -292,9 +292,10 @@ namespace NOVAxis.Modules.Audio
                         .AddField("Hlasitost:", $"{player.Volume}%", true)
                         .Build();
 
-                    _ = Context.Interaction.HasResponded
-                        ? await FollowupAsync(embed: embed)
-                        : await ReplyAsync(embed: embed);
+                    if (Context.Interaction.HasResponded)
+                        await FollowupAsync(embed: embed);
+                    else 
+                        await RespondAsync(embed: embed);
                 }
 
                 else
@@ -402,7 +403,7 @@ namespace NOVAxis.Modules.Audio
                 AudioContext.Queue.Clear();
                 AudioContext.Repeat = RepeatMode.None;
 
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithTitle("Stream audia byl úspěšně zastaven").Build());
 
