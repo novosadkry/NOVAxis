@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Discord;
@@ -34,27 +36,48 @@ namespace NOVAxis.Core
 
         public static Task AwaitCommands(IServiceProvider services)
         {
+            Console.CancelKeyPress += async (_, args) => 
+            {
+                args.Cancel = true;
+                await CommandList
+                    .Find(x => x.Name == "exit")
+                    .Execute(services);
+            };
+
             return Task.Run(async () =>
             {
-                var client = services.GetRequiredService<DiscordShardedClient>();
                 var logger = services.GetRequiredService<ILogger<Program>>();
+                var buffer = new StringBuilder();
 
-                while (client.LoginState == LoginState.LoggedIn)
+                while (Program.IsRunning)
                 {
-                    string input = Console.ReadLine();
-
-                    for (int i = 0; i < CommandList.Count; i++)
+                    if (SpinWait.SpinUntil(() => Console.KeyAvailable, 100))
                     {
-                        ProgramCommand c = CommandList[i];
+                        var keyInfo = Console.ReadKey(true);
 
-                        if (input == c.Name || c.Alias.Contains(input) && !string.IsNullOrWhiteSpace(input))
+                        switch (keyInfo.Key)
                         {
-                            await c.Execute(services);
-                            break;
-                        }
+                            case ConsoleKey.Enter:
+                            {
+                                var input = buffer.ToString();
+                                buffer.Clear();
 
-                        if (i + 1 == CommandList.Count)
-                            logger.LogInformation("Invalid ProgramCommand");
+                                var cmd = CommandList.Find(x => x.Name == input || x.Alias.Contains(input));
+
+                                if (cmd != null)
+                                    await cmd.Execute(services);
+                                else
+                                    logger.LogInformation("Invalid ProgramCommand");
+                            } break;
+
+                            case ConsoleKey.Backspace or ConsoleKey.Delete when buffer.Length > 0:
+                                buffer.Remove(buffer.Length - 1, 1);
+                                break;
+
+                            default:
+                                buffer.Append(keyInfo.KeyChar);
+                                break;
+                        }
                     }
                 }
             });
