@@ -1,79 +1,134 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Text;
+using System.Net.Http;
 using System.Threading.Tasks;
 
+using NOVAxis.Utilities;
 using NOVAxis.Preconditions;
 
 using Discord;
-using Discord.Commands;
+using Discord.Interactions;
 
-using Interactivity;
+using Newtonsoft.Json.Linq;
 
 namespace NOVAxis.Modules.MAL
 {
     [Cooldown(5)]
-    [Group("mal")]
-    public class MALModule : ModuleBase<ShardedCommandContext>
+    [Group("mal", "Shows results from MyAnimeList.net")]
+    public class MALModule : InteractionModuleBase<ShardedInteractionContext>
     {
-        public InteractivityService InteractivityService { get; set; }
+        public const string API = "https://api.jikan.moe/v4/{0}";
+        public Cache<ulong, object> InteractionCache { get; set; }
 
-        private async Task<IUserMessage> ShowResults<T>(List<T> results) where T : MALJson.MALResult
+        [SlashCommand("anime", "Searches for anime in MyAnimeList.net database")]
+        public async Task CmdSearchAnime(string name)
         {
-            if (results.Count <= 0)
-                throw new Exception("Výsledek databáze neobsahuje žádný prvek");
+            const ushort limit = 5;
 
-            EmbedFieldBuilder[] embedFields = new EmbedFieldBuilder[results.Count];
-
-            for (int i = 0; i < results.Count; i++)
+            if (name.Length < 3)
             {
-                T element = results[i];
+                await ReplyAsync(embed: new EmbedBuilder()
+                    .WithColor(220, 20, 60)
+                    .WithDescription("(Argument musí být delší než tři znaky)")
+                    .WithTitle("Mé jádro nebylo schopno příjmout daný prvek").Build());
 
-                if (element is MALJson.MALResult.Anime)
-                {
-                    var mal = element as MALJson.MALResult.Anime;
-
-                    embedFields[i] = new EmbedFieldBuilder
-                    {
-                        Name = $"**[{i + 1}]** {mal.title}",
-                        IsInline = false,
-                        Value = $"*({mal.start_date?.Year.ToString() ?? "?"})* " +
-                        $"{mal.type} : {(mal.airing ? "Airing" : "Finished")} " +
-                        $"| Episodes: {mal.episodes} " +
-                        $"| Score: {mal.score}/10"
-                    };
-                }
-
-                else if (element is MALJson.MALResult.Manga)
-                {
-                    var mal = element as MALJson.MALResult.Manga;
-
-                    embedFields[i] = new EmbedFieldBuilder
-                    {
-                        Name = $"**[{i + 1}]** {mal.title}",
-                        IsInline = false,
-                        Value = $"*({mal.start_date?.Year.ToString() ?? "?"})* " +
-                        $"{mal.type} : {(mal.publishing ? "Publishing" : "Finished")} " +
-                        $"| Volumes: {mal.volumes} " +
-                        $"| Score: {mal.score}/10"
-                    };
-                }
-
-                else
-                    throw new NotImplementedException();
+                return;
             }
 
-            return await ReplyAsync(embed: new EmbedBuilder()
-                .WithTitle($"**Výsledek databáze serveru MyAnimeList.net** (počet výsledků: {results.Count})")
+            string api = string.Format(API, "anime?q={0}&limit={1}");
+            api = string.Format(api, name, limit);
+            api = Uri.EscapeUriString(api);
+
+            using var client = new HttpClient();
+            client.BaseAddress = new Uri(api);
+
+            string result = await client.GetStringAsync(api);
+
+            dynamic root = JObject.Parse(result);
+            var collection = root.data;
+
+            var id = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now);
+            InteractionCache[id] = collection;
+
+            EmbedFieldBuilder[] embedFields = new EmbedFieldBuilder[collection.Count];
+
+            for (int i = 0; i < collection.Count; i++)
+            {
+                var anime = collection[i];
+                embedFields[i] = new EmbedFieldBuilder
+                {
+                    Name = $"**[{i + 1}]** {anime.title}",
+                    IsInline = false,
+                    Value = $"*({anime.start_date?.Year.ToString() ?? "?"})* " +
+                            $"{anime.type} : {((bool)anime.airing ? "Airing" : "Finished")} " +
+                            $"| Episodes: {anime.episodes} " + $"| Score: {anime.score}/10"
+                };
+            }
+
+            var embed = new EmbedBuilder()
+                .WithTitle($"**Výsledek databáze serveru MyAnimeList.net** (počet výsledků: {collection.Count})")
                 .WithDescription("(Proveďte výběr pro více informací)")
                 .WithColor(255, 26, 117)
-                .WithFields(embedFields).Build());
+                .WithFields(embedFields)
+                .Build();
+
+            var options = new List<SelectMenuOptionBuilder>();
+            for (int i = 0; i < collection.Count; i++)
+                options.Add(new SelectMenuOptionBuilder($"{i + 1}", $"{i + 1}"));
+
+            await RespondAsync(
+                embed: embed,
+                components: new ComponentBuilder()
+                    .WithSelectMenu(
+                        $"CmdSearchAnime_Select_{id}",
+                        options)
+                    .Build());
         }
 
-        [Command("anime"), Summary("Searches for anime in MyAnimeList.net database")]
-        public async Task SearchAnime([Remainder]string name)
+        [ComponentInteraction("CmdSearchAnime_Select_*", true)]
+        public async Task CmdSearchAnime_Select(ulong id, string[] selectedIndices)
+        {
+            if (!int.TryParse(selectedIndices[0], out int index)) return;
+            if (Context.Interaction is not IComponentInteraction component) return;
+
+            if (InteractionCache[id] is JArray collection)
+            {
+                if (index > collection.Count || index <= 0)
+                    throw new InvalidOperationException("Invalid index");
+
+                dynamic mal = collection[index - 1];
+
+                await RespondAsync(embed: new EmbedBuilder()
+                    .WithAuthor($"{mal.title} (#rank)") // url: mal.url
+                    .WithTitle("Title in japanese")
+                    //.WithThumbnailUrl(mal.image_url)
+                    .WithDescription("synopsis")
+                    .WithColor(255, 26, 117)
+                    .AddField("Type:", "type", true)
+                    .AddField("Status:", "status", true)
+                    .AddField("Aired:", "aired", true)
+                    .AddField("Episodes:", "episodes", true)
+                    .AddField("Score:", "score/10", true)
+                    .AddField("Rating:", "rating", true)
+                    .AddField("Genres:", "genres", true)
+                    .Build());
+            }
+
+            else
+            {
+                await component.UpdateAsync(m =>
+                {
+                    m.Components = null;
+                    m.Embed = new EmbedBuilder()
+                        .WithColor(220, 20, 60)
+                        .WithDescription("(Vypršel časový limit)")
+                        .WithTitle("Mé jádro přerušilo čekání na lidský vstup").Build();
+                });
+            }
+        }
+
+        [SlashCommand("manga", "Searches for manga in MyAnimeList.net database")]
+        public async Task CmdSearchManga(string name)
         {
             ushort limit = 5;
 
@@ -87,170 +142,93 @@ namespace NOVAxis.Modules.MAL
                 return;
             }
 
-            string api = string.Format(MALJson.API, "search/anime?q={0}&limit={1}");
+            string api = string.Format(API, "search/manga?q={0}&limit={1}");
             api = string.Format(api, name, limit);
             api = Uri.EscapeUriString(api);
 
-            using WebClient client = new WebClient { Encoding = Encoding.UTF8 };
+            using var client = new HttpClient();
+            client.BaseAddress = new Uri(api);
 
-            try
+            string result = await client.GetStringAsync(api);
+
+            dynamic root = JObject.Parse(result);
+            var collection = root.data;
+
+            var id = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now);
+            InteractionCache[id] = collection;
+
+            EmbedFieldBuilder[] embedFields = new EmbedFieldBuilder[collection.Count];
+
+            for (int i = 0; i < collection.Count; i++)
             {
-                string result = await client.DownloadStringTaskAsync(api);
-
-                List<MALJson.MALResult.Anime> collection = 
-                    MALJson.Get<MALJson.MALResult.Anime>(result);
-
-                var msg = await ShowResults(collection);
-                var input = await InteractivityService.NextMessageAsync(
-                    timeout: TimeSpan.FromSeconds(10));
-
-                try
+                var manga = collection[i];
+                embedFields[i] = new EmbedFieldBuilder
                 {
-                    if (input.IsSuccess)
-                    {
-                        if (ushort.TryParse(input.Value.Content, out ushort select))
-                        {
-                            if (select > collection.Count || select <= 0)
-                                throw new Exception("Neplatný výběr");
-
-                            MALJson.MALResult.Anime mal = collection[select - 1];
-                            mal.info = await mal.GetInfo();
-
-                            await ReplyAsync(embed: new EmbedBuilder()
-                                .WithAuthor($"{mal.title} (#{mal.info.rank?.ToString() ?? "?"})", url: mal.url)
-                                .WithTitle(mal.info.title_japanese)
-                                .WithThumbnailUrl(mal.image_url)
-                                .WithDescription(mal.synopsis)
-                                .WithColor(255, 26, 117)
-
-                                .AddField("Type:", mal.type, true)
-                                .AddField("Status:", mal.info.status, true)
-                                .AddField("Aired:", $"{mal.aired}", true)
-                                .AddField("Episodes:", mal.episodes, true)
-                                .AddField("Score:", $"{mal.score}/10", true)
-                                .AddField("Rating:", mal.info.rating, true)
-                                .AddField("Genre:", string.Join(", ", mal.info.genres.Select(x => x.name)), true)
-
-                                .Build());
-                        }
-
-                        else
-                            throw new Exception("Vstup nemá správný formát");
-                    }
-
-                    else
-                        throw new Exception("Výběr nebyl proveden v časovém limitu");
-                }
-
-                catch (Exception e)
-                {
-                    await msg.ModifyAsync(prop =>
-                    {
-                        prop.Embed = new EmbedBuilder()
-                            .WithColor(220, 20, 60)
-                            .WithDescription($"({e.Message})")
-                            .WithTitle("Mé jádro přerušilo čekání na lidský vstup").Build();
-                    });
-                }              
+                    Name = $"**[{i + 1}]** {manga.title}",
+                    IsInline = false,
+                    Value = $"*({manga.start_date?.Year.ToString() ?? "?"})* " +
+                            $"{manga.type} : {(manga.publishing ? "Publishing" : "Finished")} " +
+                            $"| Volumes: {manga.volumes} " + $"| Score: {manga.score}/10"
+                };
             }
 
-            catch (Exception e)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription($"({e.Message})")
-                    .WithTitle("V databázi serveru MyAnimeList.net nebyla nalezena shoda").Build());
-            }
+            var embed = new EmbedBuilder()
+                .WithTitle($"**Výsledek databáze serveru MyAnimeList.net** (počet výsledků: {collection.Count})")
+                .WithDescription("(Proveďte výběr pro více informací)")
+                .WithColor(255, 26, 117)
+                .WithFields(embedFields)
+                .Build();
+
+            await RespondAsync(
+                embed: embed,
+                components: new ComponentBuilder()
+                    .WithSelectMenu(
+                        $"CmdSearchManga_Select_{id}",
+                        minValues: 1,
+                        maxValues: collection.Count,
+                        type: ComponentType.TextInput)
+                    .Build());
         }
 
-        [Command("manga"), Summary("Searches for manga in MyAnimeList.net database")]
-        public async Task SearchManga([Remainder]string name)
+        [ComponentInteraction("CmdSearchManga_Select_*,*", true)]
+        public async Task CmdSearchManga_Select(ulong id, int index)
         {
-            ushort limit = 5;
-
-            if (name.Length < 3)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Argument musí být delší než tři znaky)")
-                    .WithTitle("Mé jádro nebylo schopno příjmout daný prvek").Build());
-
+            if (Context.Interaction is not IComponentInteraction component)
                 return;
+
+            if (InteractionCache[id] is JArray collection)
+            {
+                if (index > collection.Count || index <= 0)
+                    throw new InvalidOperationException("Invalid index");
+
+                dynamic mal = collection[index - 1];
+
+                await RespondAsync(embed: new EmbedBuilder()
+                    .WithAuthor($"{mal.title} (#rank)") // url: mal.url
+                    .WithTitle("Title in japanese")
+                    //.WithThumbnailUrl(mal.image_url)
+                    .WithDescription("synopsis")
+                    .WithColor(255, 26, 117)
+                    .AddField("Type:", "type", true)
+                    .AddField("Status:", "status", true)
+                    .AddField("Published:", "published", true)
+                    .AddField("Score:", "score/10", true)
+                    .AddField("Volumes:", "volumes", true)
+                    .AddField("Chapters:", "chapters", true)
+                    .AddField("Genre:", "genres", true)
+                    .Build());
             }
 
-            string api = string.Format(MALJson.API, "search/manga?q={0}&limit={1}");
-            api = string.Format(api, name, limit);
-            api = Uri.EscapeUriString(api);
-
-            using WebClient client = new WebClient { Encoding = Encoding.UTF8 };
-
-            try
+            else
             {
-                string result = await client.DownloadStringTaskAsync(api);
-
-                List<MALJson.MALResult.Manga> collection = 
-                    MALJson.Get<MALJson.MALResult.Manga>(result);
-
-                var msg = await ShowResults(collection);
-                var input = await InteractivityService.NextMessageAsync(
-                    timeout: TimeSpan.FromSeconds(10));
-
-                try
+                await component.UpdateAsync(m =>
                 {
-                    if (input.IsSuccess)
-                    {
-                        if (ushort.TryParse(input.Value.Content, out ushort select))
-                        {
-                            if (select > collection.Count || select <= 0)
-                                throw new Exception("Neplatný výběr");
-
-                            MALJson.MALResult.Manga mal = collection[select - 1];
-                            mal.info = await mal.GetInfo();
-
-                            msg = await ReplyAsync(embed: new EmbedBuilder()
-                                .WithAuthor($"{mal.title} (#{mal.info.rank?.ToString() ?? "?"})", url: mal.url)
-                                .WithTitle(mal.info.title_japanese)
-                                .WithThumbnailUrl(mal.image_url)
-                                .WithDescription(mal.synopsis)
-                                .WithColor(255, 26, 117)
-
-                                .AddField("Type:", mal.type, true)
-                                .AddField("Status:", mal.info.status, true)
-                                .AddField("Published:", $"{mal.published}", true)
-                                .AddField("Score:", $"{mal.score}/10", true)
-                                .AddField("Volumes:", mal.volumes, true)
-                                .AddField("Chapters:", mal.chapters, true)
-                                .AddField("Genre:", string.Join(", ", mal.info.genres.Select(x => x.name)), true)
-
-                                .Build());
-                        }
-
-                        else
-                            throw new Exception("Vstup nemá správný formát");
-                    }
-
-                    else
-                        throw new Exception("Výběr nebyl proveden v časovém limitu");
-                }
-
-                catch (Exception e)
-                {
-                    await msg.ModifyAsync(prop =>
-                    {
-                        prop.Embed = new EmbedBuilder()
-                            .WithColor(220, 20, 60)
-                            .WithDescription($"({e.Message})")
-                            .WithTitle("Mé jádro přerušilo čekání na lidský vstup").Build();
-                    });
-                }
-            }
-
-            catch (Exception e)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription($"({e.Message})")
-                    .WithTitle("V databázi serveru MyAnimeList.net nebyla nalezena shoda").Build());
+                    m.Components = null;
+                    m.Embed = new EmbedBuilder()
+                        .WithColor(220, 20, 60)
+                        .WithDescription("(Vypršel časový limit)")
+                        .WithTitle("Mé jádro přerušilo čekání na lidský vstup").Build();
+                });
             }
         }
     }
