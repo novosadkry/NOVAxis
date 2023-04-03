@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 
 using NOVAxis.Core;
+using NOVAxis.Utilities;
 using NOVAxis.Extensions;
 using NOVAxis.Preconditions;
 using NOVAxis.Database.Guild;
@@ -12,8 +13,6 @@ using NOVAxis.Services.Audio;
 
 using Discord;
 using Discord.Interactions;
-
-using Interactivity;
 
 using Victoria.Player;
 using Victoria.Responses.Search;
@@ -28,10 +27,10 @@ namespace NOVAxis.Modules.Audio
     {
         public AudioNode AudioNode { get; set; }
         public ProgramConfig Config { get; set; }
-        public InteractivityService InteractivityService { get; set; }
         public AudioService AudioService { get; set; }
         public AudioContext AudioContext { get; private set; }
         public GuildDbContext GuildDbContext { get; set; }
+        public Cache<ulong, object> InteractionCache { get; set; }
 
         #region Functions
 
@@ -742,10 +741,13 @@ namespace NOVAxis.Modules.Audio
                 return;
             }
 
-            var queue = new AudioQueuePaginator(5);
+            var paginator = new AudioQueuePaginator(5);
+            var statusEmoji = GetStatusEmoji(AudioContext);
             var totalDuration = TimeSpan.Zero;
 
-            var statusEmoji = GetStatusEmoji(AudioContext);
+            var header = new List<EmbedFieldBuilder>();
+            var tracks = new List<EmbedFieldBuilder>();
+            var footer = new List<EmbedFieldBuilder>();
 
             var currentNode = AudioContext.Queue.First;
             for (int i = 0; currentNode != null; i++, currentNode = currentNode.Next)
@@ -756,13 +758,13 @@ namespace NOVAxis.Modules.Audio
                 {
                     var emoji = statusEmoji[0];
 
-                    queue.Header.Add(new EmbedFieldBuilder
+                    header.Add(new EmbedFieldBuilder
                     {
                         Name = $"{emoji} **{track.Title}**",
                         Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Duration}` | [Odkaz]({track.Url})\n"
                     });
 
-                    queue.Header.Add(new EmbedFieldBuilder
+                    header.Add(new EmbedFieldBuilder
                     {
                         Name = "\u200B", 
                         Value = $"**Stopy ve frontě ({AudioContext.Queue.Count - 1}):**"
@@ -775,7 +777,7 @@ namespace NOVAxis.Modules.Audio
                         ? statusEmoji[0]
                         : null;
 
-                    queue.Tracks.Add(new EmbedFieldBuilder
+                    tracks.Add(new EmbedFieldBuilder
                     {
                         Name = $"{emoji} `{i}.` {track.Title}",
                         Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Duration}` | [Odkaz]({track.Url})"
@@ -785,16 +787,94 @@ namespace NOVAxis.Modules.Audio
                 totalDuration += track.Duration;
             }
 
-            queue.Footer.Add(new EmbedFieldBuilder
+            footer.Add(new EmbedFieldBuilder
             {
                 Name = "\u200B",
                 Value = $"Celková doba poslechu: `{totalDuration}`"
             });
 
-            await InteractivityService.SendPaginatorAsync(
-                queue.Build(), 
-                Context.Channel, 
-                TimeSpan.FromMinutes(2));
+            var id = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now);
+
+            InteractionCache[id] = paginator
+                .WithHeader(header)
+                .WithTracks(tracks)
+                .WithFooter(footer);
+
+            await DeferAsync();
+            await CmdAudioQueue_Page(id, 0, "next");
+        }
+
+        [ComponentInteraction("CmdAudioQueue_Page_*,*,*", true)]
+        public async Task CmdAudioQueue_Page(ulong id, int page, string action)
+        {
+            Action<MessageProperties> modifyAction;
+
+            if (InteractionCache[id] is AudioQueuePaginator paginator)
+            {
+                if (page > paginator.MaxPageIndex || page < 0)
+                    throw new InvalidOperationException("Invalid page index");
+
+                modifyAction = m =>
+                {
+                    m.Embed = paginator.Build(page);
+                    m.Components = new ComponentBuilder()
+                        .WithButton(
+                            customId: $"CmdAudioQueue_Page_{id},{0},min",
+                            emote: new Emoji("\u23EE"),
+                            style: page - 1 > 0 
+                                ? ButtonStyle.Primary
+                                : ButtonStyle.Secondary,
+                            disabled: page <= 0)
+                        .WithButton(
+                            customId: $"CmdAudioQueue_Page_{id},{page - 1},prev",
+                            emote: new Emoji("\u25C0"),
+                            style: page > 0 
+                                ? ButtonStyle.Primary 
+                                : ButtonStyle.Secondary,
+                            disabled: page <= 0)
+                        .WithButton(
+                            customId: $"CmdAudioQueue_Page_{id},{page + 1},next",
+                            emote: new Emoji("\u25B6"),
+                            style: page < paginator.MaxPageIndex
+                                ? ButtonStyle.Primary 
+                                : ButtonStyle.Secondary,
+                            disabled: page >= paginator.MaxPageIndex)
+                        .WithButton(
+                            customId: $"CmdAudioQueue_Page_{id},{paginator.MaxPageIndex},max",
+                            emote: new Emoji("\u23ED"),
+                            style: page + 1 < paginator.MaxPageIndex 
+                                ? ButtonStyle.Primary
+                                : ButtonStyle.Secondary,
+                            disabled: page + 1 >= paginator.MaxPageIndex)
+                        .Build();
+                };
+            }
+
+            else
+            {
+                var embed = new EmbedBuilder()
+                    .WithColor(220, 20, 60)
+                    .WithDescription("(Vypršel časový limit)")
+                    .WithTitle("Mé jádro přerušilo čekání na lidský vstup")
+                    .Build();
+
+                modifyAction = m =>
+                {
+                    m.Embed = embed;
+                    m.Components = null;
+                };
+            }
+
+            switch (Context.Interaction)
+            {
+                case IComponentInteraction component:
+                    await component.UpdateAsync(modifyAction);
+                    break;
+
+                case IDiscordInteraction interaction:
+                    await interaction.ModifyOriginalResponseAsync(modifyAction);
+                    break;
+            }
         }
 
         [SlashCommand("remove", "Removes an enqueued audio transmission")]

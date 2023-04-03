@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using NOVAxis.Utilities;
 
 namespace NOVAxis.Extensions
 {
@@ -20,6 +21,11 @@ namespace NOVAxis.Extensions
             }
 
             throw new IndexOutOfRangeException();
+        }
+
+        public static TValue Get<TKey, TValue>(this Cache<TKey, object> cache, TKey key)
+        {
+            return (TValue)(cache.Get(key) ?? default(TValue));
         }
     }
 }

@@ -87,6 +87,7 @@ namespace NOVAxis.Core
 
             var interactionConfig = new InteractionServiceConfig
             {
+                UseCompiledLambda = true,
                 DefaultRunMode = InteractionRunMode.Async,
                 LogLevel = config.Log.Level.ToSeverity()
             };
@@ -115,6 +116,7 @@ namespace NOVAxis.Core
                 .AddSingleton<AudioService>()
                 .AddDbContext<GuildDbContext>()
                 .AddLogging(builder => builder.AddProgramLogger())
+                .AddCache<ulong, object>()
                 .BuildServiceProvider(true);
 
             var client = services.GetRequiredService<DiscordShardedClient>();
