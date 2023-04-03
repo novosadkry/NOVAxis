@@ -15,7 +15,6 @@ using Discord.Commands;
 using Discord.Interactions;
 using Discord.WebSocket;
 
-using Interactivity;
 using Victoria.Node;
 
 using CommandRunMode = Discord.Commands.RunMode;
@@ -111,7 +110,6 @@ namespace NOVAxis.Core
                 .AddSingleton<ModuleHandler>()
                 .AddSingleton<CommandService>()
                 .AddSingleton<InteractionService>()
-                .AddSingleton<InteractivityService>()
                 .AddSingleton<AudioNode>()
                 .AddSingleton<AudioService>()
                 .AddDbContext<GuildDbContext>()
