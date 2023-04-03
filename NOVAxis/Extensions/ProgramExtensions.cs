@@ -1,4 +1,5 @@
 ﻿using NOVAxis.Core;
+using NOVAxis.Utilities;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,8 +13,13 @@ namespace NOVAxis.Extensions
         {
             builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<ILoggerProvider, ProgramLoggerProvider>());
             builder.SetMinimumLevel(LogLevel.Trace);
-
             return builder;
+        }
+
+        public static IServiceCollection AddCache<TKey, TValue>(this IServiceCollection collection)
+        {
+            collection.AddSingleton(new Cache<TKey, TValue>());
+            return collection;
         }
     }
 }

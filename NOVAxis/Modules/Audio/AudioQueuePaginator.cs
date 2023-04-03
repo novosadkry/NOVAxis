@@ -1,12 +1,9 @@
 ﻿using System;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 
 using Discord;
-
-using Interactivity;
-using Interactivity.Pagination;
 
 namespace NOVAxis.Modules.Audio
 {
@@ -17,20 +14,35 @@ namespace NOVAxis.Modules.Audio
         public AudioQueuePaginator(int tracksPerPage)
         {
             _tracksPerPage = tracksPerPage;
-
-            Header = new List<EmbedFieldBuilder>();
-            Tracks = new List<EmbedFieldBuilder>();
-            Footer = new List<EmbedFieldBuilder>();
         }
 
         public int MaxPageIndex { get; private set; }
-        public List<EmbedFieldBuilder> Header { get; }
-        public List<EmbedFieldBuilder> Tracks { get; }
-        public List<EmbedFieldBuilder> Footer { get; }
+        public IReadOnlyList<EmbedFieldBuilder> Header { get; private set; }
+        public IReadOnlyList<EmbedFieldBuilder> Tracks { get; private set; }
+        public IReadOnlyList<EmbedFieldBuilder> Footer { get; private set; }
 
-        private Task<PageBuilder> PageFactory(int pageIndex)
+        public AudioQueuePaginator WithHeader(IEnumerable<EmbedFieldBuilder> header)
         {
-            var page = new PageBuilder();
+            Header = header.ToImmutableList();
+            return this;
+        }
+
+        public AudioQueuePaginator WithTracks(IEnumerable<EmbedFieldBuilder> tracks)
+        {
+            Tracks = tracks.ToImmutableList();
+            MaxPageIndex = (int)Math.Floor((float)(Tracks.Count - 1) / _tracksPerPage);
+            return this;
+        }
+
+        public AudioQueuePaginator WithFooter(IEnumerable<EmbedFieldBuilder> footer)
+        {
+            Footer = footer.ToImmutableList();
+            return this;
+        }
+
+        public Embed Build(int pageIndex)
+        {
+            var page = new EmbedBuilder();
             var content = new List<EmbedFieldBuilder>();
 
             // Add header to first page
@@ -50,33 +62,10 @@ namespace NOVAxis.Modules.Audio
             if (pageIndex == MaxPageIndex)
                 content.AddRange(Footer);
 
-            page.WithColor(System.Drawing.Color.FromArgb(52, 231, 231))
+            page.WithColor(52, 231, 231)
                 .WithFields(content);
 
-            return Task.FromResult(page);
-        }
-
-        public Paginator Build()
-        {
-            MaxPageIndex = (int)Math.Floor((float)Tracks.Count / _tracksPerPage);
-
-            return new LazyPaginatorBuilder()
-                .WithPageFactory(PageFactory)
-                .WithMaxPageIndex(MaxPageIndex)
-
-                .WithCancelledEmbed(new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Ukončeno uživatelem)")
-                    .WithTitle("Mé jádro přerušilo čekání na lidský vstup"))
-
-                .WithTimoutedEmbed(new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Vypršel časový limit)")
-                    .WithTitle("Mé jádro přerušilo čekání na lidský vstup"))
-
-                .WithFooter(PaginatorFooter.None)
-                .WithDefaultEmotes()
-                .Build();
+            return page.Build();
         }
     }
 }
