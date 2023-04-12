@@ -116,7 +116,7 @@ namespace NOVAxis.Services.Audio
 
                 var statusEmoji = AudioModule.GetStatusEmoji(context, args.Player);
 
-                await args.Player.TextChannel.SendMessageAsync(embed: new EmbedBuilder()
+                var embed = new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithAuthor("Právě přehrávám:")
                     .WithTitle($"{nextTrack.Title}")
@@ -127,7 +127,18 @@ namespace NOVAxis.Services.Audio
                     .AddField("Vyžádal:", nextTrack.RequestedBy.Mention, true)
                     .AddField("Hlasitost:", $"{args.Player.Volume}%", true)
                     .AddField("Stav:", $"{string.Join(' ', statusEmoji)}", true)
-                    .Build());
+                    .Build();
+
+                var components = new ComponentBuilder()
+                    .WithButton(customId: "AudioControls_PlayPause", emote: new Emoji("\u23EF"))
+                    .WithButton(customId: "AudioControls_Stop", emote: new Emoji("\u23F9"))
+                    .WithButton(customId: "AudioControls_Skip", emote: new Emoji("\u23E9"))
+                    .WithButton(customId: "AudioControls_Repeat", emote: new Emoji("\uD83D\uDD01"))
+                    .WithButton(customId: "AudioControls_RepeatOnce", emote: new Emoji("\uD83D\uDD02"))
+                    .WithButton(customId: "AudioControls_AddTrack", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
+                    .Build();
+
+                await args.Player.TextChannel.SendMessageAsync(embed: embed, components: components);
             }
 
             else
