@@ -156,7 +156,7 @@ namespace NOVAxis.Modules.Audio
                 await player.SetVolumeAsync(100);
 
             await AudioContext.InitiateDisconnectAsync(player, Config.Audio.Timeout.Idle);
-            
+
             await RespondAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
                 .WithTitle($"Připojuji se ke kanálu `{voiceChannel.Name}`").Build());
@@ -314,10 +314,19 @@ namespace NOVAxis.Modules.Audio
                     .AddField("Hlasitost:", $"{player.Volume}%", true)
                     .Build();
 
+                var components = new ComponentBuilder()
+                    .WithButton(customId: "AudioControls_PlayPause", emote: new Emoji("\u23EF"))
+                    .WithButton(customId: "AudioControls_Stop", emote: new Emoji("\u23F9"))
+                    .WithButton(customId: "AudioControls_Skip", emote: new Emoji("\u23E9"))
+                    .WithButton(customId: "AudioControls_Repeat", emote: new Emoji("\uD83D\uDD01"))
+                    .WithButton(customId: "AudioControls_RepeatOnce", emote: new Emoji("\uD83D\uDD02"))
+                    .WithButton(customId: "AudioControls_AddTrack", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
+                    .Build();
+
                 if (Context.Interaction.HasResponded)
-                    await FollowupAsync(embed: embed);
-                else 
-                    await RespondAsync(embed: embed);
+                    await FollowupAsync(embed: embed, components: components);
+                else
+                    await RespondAsync(embed: embed, components: components);
             }
 
             else
@@ -343,6 +352,7 @@ namespace NOVAxis.Modules.Audio
                 else
                 {
                     var track = AudioContext.LastTrack;
+                    var id = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now);
 
                     var embed = new EmbedBuilder()
                         .WithColor(52, 231, 231)
@@ -356,7 +366,15 @@ namespace NOVAxis.Modules.Audio
                         .AddField("Pořadí ve frontě:", $"`{AudioContext.Queue.Count - 1}.`", true)
                         .Build();
 
-                    await RespondAsync(embed: embed);
+                    InteractionCache[id] = track;
+
+                    var components = new ComponentBuilder()
+                        .WithButton(customId: $"TrackControls_Remove,{id}", emote: new Emoji("\u2716"), style: ButtonStyle.Danger)
+                        .WithButton(customId: $"TrackControls_Love,{id}", emote: new Emoji("\u2764"), style: ButtonStyle.Secondary)
+                        .WithButton(customId: "TrackControls_AddTrack", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
+                        .Build();
+
+                    await RespondAsync(embed: embed, components: components);
                 }
             }
         }
@@ -389,6 +407,48 @@ namespace NOVAxis.Modules.Audio
                         : CmdResumeAudio());
                     break;
             }
+        }
+
+        [ComponentInteraction("TrackControls_*,*", true)]
+        public async Task TrackControls(string action, ulong id)
+        {
+            switch (action)
+            {
+                case "Remove":
+                    await CmdSkipAudio();
+                    break;
+                case "Love":
+                    if (InteractionCache[id] is AudioTrack track)
+                        await PlayAudio(new List<AudioTrack> { track });
+                    else
+                        await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                            .WithColor(220, 20, 60)
+                            .WithDescription("(Vypršel časový limit)")
+                            .WithTitle("Mé jádro přerušilo čekání na lidský vstup")
+                            .Build());
+                    break;
+                case "AddTrack":
+                    await RespondWithModalAsync<AudioControlsAddTrackModal>("AudioControls_AddTrackModal");
+                    break;
+            }
+        }
+
+        public class AudioControlsAddTrackModal : IModal
+        {
+            public string Title => "Přidání skladby do fronty";
+
+            [InputLabel("Zadejte název nebo URL adresu skladby")]
+            [ModalTextInput("input", placeholder: "https://www.youtube.com/watch?v=...")]
+            public string Input { get; set; }
+        }
+
+        [ModalInteraction("AudioControls_AddTrackModal", true)]
+        public async Task AudioControls_AddTrackModal_Handle(AudioControlsAddTrackModal trackModal)
+        {
+            if (!string.IsNullOrWhiteSpace(trackModal.Input))
+                await CmdPlayAudio(trackModal.Input);
+            else
+                await RespondAsync($"{new Emoji("\uD83E\uDD13")}", ephemeral: true);
         }
 
         [SlashCommand("skip", "Skips to the next audio transmission")]
@@ -755,7 +815,16 @@ namespace NOVAxis.Modules.Audio
                     .AddField("Stav:", $"{string.Join(' ', statusEmoji)}", true)
                     .Build();
 
-                await RespondAsync(embed: embed);
+                var components = new ComponentBuilder()
+                    .WithButton(customId: "AudioControls_PlayPause", emote: new Emoji("\u23EF"))
+                    .WithButton(customId: "AudioControls_Stop", emote: new Emoji("\u23F9"))
+                    .WithButton(customId: "AudioControls_Skip", emote: new Emoji("\u23E9"))
+                    .WithButton(customId: "AudioControls_Repeat", emote: new Emoji("\uD83D\uDD01"))
+                    .WithButton(customId: "AudioControls_RepeatOnce", emote: new Emoji("\uD83D\uDD02"))
+                    .WithButton(customId: "AudioControls_AddTrack", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
+                    .Build();
+
+                await RespondAsync(embed: embed, components: components);
             }
 
             else
@@ -805,7 +874,7 @@ namespace NOVAxis.Modules.Audio
 
                     header.Add(new EmbedFieldBuilder
                     {
-                        Name = "\u200B", 
+                        Name = "\u200B",
                         Value = $"**Stopy ve frontě ({AudioContext.Queue.Count - 1}):**"
                     });
                 }
@@ -860,15 +929,15 @@ namespace NOVAxis.Modules.Audio
                         .WithButton(
                             customId: $"CmdAudioQueue_Page_{id},{0},min",
                             emote: new Emoji("\u23EE"),
-                            style: page - 1 > 0 
+                            style: page - 1 > 0
                                 ? ButtonStyle.Primary
                                 : ButtonStyle.Secondary,
                             disabled: page <= 0)
                         .WithButton(
                             customId: $"CmdAudioQueue_Page_{id},{page - 1},prev",
                             emote: new Emoji("\u25C0"),
-                            style: page > 0 
-                                ? ButtonStyle.Primary 
+                            style: page > 0
+                                ? ButtonStyle.Primary
                                 : ButtonStyle.Secondary,
                             disabled: page <= 0)
                         .WithButton(
@@ -881,7 +950,7 @@ namespace NOVAxis.Modules.Audio
                         .WithButton(
                             customId: $"CmdAudioQueue_Page_{id},{paginator.MaxPageIndex},max",
                             emote: new Emoji("\u23ED"),
-                            style: page + 1 < paginator.MaxPageIndex 
+                            style: page + 1 < paginator.MaxPageIndex
                                 ? ButtonStyle.Primary
                                 : ButtonStyle.Secondary,
                             disabled: page + 1 >= paginator.MaxPageIndex)
