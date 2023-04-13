@@ -30,7 +30,7 @@ namespace NOVAxis.Modules.Audio
         public AudioQueuePaginator WithTracks(IEnumerable<EmbedFieldBuilder> tracks)
         {
             Tracks = tracks.ToImmutableList();
-            MaxPageIndex = (int)Math.Floor((float)(Tracks.Count - 1) / _tracksPerPage);
+            MaxPageIndex = (int)((Tracks.Count - 1.0f) / _tracksPerPage);
             return this;
         }
 
