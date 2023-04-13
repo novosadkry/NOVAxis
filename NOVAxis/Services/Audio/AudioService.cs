@@ -77,6 +77,9 @@ namespace NOVAxis.Services.Audio
 
         private async Task AudioModuleService_TrackEnd(TrackEndEventArg<AudioPlayer, LavaTrack> args)
         {
+            if (args.Reason == TrackEndReason.LoadFailed)
+                throw new InvalidOperationException("Track failed to start, throwing an exception before providing any audio");
+
             var player = args.Player;
             var context = this[player.VoiceChannel.GuildId];
 
