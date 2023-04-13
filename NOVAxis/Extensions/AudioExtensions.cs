@@ -6,7 +6,7 @@ using Victoria.Player;
 
 namespace NOVAxis.Extensions
 {
-    public static class AudioModuleExtensions
+    public static class AudioExtensions
     {
         public static string GetThumbnailUrl(this LavaTrack track)
         {

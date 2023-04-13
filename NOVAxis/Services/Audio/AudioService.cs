@@ -9,19 +9,30 @@ using Discord.WebSocket;
 
 using Victoria.Player;
 using Victoria.Node.EventArgs;
+using System;
+using Microsoft.Extensions.Logging;
 
 namespace NOVAxis.Services.Audio
 {
     public class AudioService
     {
-        private DiscordShardedClient Client { get;}
-        private ProgramConfig Config { get;}
-        private AudioNode AudioNode { get;}
+        private DiscordShardedClient Client { get; }
+        private ProgramConfig Config { get; }
+        private AudioNode AudioNode { get; }
+        private ILogger<AudioService> Logger { get; }
         private Cache<ulong, AudioContext> Guilds { get; }
+        private Cache<ulong, object> InteractionCache { get; }
 
-        public AudioService(DiscordShardedClient client, ProgramConfig config, AudioNode audioNode)
+        public AudioService(
+            DiscordShardedClient client, 
+            ProgramConfig config,
+            AudioNode audioNode,
+            ILogger<AudioService> logger,
+            Cache<ulong, object> interactionCache)
         {
             Config = config;
+            Logger = logger;
+
             Guilds = new Cache<ulong, AudioContext>(
                 Config.Audio.Cache.AbsoluteExpiration,
                 Config.Audio.Cache.RelativeExpiration
@@ -33,6 +44,8 @@ namespace NOVAxis.Services.Audio
 
             Client = client;
             Client.UserVoiceStateUpdated += AudioModuleService_UserVoiceStateUpdated;
+
+            InteractionCache = interactionCache;
         }
 
         ~AudioService()
@@ -71,15 +84,44 @@ namespace NOVAxis.Services.Audio
 
         private async Task AudioModuleService_TrackStart(TrackStartEventArg<AudioPlayer, LavaTrack> args)
         {
-            var audioContext = this[args.Player.VoiceChannel.GuildId];
-            await audioContext.CancelDisconnectAsync();
+            var player = args.Player;
+            var context = this[player.VoiceChannel.GuildId];
+
+            var track = context.Track;
+            await context.CancelDisconnectAsync();
+
+            if (context.Queue.Count > 1)
+            {
+                var id = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now);
+                InteractionCache[id] = track;
+
+                var statusEmoji = AudioModule.GetStatusEmoji(context, args.Player);
+
+                var embed = new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithAuthor("Právě přehrávám:")
+                    .WithTitle($"{track.Title}")
+                    .WithUrl(track.Url)
+                    .WithThumbnailUrl(track.ThumbnailUrl)
+                    .AddField("Autor:", track.Author, true)
+                    .AddField("Délka:", $"`{track.Duration}`", true)
+                    .AddField("Vyžádal:", track.RequestedBy.Mention, true)
+                    .AddField("Hlasitost:", $"{args.Player.Volume}%", true)
+                    .AddField("Stav:", $"{string.Join(' ', statusEmoji)}", true)
+                    .Build();
+
+                var components = new ComponentBuilder()
+                    .WithButton(customId: $"TrackControls_Remove,{id}", emote: new Emoji("\u2716"), style: ButtonStyle.Danger)
+                    .WithButton(customId: $"TrackControls_Add,{track.Url}", emote: new Emoji("\u2764"), style: ButtonStyle.Secondary)
+                    .WithButton(customId: "TrackControls_Add", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
+                    .Build();
+
+                await args.Player.TextChannel.SendMessageAsync(embed: embed, components: components);
+            }
         }
 
         private async Task AudioModuleService_TrackEnd(TrackEndEventArg<AudioPlayer, LavaTrack> args)
         {
-            if (args.Reason == TrackEndReason.LoadFailed)
-                throw new InvalidOperationException("Track failed to start, throwing an exception before providing any audio");
-
             var player = args.Player;
             var context = this[player.VoiceChannel.GuildId];
 
@@ -88,6 +130,17 @@ namespace NOVAxis.Services.Audio
 
             if (context.Queue.TryDequeue(out var prevTrack))
             {
+                if (args.Reason == TrackEndReason.LoadFailed)
+                {
+                    await args.Player.TextChannel.SendMessageAsync(embed: new EmbedBuilder()
+                        .WithColor(220, 20, 60)
+                        .WithDescription("(Skladba přeskočena)")
+                        .WithTitle("Při přehrávání stopy nastala kritická chyba")
+                        .Build());
+
+                    Logger.LogError("Track failed to start, throwing an exception before providing any audio");
+                }
+
                 switch (context.Repeat)
                 {
                     case RepeatMode.Once:
@@ -106,42 +159,12 @@ namespace NOVAxis.Services.Audio
 
                 if (context.Queue.IsEmpty)
                 {
-                    await args.Player.TextChannel.SendMessageAsync(embed: new EmbedBuilder()
-                        .WithColor(52, 231, 231)
-                        .WithTitle("Stream audia byl úspěšně dokončen").Build());
-
                     await context.InitiateDisconnectAsync(args.Player, Config.Audio.Timeout.Idle);
                     return;
                 }
 
                 var nextTrack = context.Queue.Peek();
                 await args.Player.PlayAsync(nextTrack);
-
-                var statusEmoji = AudioModule.GetStatusEmoji(context, args.Player);
-
-                var embed = new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithAuthor("Právě přehrávám:")
-                    .WithTitle($"{nextTrack.Title}")
-                    .WithUrl(nextTrack.Url)
-                    .WithThumbnailUrl(nextTrack.ThumbnailUrl)
-                    .AddField("Autor:", nextTrack.Author, true)
-                    .AddField("Délka:", $"`{nextTrack.Duration}`", true)
-                    .AddField("Vyžádal:", nextTrack.RequestedBy.Mention, true)
-                    .AddField("Hlasitost:", $"{args.Player.Volume}%", true)
-                    .AddField("Stav:", $"{string.Join(' ', statusEmoji)}", true)
-                    .Build();
-
-                var components = new ComponentBuilder()
-                    .WithButton(customId: "AudioControls_PlayPause", emote: new Emoji("\u23EF"))
-                    .WithButton(customId: "AudioControls_Stop", emote: new Emoji("\u23F9"))
-                    .WithButton(customId: "AudioControls_Skip", emote: new Emoji("\u23E9"))
-                    .WithButton(customId: "AudioControls_Repeat", emote: new Emoji("\uD83D\uDD01"))
-                    .WithButton(customId: "AudioControls_RepeatOnce", emote: new Emoji("\uD83D\uDD02"))
-                    .WithButton(customId: "AudioControls_AddTrack", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
-                    .Build();
-
-                await args.Player.TextChannel.SendMessageAsync(embed: embed, components: components);
             }
 
             else
