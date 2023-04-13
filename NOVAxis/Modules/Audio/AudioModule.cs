@@ -59,6 +59,7 @@ namespace NOVAxis.Modules.Audio
                 {
                     yield return new AudioTrack(track)
                     {
+                        RequestId = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now),
                         RequestedBy = Context.User
                     };
                 }
@@ -70,6 +71,7 @@ namespace NOVAxis.Modules.Audio
 
                 yield return new AudioTrack(track)
                 {
+                    RequestId = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now),
                     RequestedBy = Context.User
                 };
             }
@@ -111,7 +113,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Služba není dostupná)")
-                    .WithTitle("Mé jádro pravě nemůže poskytnout stabilní modul audia").Build());
+                    .WithTitle("Mé jádro pravě nemůže poskytnout stabilní modul audia")
+                    .Build());
 
                 return;
             }
@@ -121,7 +124,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný kanál)")
-                    .WithTitle("Mému jádru se nepodařilo naladit na stejnou zvukovou frekvenci").Build());
+                    .WithTitle("Mému jádru se nepodařilo naladit na stejnou zvukovou frekvenci")
+                    .Build());
 
                 return;
             }
@@ -138,7 +142,8 @@ namespace NOVAxis.Modules.Audio
                     await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Mé jádro už bylo naladěno na stejnou zvukovou frekvenci").Build());
+                        .WithTitle("Mé jádro už bylo naladěno na stejnou zvukovou frekvenci")
+                        .Build());
 
                     return null;
                 }
@@ -159,7 +164,8 @@ namespace NOVAxis.Modules.Audio
 
             await RespondAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
-                .WithTitle($"Připojuji se ke kanálu `{voiceChannel.Name}`").Build());
+                .WithTitle($"Připojuji se ke kanálu `{voiceChannel.Name}`")
+                .Build());
 
             return player;
         }
@@ -172,7 +178,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Služba není dostupná)")
-                    .WithTitle("Mé jádro pravě nemůže poskytnout stabilní modul audia").Build());
+                    .WithTitle("Mé jádro pravě nemůže poskytnout stabilní modul audia")
+                    .Build());
 
                 return;
             }
@@ -182,7 +189,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Mé jádro musí být před odpojením naladěno na správnou frekvenci").Build());
+                    .WithTitle("Mé jádro musí být před odpojením naladěno na správnou frekvenci")
+                    .Build());
 
                 return;
             }
@@ -197,7 +205,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Pro komunikaci s jádrem musíš být naladěn na stejnou frekvenci").Build());
+                    .WithTitle("Pro komunikaci s jádrem musíš být naladěn na stejnou frekvenci")
+                    .Build());
 
                 return;
             }
@@ -211,7 +220,8 @@ namespace NOVAxis.Modules.Audio
             {
                 await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
-                    .WithTitle($"Odpojuji se od kanálu `{player.VoiceChannel.Name}`").Build());
+                    .WithTitle($"Odpojuji se od kanálu `{player.VoiceChannel.Name}`")
+                    .Build());
 
                 await AudioNode.LeaveAsync(player.VoiceChannel);
             }
@@ -234,7 +244,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Služba není dostupná)")
-                    .WithTitle("Mé jádro pravě nemůže poskytnout stabilní stream audia").Build());
+                    .WithTitle("Mé jádro pravě nemůže poskytnout stabilní stream audia")
+                    .Build());
             }
 
             catch (ArgumentNullException)
@@ -242,7 +253,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný argument)")
-                    .WithTitle("Mému jádru se nepodařilo v databázi nalézt požadovanou stopu").Build());
+                    .WithTitle("Mému jádru se nepodařilo v databázi nalézt požadovanou stopu")
+                    .Build());
             }
         }
 
@@ -253,7 +265,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Služba není dostupná)")
-                    .WithTitle("Mé jádro pravě nemůže poskytnout stabilní modul audia").Build());
+                    .WithTitle("Mé jádro pravě nemůže poskytnout stabilní modul audia")
+                    .Build());
 
                 return;
             }
@@ -266,7 +279,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný kanál)")
-                    .WithTitle("Mému jádru se nepodařilo naladit na stejnou zvukovou frekvenci").Build());
+                    .WithTitle("Mému jádru se nepodařilo naladit na stejnou zvukovou frekvenci")
+                    .Build());
 
                 return;
             }
@@ -302,6 +316,9 @@ namespace NOVAxis.Modules.Audio
                 var track = AudioContext.Track;
                 await player.PlayAsync(AudioContext.Queue.First());
 
+                var id = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now);
+                InteractionCache[id] = track;
+
                 var embed = new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithAuthor("Právě přehrávám:")
@@ -315,12 +332,9 @@ namespace NOVAxis.Modules.Audio
                     .Build();
 
                 var components = new ComponentBuilder()
-                    .WithButton(customId: "AudioControls_PlayPause", emote: new Emoji("\u23EF"))
-                    .WithButton(customId: "AudioControls_Stop", emote: new Emoji("\u23F9"))
-                    .WithButton(customId: "AudioControls_Skip", emote: new Emoji("\u23E9"))
-                    .WithButton(customId: "AudioControls_Repeat", emote: new Emoji("\uD83D\uDD01"))
-                    .WithButton(customId: "AudioControls_RepeatOnce", emote: new Emoji("\uD83D\uDD02"))
-                    .WithButton(customId: "AudioControls_AddTrack", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
+                    .WithButton(customId: $"TrackControls_Remove,{id}", emote: new Emoji("\u2716"), style: ButtonStyle.Danger)
+                    .WithButton(customId: $"TrackControls_Add,{track.Url}", emote: new Emoji("\u2764"), style: ButtonStyle.Secondary)
+                    .WithButton(customId: "TrackControls_Add", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
                     .Build();
 
                 if (Context.Interaction.HasResponded)
@@ -329,53 +343,51 @@ namespace NOVAxis.Modules.Audio
                     await RespondAsync(embed: embed, components: components);
             }
 
+            else if (tracks.Count > 1)
+            {
+                var last = AudioContext.LastTrack;
+                var totalDuration = new TimeSpan();
+
+                foreach (var track in tracks)
+                    totalDuration += track.Duration;
+
+                await RespondAsync(embed: new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithAuthor($"Přidáno do fronty ({tracks.Count}):")
+                    .WithTitle($"{last.Title}")
+                    .WithUrl(last.Url)
+                    .WithThumbnailUrl(last.ThumbnailUrl)
+                    .AddField("Délka:", $"`{totalDuration}`", true)
+                    .AddField("Vyžádal:", last.RequestedBy.Mention, true)
+                    .Build());
+            }
+
             else
             {
-                if (tracks.Count > 1)
-                {
-                    var totalDuration = new TimeSpan();
+                var track = AudioContext.LastTrack;
 
-                    foreach (var track in tracks)
-                        totalDuration += track.Duration;
+                var id = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now);
+                InteractionCache[id] = track;
 
-                    await RespondAsync(embed: new EmbedBuilder()
-                        .WithColor(52, 231, 231)
-                        .WithAuthor($"Přidáno do fronty ({tracks.Count}):")
-                        .WithTitle($"{AudioContext.LastTrack.Title}")
-                        .WithUrl(AudioContext.LastTrack.Url)
-                        .WithThumbnailUrl(AudioContext.LastTrack.ThumbnailUrl)
-                        .AddField("Délka:", $"`{totalDuration}`", true)
-                        .AddField("Vyžádal:", AudioContext.LastTrack.RequestedBy.Mention, true)
-                        .Build());
-                }
+                var embed = new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithAuthor("Přidáno do fronty:")
+                    .WithTitle($"{track.Title}")
+                    .WithUrl(track.Url)
+                    .WithThumbnailUrl(track.ThumbnailUrl)
+                    .AddField("Autor:", track.Author, true)
+                    .AddField("Délka:", $"`{track.Duration}`", true)
+                    .AddField("Vyžádal:", track.RequestedBy.Mention, true)
+                    .AddField("Pořadí ve frontě:", $"`{AudioContext.Queue.Count - 1}.`", true)
+                    .Build();
 
-                else
-                {
-                    var track = AudioContext.LastTrack;
-                    var id = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now);
+                var components = new ComponentBuilder()
+                    .WithButton(customId: $"TrackControls_Remove,{id}", emote: new Emoji("\u2716"), style: ButtonStyle.Danger)
+                    .WithButton(customId: $"TrackControls_Add,{track.Url}", emote: new Emoji("\u2764"), style: ButtonStyle.Secondary)
+                    .WithButton(customId: "TrackControls_Add", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
+                    .Build();
 
-                    var embed = new EmbedBuilder()
-                        .WithColor(52, 231, 231)
-                        .WithAuthor("Přidáno do fronty:")
-                        .WithTitle($"{track.Title}")
-                        .WithUrl(track.Url)
-                        .WithThumbnailUrl(track.ThumbnailUrl)
-                        .AddField("Autor:", track.Author, true)
-                        .AddField("Délka:", $"`{track.Duration}`", true)
-                        .AddField("Vyžádal:", track.RequestedBy.Mention, true)
-                        .AddField("Pořadí ve frontě:", $"`{AudioContext.Queue.Count - 1}.`", true)
-                        .Build();
-
-                    InteractionCache[id] = track;
-
-                    var components = new ComponentBuilder()
-                        .WithButton(customId: $"TrackControls_Remove,{id}", emote: new Emoji("\u2716"), style: ButtonStyle.Danger)
-                        .WithButton(customId: $"TrackControls_Love,{id}", emote: new Emoji("\u2764"), style: ButtonStyle.Secondary)
-                        .WithButton(customId: "TrackControls_AddTrack", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
-                        .Build();
-
-                    await RespondAsync(embed: embed, components: components);
-                }
+                await RespondAsync(embed: embed, components: components);
             }
         }
 
@@ -409,31 +421,58 @@ namespace NOVAxis.Modules.Audio
             }
         }
 
-        [ComponentInteraction("TrackControls_*,*", true)]
-        public async Task TrackControls(string action, ulong id)
+        [ComponentInteraction("TrackControls_Add", true)]
+        public async Task TrackControls_Add()
         {
-            switch (action)
-            {
-                case "Remove":
-                    await CmdSkipAudio();
-                    break;
-                case "Love":
-                    if (InteractionCache[id] is AudioTrack track)
-                        await PlayAudio(new List<AudioTrack> { track });
-                    else
-                        await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                            .WithColor(220, 20, 60)
-                            .WithDescription("(Vypršel časový limit)")
-                            .WithTitle("Mé jádro přerušilo čekání na lidský vstup")
-                            .Build());
-                    break;
-                case "AddTrack":
-                    await RespondWithModalAsync<AudioControlsAddTrackModal>("AudioControls_AddTrackModal");
-                    break;
-            }
+            await RespondWithModalAsync<TrackControlsAddModal>(nameof(TrackControls_AddModal));
         }
 
-        public class AudioControlsAddTrackModal : IModal
+        [ComponentInteraction("TrackControls_Add,*", true)]
+        public async Task TrackControls_Add(string url)
+        {
+            await CmdPlayAudio(url);
+        }
+
+        [ComponentInteraction("TrackControls_Remove,*", true)]
+        public async Task TrackControls_Remove(ulong id)
+        {
+            if (InteractionCache[id] is not AudioTrack track)
+            {
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                    .WithColor(220, 20, 60)
+                    .WithDescription("(Vypršel časový limit)")
+                    .WithTitle("Mé jádro přerušilo čekání na lidský vstup")
+                    .Build());
+
+                return;
+            }
+
+            if (!AudioContext.Queue.Contains(track))
+            {
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                    .WithColor(220, 20, 60)
+                    .WithDescription("(Neplatný příkaz)")
+                    .WithTitle("Požadovaná stopa se ve frontě nenachází").Build());
+
+                return;
+            }
+
+            if (AudioContext.Track.RequestId == track.RequestId)
+            {
+                await CmdSkipAudio();
+                return;
+            }
+
+            AudioContext.Queue.Remove(track);
+
+            await RespondAsync(embed: new EmbedBuilder()
+                .WithColor(52, 231, 231)
+                .WithTitle("Požadovaná stopa byla úspěšně odebrána z fronty")
+                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                .Build());
+        }
+
+        public class TrackControlsAddModal : IModal
         {
             public string Title => "Přidání skladby do fronty";
 
@@ -442,11 +481,11 @@ namespace NOVAxis.Modules.Audio
             public string Input { get; set; }
         }
 
-        [ModalInteraction("AudioControls_AddTrackModal", true)]
-        public async Task AudioControls_AddTrackModal_Handle(AudioControlsAddTrackModal trackModal)
+        [ModalInteraction(nameof(TrackControls_AddModal), true)]
+        public async Task TrackControls_AddModal(TrackControlsAddModal modal)
         {
-            if (!string.IsNullOrWhiteSpace(trackModal.Input))
-                await CmdPlayAudio(trackModal.Input);
+            if (!string.IsNullOrWhiteSpace(modal.Input))
+                await CmdPlayAudio(modal.Input);
             else
                 await RespondAsync($"{new Emoji("\uD83E\uDD13")}", ephemeral: true);
         }
@@ -461,14 +500,17 @@ namespace NOVAxis.Modules.Audio
                     await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                        .Build());
 
                     return;
                 }
 
                 await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
-                    .WithTitle("Stream audia byl úspěšně přeskočen").Build());
+                    .WithTitle("Stream audia byl úspěšně přeskočen")
+                    .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                    .Build());
 
                 await player.StopAsync();
             }
@@ -478,7 +520,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                    .Build());
             }
         }
 
@@ -492,7 +535,8 @@ namespace NOVAxis.Modules.Audio
                     await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                        .Build());
 
                     return;
                 }
@@ -502,7 +546,9 @@ namespace NOVAxis.Modules.Audio
 
                 await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
-                    .WithTitle("Stream audia byl úspěšně zastaven").Build());
+                    .WithTitle("Stream audia byl úspěšně zastaven")
+                    .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                    .Build());
 
                 await player.StopAsync();
             }
@@ -512,7 +558,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                    .Build());
             }
         }
 
@@ -526,7 +573,8 @@ namespace NOVAxis.Modules.Audio
                     await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                        .Build());
 
                     return;
                 }
@@ -547,7 +595,9 @@ namespace NOVAxis.Modules.Audio
 
                 await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
-                    .WithTitle("Stream audia byl úspěšně pozastaven").Build());
+                    .WithTitle("Stream audia byl úspěšně pozastaven")
+                    .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                    .Build());
             }
 
             else
@@ -555,7 +605,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                    .Build());
             }
         }
 
@@ -569,7 +620,8 @@ namespace NOVAxis.Modules.Audio
                     await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                        .Build());
 
                     return;
                 }
@@ -579,7 +631,8 @@ namespace NOVAxis.Modules.Audio
                     await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Stream audia právě běží (pro pozastavení použíjte `~audio pause`)").Build());
+                        .WithTitle("Stream audia právě běží (pro pozastavení použíjte `~audio pause`)")
+                        .Build());
 
                     return;
                 }
@@ -589,7 +642,9 @@ namespace NOVAxis.Modules.Audio
 
                 await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
-                    .WithTitle("Stream audia byl úspěšně obnoven").Build());
+                    .WithTitle("Stream audia byl úspěšně obnoven")
+                    .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                    .Build());
             }
 
             else
@@ -597,7 +652,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                    .Build());
             }
         }
 
@@ -611,7 +667,8 @@ namespace NOVAxis.Modules.Audio
                     await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                        .Build());
 
                     return;
                 }
@@ -621,7 +678,8 @@ namespace NOVAxis.Modules.Audio
                     await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(220, 20, 60)
                         .WithDescription("(Neplatný argument)")
-                        .WithTitle("Nelze nastavit hodnotu přesahující maximální délku stopy").Build());
+                        .WithTitle("Nelze nastavit hodnotu přesahující maximální délku stopy")
+                        .Build());
 
                     return;
                 }
@@ -631,14 +689,17 @@ namespace NOVAxis.Modules.Audio
                     await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(220, 20, 60)
                         .WithDescription("(Neplatný argument)")
-                        .WithTitle("Nelze nastavit zápornou hodnotu").Build());
+                        .WithTitle("Nelze nastavit zápornou hodnotu")
+                        .Build());
 
                     return;
                 }
 
                 await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
-                    .WithTitle($"Pozice audia byla úspěšně nastavena na `{time:hh\\:mm\\:ss}`").Build());
+                    .WithTitle($"Pozice audia byla úspěšně nastavena na `{time:hh\\:mm\\:ss}`")
+                    .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                    .Build());
 
                 await player.SeekAsync(time);
             }
@@ -648,7 +709,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                    .Build());
             }
         }
 
@@ -662,7 +724,8 @@ namespace NOVAxis.Modules.Audio
                     await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                        .Build());
 
                     return;
                 }
@@ -672,7 +735,8 @@ namespace NOVAxis.Modules.Audio
                     await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(220, 20, 60)
                         .WithDescription("(Neplatný argument)")
-                        .WithTitle("Nelze posunout o zápornou nebo nulovou hodnotu").Build());
+                        .WithTitle("Nelze posunout o zápornou nebo nulovou hodnotu")
+                        .Build());
 
                     return;
                 }
@@ -684,7 +748,9 @@ namespace NOVAxis.Modules.Audio
 
                 await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
-                    .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime:hh\\:mm\\:ss}`").Build());
+                    .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime:hh\\:mm\\:ss}`")
+                    .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                    .Build());
 
                 await player.SeekAsync(newTime);
             }
@@ -694,7 +760,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                    .Build());
             }
         }
 
@@ -708,7 +775,8 @@ namespace NOVAxis.Modules.Audio
                     await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                        .Build());
 
                     return;
                 }
@@ -718,7 +786,8 @@ namespace NOVAxis.Modules.Audio
                     await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(220, 20, 60)
                         .WithDescription("(Neplatný argument)")
-                        .WithTitle("Nelze posunout o zápornou nebo nulovou hodnotu").Build());
+                        .WithTitle("Nelze posunout o zápornou nebo nulovou hodnotu")
+                        .Build());
 
                     return;
                 }
@@ -730,7 +799,9 @@ namespace NOVAxis.Modules.Audio
 
                 await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
-                    .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime:hh\\:mm\\:ss}`").Build());
+                    .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime:hh\\:mm\\:ss}`")
+                    .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                    .Build());
 
                 await player.SeekAsync(newTime);
             }
@@ -740,7 +811,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                    .Build());
             }
         }
 
@@ -754,7 +826,8 @@ namespace NOVAxis.Modules.Audio
                     await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                        .Build());
 
                     return;
                 }
@@ -764,14 +837,17 @@ namespace NOVAxis.Modules.Audio
                     await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný argument)")
-                        .WithTitle("Mé jádro nepodporuje hlasitost vyšší než 150%").Build());
+                        .WithTitle("Mé jádro nepodporuje hlasitost vyšší než 150%")
+                        .Build());
 
                     return;
                 }
 
                 await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
-                    .WithTitle($"Hlasitost audia byla úspěšně nastavena na {percentage}%").Build());
+                    .WithTitle($"Hlasitost audia byla úspěšně nastavena na {percentage}%")
+                    .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                    .Build());
 
                 await player.SetVolumeAsync(percentage);
             }
@@ -781,7 +857,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                    .Build());
             }
         }
 
@@ -795,7 +872,8 @@ namespace NOVAxis.Modules.Audio
                     await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                        .Build());
 
                     return;
                 }
@@ -821,7 +899,6 @@ namespace NOVAxis.Modules.Audio
                     .WithButton(customId: "AudioControls_Skip", emote: new Emoji("\u23E9"))
                     .WithButton(customId: "AudioControls_Repeat", emote: new Emoji("\uD83D\uDD01"))
                     .WithButton(customId: "AudioControls_RepeatOnce", emote: new Emoji("\uD83D\uDD02"))
-                    .WithButton(customId: "AudioControls_AddTrack", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
                     .Build();
 
                 await RespondAsync(embed: embed, components: components);
@@ -832,7 +909,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                    .Build());
             }
         }
 
@@ -844,7 +922,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď se ve frontě nenachází žádná zvuková stopa").Build());
+                    .WithTitle("Právě teď se ve frontě nenachází žádná zvuková stopa")
+                    .Build());
 
                 return;
             }
@@ -993,7 +1072,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď se ve frontě nenachází žádná zvuková stopa").Build());
+                    .WithTitle("Právě teď se ve frontě nenachází žádná zvuková stopa")
+                    .Build());
 
                 return;
             }
@@ -1003,7 +1083,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatná pozice)")
-                    .WithTitle("Požadovaná stopa se ve frontě nenachází").Build());
+                    .WithTitle("Požadovaná stopa se ve frontě nenachází")
+                    .Build());
 
                 return;
             }
@@ -1012,7 +1093,9 @@ namespace NOVAxis.Modules.Audio
 
             await RespondAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
-                .WithTitle("Požadovaná stopa byla úspěšně odebrána z fronty").Build());
+                .WithTitle("Požadovaná stopa byla úspěšně odebrána z fronty")
+                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                .Build());
         }
 
         [SlashCommand("repeat", "Repeats enqueued audio transmission")]
@@ -1025,7 +1108,8 @@ namespace NOVAxis.Modules.Audio
                     await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
                         .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                        .Build());
 
                     return;
                 }
@@ -1036,6 +1120,7 @@ namespace NOVAxis.Modules.Audio
                         .WithColor(52, 231, 231)
                         .WithTitle("Nadcházející stopy nyní porušují časové kontinuum")
                         .WithDescription("(Režim opakování byl zapnut)")
+                        .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
                         .Build());
 
                     AudioContext.Repeat = mode;
@@ -1047,6 +1132,7 @@ namespace NOVAxis.Modules.Audio
                         .WithColor(52, 231, 231)
                         .WithTitle("Nadcházející stopy nyní dodržují časové kontinuum")
                         .WithDescription("(Režim opakování byl vypnut)")
+                        .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
                         .Build());
 
                     AudioContext.Repeat = RepeatMode.None;
@@ -1058,7 +1144,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio").Build());
+                    .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                    .Build());
             }
         }
 
@@ -1089,7 +1176,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithDescription($"(Nastavena role {newRole.Mention})")
-                    .WithTitle("Konfigurace mého jádra proběhla úspešně").Build());
+                    .WithTitle("Konfigurace mého jádra proběhla úspešně")
+                    .Build());
             }
 
             else
@@ -1103,7 +1191,8 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithDescription("(Nastavená role zrušena)")
-                    .WithTitle("Konfigurace mého jádra proběhla úspešně").Build());
+                    .WithTitle("Konfigurace mého jádra proběhla úspešně")
+                    .Build());
             }
 
             await GuildDbContext.SaveChangesAsync();

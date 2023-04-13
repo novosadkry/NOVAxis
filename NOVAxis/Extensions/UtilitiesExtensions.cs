@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using NOVAxis.Utilities;
 
 namespace NOVAxis.Extensions
@@ -21,6 +22,18 @@ namespace NOVAxis.Extensions
             }
 
             throw new IndexOutOfRangeException();
+        }
+
+        public static int RemoveAll<T>(this LinkedList<T> list, Predicate<T> match)
+        {
+            var matches = list
+                .Where(x => match(x))
+                .ToList();
+
+            foreach (T item in matches)
+                list.Remove(item);
+
+            return matches.Count;
         }
 
         public static TValue Get<TKey, TValue>(this Cache<TKey, object> cache, TKey key)
