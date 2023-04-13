@@ -1,0 +1,38 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_call:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+        os: [ubuntu-latest, windows-latest]
+    
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Check out the repo
+      uses: actions/checkout@v3
+
+    # Install the .NET Core workload
+    - name: Install .NET Core
+      uses: actions/setup-dotnet@v3
+
+    # Restore the application to install all dependencies
+    - name: Install dependencies
+      run: dotnet restore
+
+    # Execute all unit tests in the solution
+    - name: Execute unit tests
+      run: dotnet test --no-restore --verbosity normal
+      
+    # Build on all platforms and configurations
+    - name: Build ${{ matrix.configuration }} on ${{ matrix.os }}
+      run: dotnet build --configuration ${{ matrix.configuration }} --no-restore
+      

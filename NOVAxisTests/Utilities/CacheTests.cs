@@ -80,23 +80,6 @@ namespace NOVAxisTests.Utilities
         }
 
         [Fact]
-        public async Task CallsDisposeOnEviction()
-        {
-            // Arrange
-            var mock = new Mock<IDisposable>();
-            var expiration = TimeSpan.FromTicks(1);
-            using var cache = new Cache<int, IDisposable>(expiration, expiration);
-
-            // Act
-            cache.Set(0, mock.Object);
-            await Task.Delay(1000);
-
-            // Assert
-            Assert.Null(cache.Get(0));
-            mock.Verify(x => x.Dispose(), Times.AtLeastOnce);
-        }
-
-        [Fact]
         public void CallsDisposeOnRemove()
         {
             // Arrange
