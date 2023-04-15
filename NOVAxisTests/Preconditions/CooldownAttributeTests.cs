@@ -2,7 +2,6 @@
 using Moq;
 
 using Discord;
-using Discord.Commands;
 using NOVAxis.Preconditions;
 
 namespace NOVAxisTests.Preconditions
@@ -17,29 +16,29 @@ namespace NOVAxisTests.Preconditions
         public async Task UserTriggersCooldown(int cooldown, double millis)
         {
             // Arrange
-            var context = new Mock<ICommandContext>();
-            var message = new Mock<IUserMessage>();
+            var context = new Mock<IInteractionContext>();
+            var interaction = new Mock<IDiscordInteraction>();
             var user = new Mock<IUser>();
             var timestamp = DateTimeOffset.UtcNow;
 
             user.Setup(x => x.Id).Returns(1L);
-            message.Setup(x => x.CreatedAt).Returns(timestamp);
-            context.Setup(x => x.Message).Returns(message.Object);
+            interaction.Setup(x => x.CreatedAt).Returns(timestamp);
+            context.Setup(x => x.Interaction).Returns(interaction.Object);
             context.Setup(x => x.User).Returns(user.Object);
 
-            var cooldownAttr = new CooldownAttribute(cooldown);
+            var attribute = new CooldownAttribute(cooldown);
 
             // Act and assert
-            var result = await cooldownAttr.CheckPermissionsAsync(context.Object, null, null);
+            var result = await attribute.CheckRequirementsAsync(context.Object, null, null);
             Assert.True(result.IsSuccess);
 
             // Arrange a second message
-            message = new Mock<IUserMessage>();
-            message.Setup(x => x.CreatedAt).Returns(timestamp.AddMilliseconds(millis));
-            context.Setup(x => x.Message).Returns(message.Object);
+            interaction = new Mock<IDiscordInteraction>();
+            interaction.Setup(x => x.CreatedAt).Returns(timestamp.AddMilliseconds(millis));
+            context.Setup(x => x.Interaction).Returns(interaction.Object);
 
             // Act and assert
-            result = await cooldownAttr.CheckPermissionsAsync(context.Object, null, null);
+            result = await attribute.CheckRequirementsAsync(context.Object, null, null);
             Assert.False(result.IsSuccess);
         }
 
@@ -51,29 +50,29 @@ namespace NOVAxisTests.Preconditions
         public async Task UserWaitsForCooldown(int cooldown, double millis)
         {
             // Arrange
-            var context = new Mock<ICommandContext>();
-            var message = new Mock<IUserMessage>();
+            var context = new Mock<IInteractionContext>();
+            var interaction = new Mock<IDiscordInteraction>();
             var user = new Mock<IUser>();
             var timestamp = DateTimeOffset.UtcNow;
 
             user.Setup(x => x.Id).Returns(1L);
-            message.Setup(x => x.CreatedAt).Returns(timestamp);
-            context.Setup(x => x.Message).Returns(message.Object);
+            interaction.Setup(x => x.CreatedAt).Returns(timestamp);
+            context.Setup(x => x.Interaction).Returns(interaction.Object);
             context.Setup(x => x.User).Returns(user.Object);
 
-            var cooldownAttr = new CooldownAttribute(cooldown);
+            var attribute = new CooldownAttribute(cooldown);
 
             // Act and assert
-            var result = await cooldownAttr.CheckPermissionsAsync(context.Object, null, null);
+            var result = await attribute.CheckRequirementsAsync(context.Object, null, null);
             Assert.True(result.IsSuccess);
 
             // Arrange a second message
-            message = new Mock<IUserMessage>();
-            message.Setup(x => x.CreatedAt).Returns(timestamp.AddMilliseconds(millis));
-            context.Setup(x => x.Message).Returns(message.Object);
+            interaction = new Mock<IDiscordInteraction>();
+            interaction.Setup(x => x.CreatedAt).Returns(timestamp.AddMilliseconds(millis));
+            context.Setup(x => x.Interaction).Returns(interaction.Object);
 
             // Act and assert
-            result = await cooldownAttr.CheckPermissionsAsync(context.Object, null, null);
+            result = await attribute.CheckRequirementsAsync(context.Object, null, null);
             Assert.True(result.IsSuccess);
         }
 
@@ -81,38 +80,38 @@ namespace NOVAxisTests.Preconditions
         public async Task UserTriggersCooldownWithoutWarning()
         {
             // Arrange
-            var context = new Mock<ICommandContext>();
-            var message = new Mock<IUserMessage>();
+            var context = new Mock<IInteractionContext>();
+            var interaction = new Mock<IDiscordInteraction>();
             var user = new Mock<IUser>();
             var timestamp = DateTimeOffset.UtcNow;
 
             user.Setup(x => x.Id).Returns(1L);
-            message.Setup(x => x.CreatedAt).Returns(timestamp);
-            context.Setup(x => x.Message).Returns(message.Object);
+            interaction.Setup(x => x.CreatedAt).Returns(timestamp);
+            context.Setup(x => x.Interaction).Returns(interaction.Object);
             context.Setup(x => x.User).Returns(user.Object);
 
-            var cooldownAttr = new CooldownAttribute(600);
+            var attribute = new CooldownAttribute(600);
 
             // Act and assert
-            var result = await cooldownAttr.CheckPermissionsAsync(context.Object, null, null);
+            var result = await attribute.CheckRequirementsAsync(context.Object, null, null);
             Assert.True(result.IsSuccess);
 
             // Arrange a second message
-            message = new Mock<IUserMessage>();
-            message.Setup(x => x.CreatedAt).Returns(timestamp);
-            context.Setup(x => x.Message).Returns(message.Object);
+            interaction = new Mock<IDiscordInteraction>();
+            interaction.Setup(x => x.CreatedAt).Returns(timestamp);
+            context.Setup(x => x.Interaction).Returns(interaction.Object);
 
             // Act and assert
-            result = await cooldownAttr.CheckPermissionsAsync(context.Object, null, null);
+            result = await attribute.CheckRequirementsAsync(context.Object, null, null);
             Assert.True(!result.IsSuccess && result.ErrorReason == "User has command on cooldown");
 
             // Arrange a third message
-            message = new Mock<IUserMessage>();
-            message.Setup(x => x.CreatedAt).Returns(timestamp);
-            context.Setup(x => x.Message).Returns(message.Object);
+            interaction = new Mock<IDiscordInteraction>();
+            interaction.Setup(x => x.CreatedAt).Returns(timestamp);
+            context.Setup(x => x.Interaction).Returns(interaction.Object);
 
             // Act and assert
-            result = await cooldownAttr.CheckPermissionsAsync(context.Object, null, null);
+            result = await attribute.CheckRequirementsAsync(context.Object, null, null);
             Assert.True(!result.IsSuccess && result.ErrorReason == "User has command on cooldown (no warning)");
         }
     }
