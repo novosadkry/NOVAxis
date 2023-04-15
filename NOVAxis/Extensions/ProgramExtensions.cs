@@ -16,9 +16,10 @@ namespace NOVAxis.Extensions
             return builder;
         }
 
-        public static IServiceCollection AddCache<TKey, TValue>(this IServiceCollection collection)
+        public static IServiceCollection AddCache<TKey, TValue>(this IServiceCollection collection, CacheOptions options = null)
         {
-            collection.AddSingleton(new Cache<TKey, TValue>());
+            options ??= new CacheOptions();
+            collection.AddSingleton(new Cache<TKey, TValue>(options));
             return collection;
         }
     }
