@@ -14,7 +14,7 @@ namespace NOVAxis.Preconditions
         private struct CooldownInfo
         {
             public IUserMessage Message { get; set; }
-            public DateTime? Timestamp { get; set; }
+            public DateTimeOffset? Timestamp { get; set; }
             public bool WarningTriggered { get; set; }
         }
 
@@ -27,19 +27,14 @@ namespace NOVAxis.Preconditions
             _cooldown = TimeSpan.FromMilliseconds(millis);
         }
 
-        public CooldownAttribute(int seconds) : this(seconds * 1000L) {}
+        public CooldownAttribute(int seconds)
+            : this(seconds * 1000L) { }
 
         public override Task<PreconditionResult> CheckPermissionsAsync(ICommandContext context, CommandInfo command, IServiceProvider services)
         {
             var cooldownInfo = _users[context.User];
-            var currentTime = DateTime.Now;
+            var currentTime = context.Message.CreatedAt;
 
-            /*
-                We can assume that if the cooldownInfo contains the same message as the current one,
-                there was already a check on this message which passed successfully
-            
-                If the check doesn't pass, no message's set and this statement is thus skipped
-            */
             if (cooldownInfo.Message == context.Message)
                 return Task.FromResult(PreconditionResult.FromSuccess());
 
