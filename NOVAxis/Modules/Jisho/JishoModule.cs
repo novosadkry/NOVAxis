@@ -1,29 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Text;
+using System.Net.Http;
 using System.Threading.Tasks;
 
 using NOVAxis.Preconditions;
 
 using Discord;
-using Discord.Commands;
+using Discord.Interactions;
 
 namespace NOVAxis.Modules.Jisho
 {
     [Cooldown(5)]
-    [Group("jisho")]
-    public class JishoModule : ModuleBase<ShardedCommandContext>
+    [Group("jisho", "Shows results from Jisho.org")]
+    public class JishoModule : InteractionModuleBase<ShardedInteractionContext>
     {
         public const string API = "https://jisho.org/api/v1/search/words?keyword={0}";
 
-        [Command, Summary("Searches through Jisho.org dictionary")]
+        [SlashCommand("search", "Searches through Jisho.org dictionary")]
         public async Task Search(string text, ushort limit = 100)
         {
             if (limit < 1)
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Argument nesmí být menší nebo roven nule)")
                     .WithTitle("Mé jádro nebylo schopno příjmout daný prvek").Build());
@@ -36,8 +36,12 @@ namespace NOVAxis.Modules.Jisho
 
             try
             {
-                using WebClient client = new WebClient { Encoding = Encoding.UTF8 };
-                string result = await client.DownloadStringTaskAsync(api);
+                using var client = new HttpClient();
+
+                var response = await client.GetAsync(api);
+                response.EnsureSuccessStatusCode();
+                
+                var result = await response.Content.ReadAsStringAsync();
 
                 List<JishoJson> collection = JishoJson.Convert(result, limit).ToList();
 
@@ -64,16 +68,15 @@ namespace NOVAxis.Modules.Jisho
                     };
                 }
 
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithTitle($"**Výsledek databáze serveru Jisho.org** (počet výsledků: {collection.Count})")
                     .WithColor(255, 26, 117)
                     .WithFields(embedFields).Build());
             }
 
-
             catch (Exception e)
             {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription($"({e.Message})")
                     .WithTitle("V databázi serveru Jisho.org nebyla nalezena shoda").Build());
