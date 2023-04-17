@@ -6,8 +6,7 @@ using NOVAxis.Database.Guild;
 using Microsoft.Extensions.DependencyInjection;
 
 using Discord;
-using Discord.Commands;
-using Discord.WebSocket;
+using Discord.Interactions;
 
 namespace NOVAxis.Preconditions
 {
@@ -26,9 +25,9 @@ namespace NOVAxis.Preconditions
             _requiredRoles = names;
         }
 
-        public override async Task<PreconditionResult> CheckPermissionsAsync(ICommandContext context, CommandInfo command, IServiceProvider services)
+        public override async Task<PreconditionResult> CheckRequirementsAsync(IInteractionContext context, ICommandInfo commandInfo, IServiceProvider services)
         {
-            if (context.User is not SocketGuildUser user)
+            if (context.User is not IGuildUser user)
                 return PreconditionResult.FromError("Invalid context for command");
 
             GuildInfo guildInfo;
@@ -52,10 +51,10 @@ namespace NOVAxis.Preconditions
                 IRole guildRole = context.Guild.GetRole(id.Value);
 
                 // Set flag when the role exists, but the user doesn't have it
-                match |= guildRole != null && !user.Roles.Contains(guildRole);
+                match |= guildRole != null && !user.RoleIds.Contains(id.Value);
             }
 
-            return !match 
+            return !match
                 ? PreconditionResult.FromSuccess()
                 : PreconditionResult.FromError($"User requires guild role '{string.Join(", ", _requiredRoles)}'");
         }
