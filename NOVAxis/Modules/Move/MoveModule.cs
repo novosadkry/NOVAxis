@@ -1,201 +1,118 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
+using NOVAxis.Utilities;
 using NOVAxis.Preconditions;
 
 using Discord;
-using Discord.Commands;
 using Discord.WebSocket;
+using Discord.Interactions;
 
 namespace NOVAxis.Modules.Move
 {
     [Cooldown(2)]
-    [Group("move"), Alias("mv")]
+    [Group("move", "Mass moves users between channels")]
     [RequireContext(ContextType.Guild)]
     [RequireUserPermission(GuildPermission.MoveMembers)]
-    public class MoveModule : ModuleBase<ShardedCommandContext>
+    public class MoveModule : InteractionModuleBase<ShardedInteractionContext>
     {
-        [Command, Summary("Moves user to selected channel")]
-        public async Task MoveSomeone(IGuildUser user, string channelname)
+        public Cache<ulong, object> InteractionCache { get; set; }
+
+        [SlashCommand("user", "Moves user to selected channel")]
+        public async Task MoveSomeone(IGuildUser user, IVoiceChannel to)
         {
-            try
+            await RespondAsync(embed: new EmbedBuilder()
+                .WithColor(52, 231, 231)
+                .WithTitle($"Odštěpuji **{user.Username}** a spojuji ho s kanálem `{to.Name}`")
+                .Build());
+
+            if (user.VoiceChannel == to)
+                return;
+
+            await user.ModifyAsync(u =>
             {
-                IVoiceChannel channel = (from ch in Context.Guild.VoiceChannels
-                                         where ch.Name.Contains(channelname)
-                                         select ch).FirstOrDefault();
+                u.ChannelId = to.Id;
+            });
+        }
 
-                if (channel == null)
-                    throw new InvalidOperationException();
+        [Cooldown(5)]
+        [SlashCommand("everyone", "Moves everyone from one channel to another")]
+        public async Task MoveEveryone(IVoiceChannel to, IVoiceChannel from = null)
+        {
+            from ??= ((IGuildUser)Context.User).VoiceChannel;
 
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithTitle($"Odštěpuji **{user.Username}** a spojuji ho s kanálem `{channel.Name}`").Build());
+            if (from == null)
+            {
+                await RespondAsync(embed: new EmbedBuilder()
+                    .WithColor(220, 20, 60)
+                    .WithDescription("(Neplatný kanál)")
+                    .WithTitle("Mému jádru se nepodařilo získat aktuální kanál")
+                    .Build());
 
-                if (user.VoiceChannel == channel)
-                    return;
+                return;
+            }
 
-                await user.ModifyAsync(prop =>
+            await RespondAsync(embed: new EmbedBuilder()
+                .WithColor(52, 231, 231)
+                .WithTitle($"Odštěpuji **všechny** z kanálu `{from.Name}` a spojuji je s kanálem `{to.Name}`")
+                .Build());
+
+            var users = ((SocketGuildChannel)from).Users;
+
+            foreach (IGuildUser u in users)
+            {
+                if (u.VoiceChannel == to)
+                    continue;
+
+                await u.ModifyAsync(prop =>
                 {
-                    prop.ChannelId = channel.Id;
+                    prop.ChannelId = to.Id;
                 });
             }
-
-            catch (InvalidOperationException)
-            {
-                await Context.Channel.SendMessageAsync(embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný kanál)")
-                    .WithTitle("Má databáze nebyla schopna rozpoznat daný prvek").Build());
-            }
         }
 
-        [Cooldown(5)]
-        [Command("everyone"), Alias("everybody"), Summary("Moves everyone in your channel to selected channel")]
-        public async Task MoveEveryone(string channelname)
+        [MessageCommand("Move message")]
+        public async Task MoveMessage(IMessage message)
         {
-            try
-            {
-                IVoiceChannel channel1 = ((IGuildUser)Context.User).VoiceChannel;
+            InteractionCache[Context.User.Id] = message;
 
-                IVoiceChannel channel2 = (from ch in Context.Guild.VoiceChannels
-                                          where ch.Name.Contains(channelname)
-                                          select ch).FirstOrDefault();
-
-                if (channel1 == null)
-                {
-                    await Context.Channel.SendMessageAsync(embed: new EmbedBuilder()
-                        .WithColor(220, 20, 60)
-                        .WithDescription("(Neplatný kanál)")
-                        .WithTitle("Mému jádru se nepodařilo získat aktuální kanál").Build());
-
-                    return;
-                }
-
-                if (channel2 == null)
-                    throw new InvalidOperationException();
-
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithTitle($"Odštěpuji **všechny** a spojuji je s kanálem `{channel2.Name}`").Build());
-
-                foreach (IGuildUser u in ((SocketVoiceChannel)channel1).Users)
-                {
-                    if (u.VoiceChannel == channel2)
-                        continue;
-
-                    await u.ModifyAsync(prop =>
-                    {
-                        prop.ChannelId = channel2.Id;
-                    });
-                }
-            }
-
-            catch (InvalidOperationException)
-            {
-                await Context.Channel.SendMessageAsync(embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný kanál)")
-                    .WithTitle("Má databáze nebyla schopna rozpoznat daný prvek").Build());
-            }
+            await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                .WithColor(52, 231, 231)
+                .WithTitle("Do své mezipaměti jsem si uložil tvůj výběr.\n" + 
+                    "Pro potvrzení přesunu napiš `/move message kanál`")
+                .Build());
         }
 
-        [Cooldown(5)]
-        [Command("everyone"), Summary("Moves everyone in channel1 to channel2")]
-        public async Task MoveEveryoneTo(string channelname1, string channelname2)
+        [SlashCommand("message", "Moves a message from one channel to another")]
+        public async Task MoveMessage(ITextChannel to)
         {
-            try
+            var message = InteractionCache[Context.User.Id] as IMessage;
+
+            if (message == null)
             {
-                IVoiceChannel channel1 = (from ch in Context.Guild.VoiceChannels
-                                          where ch.Name.Contains(channelname1)
-                                          select ch).FirstOrDefault();
-
-                IVoiceChannel channel2 = (from ch in Context.Guild.VoiceChannels
-                                          where ch.Name.Contains(channelname2)
-                                          select ch).FirstOrDefault();
-
-                if (channel1 == null || channel2 == null)
-                    throw new InvalidOperationException();
-
-                await ReplyAsync(embed: new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithTitle($"Odštěpuji **všechny** z kanálu `{channel1.Name}` a spojuji je s kanálem `{channel2.Name}`").Build());
-
-                foreach (IGuildUser u in ((SocketGuildChannel)channel1).Users)
-                {
-                    if (u.VoiceChannel == channel2)
-                        continue;
-
-                    await u.ModifyAsync(prop =>
-                    {
-                        prop.ChannelId = channel2.Id;
-                    });
-                }
-            }
-
-            catch (InvalidOperationException)
-            {
-                await Context.Channel.SendMessageAsync(embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný kanál)")
-                    .WithTitle("Má databáze nebyla schopna rozpoznat daný prvek").Build());
-            }
-        }
-
-        [Command("message"), Summary("Moves a message from channel1 to channel2")]
-        public async Task MoveMessageTo(ulong id, ITextChannel channel2)
-        {
-            IMessage msg = await Context.Channel.GetMessageAsync(id);
-
-            await MoveMessageTo(msg, channel2);
-        }
-
-        [Command("message"), Summary("Moves a message from channel1 to channel2")]
-        public async Task MoveMessageTo(IGuildUser user, ITextChannel channel2, ushort limit = 10)
-        {
-            IEnumerable<IMessage> messages = await Context.Channel.GetMessagesAsync(limit).FlattenAsync();
-
-            IMessage msg = (user == Context.User) 
-                ? (from m in messages
-                   where m.Author == user
-                   orderby m.Timestamp descending
-                   select m).Skip(1).FirstOrDefault()
-
-                : (from m in messages
-                   where m.Author == user
-                   orderby m.Timestamp descending
-                   select m).FirstOrDefault();
-
-            await MoveMessageTo(msg, channel2);
-        }
-
-        private async Task MoveMessageTo(IMessage msg, ITextChannel channel2)
-        {
-            if (msg == null)
-            {
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný argument)")
                     .WithTitle("Mému jádru se nepodařilo najít zprávu v daném limitu").Build());
             }
 
-            ITextChannel channel1 = (ITextChannel)msg.Channel;
+            var from = (ITextChannel) message.Channel;
 
-            if (msg.Embeds.FirstOrDefault() is Embed embed)
-                await channel2.SendMessageAsync($"Zpráva přesunuta z kanálu #{channel1}",
-                    embed: embed);
+            if (message.Embeds.FirstOrDefault() is Embed embed)
+                await to.SendMessageAsync($"Zpráva přesunuta z kanálu #{from}", embed: embed);
 
             else
-                await channel2.SendMessageAsync($"Zpráva přesunuta z kanálu #{channel1}",
-                    embed: new EmbedBuilder()
+            {
+                await to.SendMessageAsync($"Zpráva přesunuta z kanálu #{from}", embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
-                    .WithAuthor(msg.Author.Username, msg.Author.GetAvatarUrl())
-                    .WithDescription(msg.Content)
-                    .WithImageUrl(msg.Attachments.FirstOrDefault()?.Url ?? "")
+                    .WithAuthor(message.Author.Username, message.Author.GetAvatarUrl())
+                    .WithDescription(message.Content)
+                    .WithImageUrl(message.Attachments.FirstOrDefault()?.Url ?? "")
                     .Build());
+            }
 
-            await msg.DeleteAsync();
+            await message.DeleteAsync();
         }
     }
 }

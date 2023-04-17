@@ -4,29 +4,29 @@ using System.Threading.Tasks;
 using NOVAxis.Preconditions;
 
 using Discord;
-using Discord.Commands;
+using Discord.Interactions;
 
 namespace NOVAxis.Modules.Mute
 {
     [Cooldown(1)]
-    [Group("mute")]
+    [Group("mute", "Controls users permission to chat in text-channels")]
     [RequireContext(ContextType.Guild)]
     [RequireUserPermission(GuildPermission.MuteMembers)]
     [RequireBotPermission(GuildPermission.ManageChannels | GuildPermission.MuteMembers | GuildPermission.ManageRoles)]
-    public class MuteModule : ModuleBase<ShardedCommandContext>
+    public class MuteModule : InteractionModuleBase<ShardedInteractionContext>
     {
         public const string RoleName = "Muted";
 
-        [Command, Summary("Swithes a user's permission to chat in text channels")]
+        [SlashCommand("switch", "Swithes a user's permission to chat in text channels")]
         public async Task SwitchMute(IGuildUser user)
         {
-            IRole role = await SetupMute();
+            var role = await SetupMute();
 
             if (!user.RoleIds.Contains(role.Id))
             {
                 await user.AddRoleAsync(role);
 
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithDescription($"(Přidělena role {role.Mention})")
                     .WithTitle($"Uživatel **{user.Username}** byl odpojen od textového protokolu").Build());
@@ -36,7 +36,7 @@ namespace NOVAxis.Modules.Mute
             {
                 await user.RemoveRoleAsync(role);
 
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithDescription($"(Odebrána role {role.Mention})")
                     .WithTitle($"Uživatel **{user.Username}** byl připojen k textovému protokolu").Build());
@@ -45,13 +45,14 @@ namespace NOVAxis.Modules.Mute
 
         private async Task<IRole> SetupMute()
         {
-            IRole role = Context.Guild.Roles.FirstOrDefault(r => r.Name == RoleName);
+            IRole role = Context.Guild.Roles
+                .FirstOrDefault(r => r.Name == RoleName);
 
             if (role == null)
             {
                 role = await Context.Guild.CreateRoleAsync(RoleName, new GuildPermissions(), new Color(0x818386), false, false);
                 
-                await ReplyAsync(embed: new EmbedBuilder()
+                await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithDescription($"(Vytvoření role {role.Mention})")
                     .WithTitle("Mé jádro úspěšně nakonfigurovalo textový protokol").Build());
