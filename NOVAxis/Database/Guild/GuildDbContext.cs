@@ -10,8 +10,8 @@ namespace NOVAxis.Database.Guild
 {
     public class GuildDbContext : DbContext
     {
-        public DbSet<GuildInfo> Guilds { get; set; }
-        public DbSet<GuildRole> GuildRoles { get; set; }
+        public virtual DbSet<GuildInfo> Guilds { get; set; }
+        public virtual DbSet<GuildRole> GuildRoles { get; set; }
 
         private ProgramConfig Config { get; }
 
