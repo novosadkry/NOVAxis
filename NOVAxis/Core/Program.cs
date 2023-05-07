@@ -100,7 +100,7 @@ namespace NOVAxis.Core
                 SelfDeaf = config.Lavalink.SelfDeaf
             };
 
-            var interactiveCacheOptions = new CacheOptions
+            var interactionCacheOptions = new CacheOptions
             {
                 AbsoluteExpiration = config.Interaction.Cache.AbsoluteExpiration,
                 RelativeExpiration = config.Interaction.Cache.RelativeExpiration
@@ -121,7 +121,7 @@ namespace NOVAxis.Core
                 .AddSingleton<AudioService>()
                 .AddDbContext<GuildDbContext>()
                 .AddLogging(builder => builder.AddProgramLogger())
-                .AddCache<ulong, object>(interactiveCacheOptions)
+                .AddInteractionCache(interactionCacheOptions)
                 .BuildServiceProvider(true);
 
             var client = services.GetRequiredService<DiscordShardedClient>();
@@ -143,7 +143,7 @@ namespace NOVAxis.Core
             var client = services.GetRequiredService<DiscordShardedClient>();
             var audioNode = services.GetService<AudioNode>();
 
-            if (audioNode is {IsConnected: true})
+            if (audioNode is { IsConnected: true })
                 await audioNode.DisposeAsync();
 
             await client.LogoutAsync();

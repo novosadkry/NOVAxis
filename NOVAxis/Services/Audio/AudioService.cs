@@ -21,14 +21,14 @@ namespace NOVAxis.Services.Audio
         private AudioNode AudioNode { get; }
         private ILogger<AudioService> Logger { get; }
         private Cache<ulong, AudioContext> Guilds { get; }
-        private Cache<ulong, object> InteractionCache { get; }
+        private InteractionCache InteractionCache { get; }
 
         public AudioService(
             DiscordShardedClient client, 
             ProgramConfig config,
             AudioNode audioNode,
             ILogger<AudioService> logger,
-            Cache<ulong, object> interactionCache)
+            InteractionCache interactionCache)
         {
             Config = config;
             Logger = logger;
@@ -92,9 +92,7 @@ namespace NOVAxis.Services.Audio
 
             if (context.Queue.Count > 1)
             {
-                var id = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now);
-                InteractionCache[id] = track;
-
+                var id = InteractionCache.Store(track);
                 var statusEmoji = AudioModule.GetStatusEmoji(context, args.Player);
 
                 var embed = new EmbedBuilder()

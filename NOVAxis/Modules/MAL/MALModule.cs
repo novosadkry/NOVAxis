@@ -18,7 +18,7 @@ namespace NOVAxis.Modules.MAL
     public class MALModule : InteractionModuleBase<ShardedInteractionContext>
     {
         public const string API = "https://api.jikan.moe/v4/{0}";
-        public Cache<ulong, object> InteractionCache { get; set; }
+        public InteractionCache InteractionCache { get; set; }
 
         [SlashCommand("anime", "Searches for anime in MyAnimeList.net database")]
         public async Task CmdSearchAnime(string name)
@@ -47,8 +47,7 @@ namespace NOVAxis.Modules.MAL
             dynamic root = JObject.Parse(result);
             var collection = root.data;
 
-            var id = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now);
-            InteractionCache[id] = collection;
+            var id = InteractionCache.Store(collection);
 
             EmbedFieldBuilder[] embedFields = new EmbedFieldBuilder[collection.Count];
 
@@ -154,8 +153,7 @@ namespace NOVAxis.Modules.MAL
             dynamic root = JObject.Parse(result);
             var collection = root.data;
 
-            var id = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now);
-            InteractionCache[id] = collection;
+            var id = InteractionCache.Store(collection);
 
             EmbedFieldBuilder[] embedFields = new EmbedFieldBuilder[collection.Count];
 

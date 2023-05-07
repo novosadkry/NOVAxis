@@ -17,7 +17,7 @@ namespace NOVAxis.Modules.Move
     [RequireUserPermission(GuildPermission.MoveMembers)]
     public class MoveModule : InteractionModuleBase<ShardedInteractionContext>
     {
-        public Cache<ulong, object> InteractionCache { get; set; }
+        public InteractionCache InteractionCache { get; set; }
 
         [SlashCommand("user", "Moves user to selected channel")]
         public async Task MoveSomeone(IGuildUser user, IVoiceChannel to)
