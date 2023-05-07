@@ -22,5 +22,12 @@ namespace NOVAxis.Extensions
             collection.AddSingleton(new Cache<TKey, TValue>(options));
             return collection;
         }
+
+        public static IServiceCollection AddInteractionCache(this IServiceCollection collection, CacheOptions options = null)
+        {
+            options ??= new CacheOptions();
+            collection.AddSingleton(new InteractionCache(options));
+            return collection;
+        }
     }
 }

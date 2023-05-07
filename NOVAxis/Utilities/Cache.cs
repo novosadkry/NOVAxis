@@ -3,6 +3,8 @@
 using Microsoft.Extensions.Internal;
 using Microsoft.Extensions.Caching.Memory;
 
+using Discord;
+
 namespace NOVAxis.Utilities
 {
     public class CacheOptions
@@ -18,6 +20,25 @@ namespace NOVAxis.Utilities
         public ISystemClock Clock { get; init; }
         public TimeSpan? AbsoluteExpiration { get; init; }
         public TimeSpan? RelativeExpiration { get; init; }
+    }
+
+    public class InteractionCache : Cache<ulong, object>
+    {
+        public InteractionCache()
+            : base(new CacheOptions()) { }
+
+        public InteractionCache(TimeSpan? absolute, TimeSpan? relative)
+            : base(new CacheOptions(absolute, relative)) { }
+
+        public InteractionCache(CacheOptions options)
+            : base(options) { }
+
+        public ulong Store(object value)
+        {
+            var snowflake = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now);
+            Set(snowflake, value);
+            return snowflake;
+        }
     }
 
     public class Cache<TKey, TValue> : IDisposable

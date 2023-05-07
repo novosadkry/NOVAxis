@@ -30,7 +30,7 @@ namespace NOVAxis.Modules.Audio
         public AudioService AudioService { get; set; }
         public AudioContext AudioContext { get; private set; }
         public GuildDbContext GuildDbContext { get; set; }
-        public Cache<ulong, object> InteractionCache { get; set; }
+        public InteractionCache InteractionCache { get; set; }
 
         #region Functions
 
@@ -316,8 +316,7 @@ namespace NOVAxis.Modules.Audio
                 var track = AudioContext.Track;
                 await player.PlayAsync(AudioContext.Queue.First());
 
-                var id = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now);
-                InteractionCache[id] = track;
+                var id = InteractionCache.Store(track);
 
                 var embed = new EmbedBuilder()
                     .WithColor(52, 231, 231)
@@ -365,9 +364,7 @@ namespace NOVAxis.Modules.Audio
             else
             {
                 var track = AudioContext.LastTrack;
-
-                var id = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now);
-                InteractionCache[id] = track;
+                var id = InteractionCache.Store(track);
 
                 var embed = new EmbedBuilder()
                     .WithColor(52, 231, 231)
@@ -980,12 +977,12 @@ namespace NOVAxis.Modules.Audio
                 Value = $"Celková doba poslechu: `{totalDuration}`"
             });
 
-            var id = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now);
-
-            InteractionCache[id] = paginator
+            var page = paginator
                 .WithHeader(header)
                 .WithTracks(tracks)
                 .WithFooter(footer);
+
+            var id = InteractionCache.Store(page);
 
             await DeferAsync();
             await CmdAudioQueue_Page(id, 0, "next");
