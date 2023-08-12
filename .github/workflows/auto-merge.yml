@@ -6,6 +6,8 @@ on:
 
 jobs:
   auto-merge:
+    permissions:
+      pull-requests: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
