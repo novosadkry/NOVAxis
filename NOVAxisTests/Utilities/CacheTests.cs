@@ -116,8 +116,6 @@ namespace NOVAxisTests.Utilities
             mock.Verify(x => x.Dispose(), Times.AtLeastOnce);
         }
 
-        */
-
         [Fact]
         public void CallsDisposeOnRemove()
         {
@@ -132,5 +130,7 @@ namespace NOVAxisTests.Utilities
             // Assert
             mock.Verify(x => x.Dispose(), Times.AtLeastOnce);
         }
+
+        */
     }
 }
