@@ -5,21 +5,14 @@ on:
     branches: [ "master" ]
 
 jobs:
-  dependabot:
+  auto-merge:
     permissions:
       contents: write
       pull-requests: write
     runs-on: ubuntu-latest
-    if: ${{ github.actor == 'dependabot[bot]' }}
     steps:
-      - name: Dependabot metadata
-        id: metadata
-        uses: dependabot/fetch-metadata@v1
+      - uses: actions/checkout@v2
+      - uses: ahmadnassri/action-dependabot-auto-merge@v2
         with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
-      - name: Auto Merge Dependabot PRs
-        if: ${{contains(steps.metadata.outputs.dependency-names, 'my-dependency') && steps.metadata.outputs.update-type == 'version-update:semver-minor'}}
-        run: gh pr merge --auto --merge "$PR_URL"
-        env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          target: minor
+          github-token: ${{ secrets.GITHUB_TOKEN }}
