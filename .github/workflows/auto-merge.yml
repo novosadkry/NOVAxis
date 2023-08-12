@@ -1,15 +1,29 @@
 name: Auto Merge Dependabot
 
 on:
-  pull_request:
+  pull_request_target:
     branches: [ "master" ]
 
 jobs:
   auto-merge:
+    permissions:
+      contents: write
+      pull-requests: write
     runs-on: ubuntu-latest
+    if: ${{ github.actor == 'dependabot[bot]' }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: ahmadnassri/action-dependabot-auto-merge@v2
+      - name: Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v1
         with:
-          target: minor
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Auto Merge Dependabot PRs
+        if: ${{ steps.metadata.outputs.update-type == 'version-update:semver-minor' }}
+        run: gh pr merge --auto --rebase "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Auto Approve Dependabot PRs
+        uses: hmarr/auto-approve-action@v3
+        with:
+          review-message: "Auto approved automated PR"

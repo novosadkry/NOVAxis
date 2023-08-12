@@ -9,7 +9,7 @@ jobs:
   build:
     strategy:
       matrix:
-        configuration: [Debug, Release]
+        configuration: [Release]
         os: [ubuntu-latest, windows-latest]
     
     name: Build and Test
@@ -18,6 +18,15 @@ jobs:
     steps:
     - name: Check out the repo
       uses: actions/checkout@v3
+
+    # Fetch NuGet packages from cache
+    - name: Restore package cache
+      uses: actions/cache@v3
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj*') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget
 
     # Install the .NET Core workload
     - name: Install .NET Core
