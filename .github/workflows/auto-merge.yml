@@ -5,21 +5,21 @@ on:
     branches: [ "master" ]
 
 jobs:
-  auto-merge:
+  dependabot:
     permissions:
       contents: write
       pull-requests: write
     runs-on: ubuntu-latest
+    if: ${{ github.actor == 'dependabot[bot]' }}
     steps:
-      - uses: actions/checkout@v2
-      - name: Wait for tests to succeed
-        uses: lewagon/wait-on-check-action@v1.3.1
+      - name: Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v1
         with:
-          ref: ${{ github.ref }}
-          check-name: 'Build and Test'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 10
-      - uses: ahmadnassri/action-dependabot-auto-merge@v2
-        with:
-          target: minor
-          github-token: ${{ secrets.PAT }}
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Auto Merge Dependabot PRs
+        if: ${{steps.metadata.outputs.update-type == 'version-update:semver-minor'}}
+        run: gh pr merge --auto --merge "$PR_URL"
+        env:
+          PR_URL: ${{github.event.pull_request.html_url}}
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
