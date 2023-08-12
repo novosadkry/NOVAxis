@@ -24,6 +24,11 @@ namespace NOVAxis.Core
                 {
                     RegisterGlobally = true,
                     RegisterToGuild = 0
+                },
+                Cache = new CacheObject
+                {
+                    AbsoluteExpiration = TimeSpan.FromHours(24),
+                    RelativeExpiration = TimeSpan.FromHours(12)
                 }
             },
 
@@ -68,11 +73,10 @@ namespace NOVAxis.Core
                     Idle = TimeSpan.FromSeconds(30),
                     Paused = TimeSpan.FromMinutes(2)
                 },
-
                 Cache = new CacheObject
                 {
-                    AbsoluteExpiration = TimeSpan.FromHours(12),
-                    RelativeExpiration = TimeSpan.FromHours(6)
+                    AbsoluteExpiration = null,
+                    RelativeExpiration = TimeSpan.FromHours(12)
                 }
             }
         };
@@ -87,7 +91,7 @@ namespace NOVAxis.Core
 
             public string DefaultPrefix { get; set; }
             public CommandsObject Commands { get; set; }
-
+            public CacheObject Cache { get; set; }
         }
 
         public struct ActivityObject

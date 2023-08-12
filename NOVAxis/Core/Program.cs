@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 
 using NOVAxis.Modules;
+using NOVAxis.Utilities;
 using NOVAxis.Extensions;
 using NOVAxis.Database.Guild;
 using NOVAxis.Services.Audio;
@@ -99,6 +100,12 @@ namespace NOVAxis.Core
                 SelfDeaf = config.Lavalink.SelfDeaf
             };
 
+            var interactionCacheOptions = new CacheOptions
+            {
+                AbsoluteExpiration = config.Interaction.Cache.AbsoluteExpiration,
+                RelativeExpiration = config.Interaction.Cache.RelativeExpiration
+            };
+
             var services = new ServiceCollection()
                 .AddSingleton(config)
                 .AddSingleton(clientConfig)
@@ -114,7 +121,7 @@ namespace NOVAxis.Core
                 .AddSingleton<AudioService>()
                 .AddDbContext<GuildDbContext>()
                 .AddLogging(builder => builder.AddProgramLogger())
-                .AddCache<ulong, object>()
+                .AddInteractionCache(interactionCacheOptions)
                 .BuildServiceProvider(true);
 
             var client = services.GetRequiredService<DiscordShardedClient>();
@@ -136,7 +143,7 @@ namespace NOVAxis.Core
             var client = services.GetRequiredService<DiscordShardedClient>();
             var audioNode = services.GetService<AudioNode>();
 
-            if (audioNode is {IsConnected: true})
+            if (audioNode is { IsConnected: true })
                 await audioNode.DisposeAsync();
 
             await client.LogoutAsync();

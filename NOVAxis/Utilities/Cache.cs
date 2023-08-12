@@ -1,9 +1,46 @@
 ﻿using System;
 
+using Microsoft.Extensions.Internal;
 using Microsoft.Extensions.Caching.Memory;
+
+using Discord;
 
 namespace NOVAxis.Utilities
 {
+    public class CacheOptions
+    {
+        public CacheOptions() { }
+
+        public CacheOptions(TimeSpan? absoluteExpiration, TimeSpan? relativeExpiration)
+        {
+            AbsoluteExpiration = absoluteExpiration;
+            RelativeExpiration = relativeExpiration;
+        }
+
+        public ISystemClock Clock { get; init; }
+        public TimeSpan? AbsoluteExpiration { get; init; }
+        public TimeSpan? RelativeExpiration { get; init; }
+    }
+
+    public class InteractionCache : Cache<ulong, object>
+    {
+        public InteractionCache()
+            : base(new CacheOptions()) { }
+
+        public InteractionCache(TimeSpan? absolute, TimeSpan? relative)
+            : base(new CacheOptions(absolute, relative)) { }
+
+        public InteractionCache(CacheOptions options)
+            : base(options) { }
+
+        public ulong Store(object value)
+        {
+            var snowflake = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now);
+            Set(snowflake, value);
+            return snowflake;
+        }
+    }
+
     public class Cache<TKey, TValue> : IDisposable
     {
         private bool _disposed;
@@ -11,20 +48,20 @@ namespace NOVAxis.Utilities
         private readonly MemoryCacheEntryOptions _entryOptions;
 
         public Cache() 
-            : this(new MemoryCacheOptions(), new MemoryCacheEntryOptions()) { }
+            : this(new CacheOptions()) { }
 
-        public Cache(TimeSpan? absolute, TimeSpan? sliding)
-            : this(new MemoryCacheOptions(), new MemoryCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = absolute,
-                SlidingExpiration = sliding
-            })
-        { }
+        public Cache(TimeSpan? absolute, TimeSpan? relative)
+            : this(new CacheOptions(absolute, relative)) { }
 
-        public Cache(MemoryCacheOptions options, MemoryCacheEntryOptions entryOptions)
+        public Cache(CacheOptions options)
         {
-            _cache = new MemoryCache(options);
-            _entryOptions = entryOptions;
+            _cache = new MemoryCache(new MemoryCacheOptions { Clock = options.Clock });
+            _entryOptions = new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = options.AbsoluteExpiration,
+                SlidingExpiration = options.RelativeExpiration
+            };
+
             _entryOptions.RegisterPostEvictionCallback((_, value, _, _) =>
             {
                 if (value is IDisposable context)

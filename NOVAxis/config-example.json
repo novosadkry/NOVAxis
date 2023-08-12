@@ -6,6 +6,10 @@
     "Commands": {
       "RegisterGlobally": false,
       "RegisterToGuild": 0
+    },
+    "Cache": {
+      "AbsoluteExpiration": "24:00:00",
+      "RelativeExpiration": "12:00:00"
     }
   },
   "Activity": {

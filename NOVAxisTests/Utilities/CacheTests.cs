@@ -2,6 +2,7 @@ using Xunit;
 using Moq;
 
 using NOVAxis.Utilities;
+using Microsoft.Extensions.Internal;
 
 namespace NOVAxisTests.Utilities
 {
@@ -77,6 +78,33 @@ namespace NOVAxisTests.Utilities
             // Assert
             Assert.Equal(cache.Get(a), "A");
             Assert.Equal(cache.Get(b), "B");
+        }
+
+        [Fact]
+        public void CallsDisposeOnEviction()
+        {
+            // Arrange
+            var mock = new Mock<IDisposable>();
+            var clock = new Mock<ISystemClock>();
+            
+            clock.Setup(x => x.UtcNow)
+                .Returns(() => DateTimeOffset.UtcNow.AddDays(1));
+
+            var expiration = TimeSpan.FromTicks(1);
+            var cacheOptions = new CacheOptions
+            {
+                Clock = clock.Object,
+                AbsoluteExpiration = expiration,
+                RelativeExpiration = expiration
+            };
+            using var cache = new Cache<int, IDisposable>(cacheOptions);
+
+            // Act
+            cache.Set(0, mock.Object);
+
+            // Assert
+            Assert.Null(cache.Get(0));
+            mock.Verify(x => x.Dispose(), Times.AtLeastOnce);
         }
 
         [Fact]

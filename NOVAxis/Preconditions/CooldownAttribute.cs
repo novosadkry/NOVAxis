@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using NOVAxis.Utilities;
 
 using Discord;
-using Discord.Commands;
+using Discord.Interactions;
 
 namespace NOVAxis.Preconditions
 {
@@ -13,8 +13,7 @@ namespace NOVAxis.Preconditions
     {
         private struct CooldownInfo
         {
-            public IUserMessage Message { get; set; }
-            public DateTime? Timestamp { get; set; }
+            public IDiscordInteraction Interaction { get; set; }
             public bool WarningTriggered { get; set; }
         }
 
@@ -27,39 +26,34 @@ namespace NOVAxis.Preconditions
             _cooldown = TimeSpan.FromMilliseconds(millis);
         }
 
-        public CooldownAttribute(int seconds) : this(seconds * 1000L) {}
+        public CooldownAttribute(int seconds)
+            : this(seconds * 1000L) { }
 
-        public override Task<PreconditionResult> CheckPermissionsAsync(ICommandContext context, CommandInfo command, IServiceProvider services)
+        public override Task<PreconditionResult> CheckRequirementsAsync(IInteractionContext context, ICommandInfo commandInfo, IServiceProvider services)
         {
             var cooldownInfo = _users[context.User];
-            var currentTime = DateTime.Now;
 
-            /*
-                We can assume that if the cooldownInfo contains the same message as the current one,
-                there was already a check on this message which passed successfully
-            
-                If the check doesn't pass, no message's set and this statement is thus skipped
-            */
-            if (cooldownInfo.Message == context.Message)
+            if (cooldownInfo.Interaction == context.Interaction)
                 return Task.FromResult(PreconditionResult.FromSuccess());
 
-            if (cooldownInfo.Timestamp.HasValue && currentTime - cooldownInfo.Timestamp < _cooldown)
+            if (cooldownInfo.Interaction != null)
             {
-                if (cooldownInfo.WarningTriggered)
-                    return Task.FromResult(PreconditionResult.FromError("User has command on cooldown (no warning)"));
-                
-                cooldownInfo.WarningTriggered = true;
-                _users[context.User] = cooldownInfo;
-                
-                return Task.FromResult(PreconditionResult.FromError("User has command on cooldown"));
+                var previous = cooldownInfo.Interaction.CreatedAt;
+                var current = context.Interaction.CreatedAt;
+
+                if (current - previous < _cooldown)
+                {
+                    if (cooldownInfo.WarningTriggered)
+                        return Task.FromResult(PreconditionResult.FromError("User has command on cooldown (no warning)"));
+
+                    cooldownInfo.WarningTriggered = true;
+                    _users[context.User] = cooldownInfo;
+
+                    return Task.FromResult(PreconditionResult.FromError("User has command on cooldown"));
+                }
             }
 
-            _users[context.User] = new CooldownInfo
-            {
-                Message = context.Message,
-                Timestamp = currentTime
-            };
-            
+            _users[context.User] = new CooldownInfo { Interaction = context.Interaction };
             return Task.FromResult(PreconditionResult.FromSuccess());
         }
     }
