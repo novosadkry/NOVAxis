@@ -15,7 +15,7 @@ jobs:
     needs: [compile]
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         
       - name: Create a new release
         uses: actions/create-release@v1
