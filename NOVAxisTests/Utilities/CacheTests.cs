@@ -104,6 +104,11 @@ namespace NOVAxisTests.Utilities
 
             // Assert
             Assert.Null(cache.Get(0));
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
             mock.Verify(x => x.Dispose(), Times.AtLeastOnce);
         }
 
