@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using NOVAxis.Utilities;
+using NOVAxis.Extensions;
 
 using Discord;
 using Victoria.Player;
@@ -52,19 +53,22 @@ namespace NOVAxis.Services.Audio
             // Pass cancellation token to thread
             var disconnectToken = _disconnectCts.Token;
 
-            Task.Run(() =>
+            Task.Run(async () =>
             {
                 // Leave channel if token isn't cancelled within the timeout
                 if (!SpinWait.SpinUntil(() => disconnectToken.IsCancellationRequested, timeout))
                 {
+                    var userCount = await player.VoiceChannel.GetHumanUsers()
+                        .CountAsync(cancellationToken: disconnectToken);
+
                     // and the context wasn't disposed and the player isn't playing
-                    if (!_disposed && player.PlayerState != PlayerState.Playing)
+                    if (!_disposed && (player.PlayerState != PlayerState.Playing || userCount < 1))
                     {
-                        player.TextChannel.SendMessageAsync(embed: new EmbedBuilder()
+                        await player.TextChannel.SendMessageAsync(embed: new EmbedBuilder()
                             .WithColor(52, 231, 231)
                             .WithTitle($"Odpojuji se od kanálu `{player.VoiceChannel.Name}`").Build());
 
-                        _audioNode.LeaveAsync(player.VoiceChannel);
+                        await _audioNode.LeaveAsync(player.VoiceChannel);
                     }
                 }
             }, disconnectToken);
