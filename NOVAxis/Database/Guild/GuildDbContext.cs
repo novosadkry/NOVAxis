@@ -1,8 +1,9 @@
 ﻿using System;
-using Discord.Commands;
-using Discord;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+
+using Discord;
+using Discord.Commands;
 
 using NOVAxis.Core;
 
@@ -44,7 +45,8 @@ namespace NOVAxis.Database.Guild
             switch (Config.Database.DbType)
             {
                 case "mysql":
-                    options.UseMySQL(ConnectionString);
+                    var serverVersion = ServerVersion.AutoDetect(ConnectionString);
+                    options.UseMySql(ConnectionString, serverVersion);
                     break;
 
                 case "sqlite":
