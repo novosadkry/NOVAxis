@@ -28,7 +28,7 @@ jobs:
     if: ${{ inputs.publish_docker }}
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
