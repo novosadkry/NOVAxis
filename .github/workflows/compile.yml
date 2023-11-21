@@ -9,9 +9,9 @@ jobs:
   build:
     strategy:
       matrix:
-        configuration: [Release]
-        os: [ubuntu-latest, windows-latest]
-    
+        os: [ubuntu-latest]
+        configuration: [Debug, Release]
+
     name: Build and Test
     runs-on: ${{ matrix.os }}
 
@@ -43,4 +43,3 @@ jobs:
     # Build on all platforms and configurations
     - name: Build ${{ matrix.configuration }} on ${{ matrix.os }}
       run: dotnet build --configuration ${{ matrix.configuration }} --no-restore
-      
