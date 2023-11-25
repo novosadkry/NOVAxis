@@ -1,20 +1,19 @@
 # -- Build --
 
 FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
-WORKDIR /app
 
+WORKDIR /app
 COPY . .
 
 WORKDIR /app/NOVAxis
-RUN dotnet publish -c Release -r alpine-x64 -p:PublishTrimmed=true -o out --self-contained true
+RUN dotnet restore
+RUN dotnet publish -c Release -o out
 
-# -- Runtime -- 
+# -- Runtime --
 
-FROM alpine:latest
-
-# Libraries required by .NET
-RUN apk add --no-cache libstdc++ libintl icu
+FROM mcr.microsoft.com/dotnet/runtime:7.0
 
 WORKDIR /app
 COPY --from=build /app/NOVAxis/out .
+
 ENTRYPOINT ["/app/NOVAxis"]
