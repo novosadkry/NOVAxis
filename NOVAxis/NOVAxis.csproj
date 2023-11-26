@@ -46,6 +46,9 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Discord.Net.Interactions" Version="3.13.0" />
+    <PackageReference Include="Lavalink4NET" Version="4.0.0-beta.3-6" />
+    <PackageReference Include="Lavalink4NET.Discord.NET" Version="4.0.0-beta.3-6" />
+    <PackageReference Include="Lavalink4NET.InactivityTracking" Version="4.0.0-beta.3-6" />
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.0" />
@@ -111,6 +114,5 @@
     <PackageReference Include="System.Threading.Timer" Version="4.3.0" />
     <PackageReference Include="System.Xml.ReaderWriter" Version="4.3.1" />
     <PackageReference Include="System.Xml.XDocument" Version="4.3.0" />
-    <PackageReference Include="Victoria" Version="6.0.1026" />
   </ItemGroup>
 </Project>

@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 
 using NOVAxis.Core;
@@ -41,6 +43,13 @@ namespace NOVAxis.Extensions
         {
             logger.Log(msg.Severity.ToLevel(), 0, msg, msg.Exception, ProgramLogger.MessageFormatter);
             return Task.CompletedTask;
+        }
+
+        public static IAsyncEnumerable<IGuildUser> GetHumanUsers(this IVoiceChannel voiceChannel)
+        {
+            return voiceChannel.GetUsersAsync()
+                .Flatten()
+                .Where(u => !u.IsBot);
         }
     }
 }

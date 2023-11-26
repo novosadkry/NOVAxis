@@ -1,12 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 
 using NOVAxis.Core;
 using NOVAxis.Utilities;
-using NOVAxis.Extensions;
 using NOVAxis.Preconditions;
 using NOVAxis.Database.Guild;
 using NOVAxis.Services.Audio;
@@ -14,8 +14,14 @@ using NOVAxis.Services.Audio;
 using Discord;
 using Discord.Interactions;
 
-using Victoria.Player;
-using Victoria.Responses.Search;
+using Lavalink4NET;
+using Lavalink4NET.Clients;
+using Lavalink4NET.Tracks;
+using Lavalink4NET.Players;
+using Lavalink4NET.DiscordNet;
+using Lavalink4NET.Players.Preconditions;
+using Lavalink4NET.Players.Queued;
+using Lavalink4NET.Rest.Entities.Tracks;
 
 namespace NOVAxis.Modules.Audio
 {
@@ -25,223 +31,174 @@ namespace NOVAxis.Modules.Audio
     [RequireGuildRole("DJ")]
     public class AudioModule : InteractionModuleBase<ShardedInteractionContext>
     {
-        public AudioNode AudioNode { get; set; }
         public ProgramConfig Config { get; set; }
-        public AudioService AudioService { get; set; }
-        public AudioContext AudioContext { get; private set; }
+        public IAudioService AudioService { get; set; }
         public GuildDbContext GuildDbContext { get; set; }
         public InteractionCache InteractionCache { get; set; }
 
         #region Functions
 
-        public override void BeforeExecute(ICommandInfo command)
+        private async Task<IEnumerable<LavalinkTrack>> SearchAsync(string input)
         {
-            AudioContext = AudioService[Context.Guild.Id];
-            base.BeforeExecute(command);
-        }
+            var searchMode = Uri.IsWellFormedUriString(input, UriKind.Absolute)
+                ? TrackSearchMode.None
+                : TrackSearchMode.YouTube;
 
-        public async IAsyncEnumerable<AudioTrack> Search(string input)
-        {
-            SearchResponse response = Uri.IsWellFormedUriString(input, 0)
-                ? await AudioNode.SearchAsync(SearchType.Direct, input)
-                : await AudioNode.SearchAsync(SearchType.YouTube, input);
+            var result = await AudioService.Tracks
+                .LoadTracksAsync(input, searchMode);
 
-            switch (response.Status)
-            {
-                case SearchStatus.LoadFailed: throw new HttpRequestException();
-                case SearchStatus.NoMatches: throw new ArgumentNullException();
-            }
+            if (result.IsFailed)
+                return Enumerable.Empty<LavalinkTrack>();
 
             // Check if search result is a playlist
-            if (!string.IsNullOrEmpty(response.Playlist.Name))
-            {
-                foreach (var track in response.Tracks)
-                {
-                    yield return new AudioTrack(track)
-                    {
-                        RequestId = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now),
-                        RequestedBy = Context.User
-                    };
-                }
-            }
+            if (result.IsPlaylist)
+                return result.Tracks;
 
-            else
-            {
-                var track = response.Tracks.First();
-
-                yield return new AudioTrack(track)
-                {
-                    RequestId = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now),
-                    RequestedBy = Context.User
-                };
-            }
+            return new[] { result.Track };
         }
 
-        public static IReadOnlyList<Emoji> GetStatusEmoji(AudioContext audioContext, AudioPlayer player = null)
+        private async ValueTask<AudioPlayer> GetPlayerAsync(
+            bool joinChannel = true,
+            bool sameChannel = false,
+            params IPlayerPrecondition[] preconditions)
         {
-            Emoji[] statusEmoji =
-            {
-                audioContext.Repeat switch
-                {
-                    RepeatMode.Once => new Emoji("\uD83D\uDD02"),
-                    RepeatMode.First => new Emoji("\uD83D\uDD01"),
-                    RepeatMode.Queue => new Emoji("\uD83D\uDD01"),
-                    _ => null
-                },
+            var textChannel = Context.Channel as ITextChannel;
 
-                player != null
-                    ? player.PlayerState == PlayerState.Playing
-                        ? new Emoji("\u25B6") // Playing
-                        : new Emoji("\u23F8") // Paused
-                    : null
+            var playerOptions = new AudioPlayerOptions
+            {
+                TextChannel = textChannel,
+                SelfDeaf = Config.Lavalink.SelfDeaf,
+                InitialVolume = 100,
+                DisconnectOnDestroy = true
             };
 
-            return statusEmoji;
+            var retrieveOptions = new PlayerRetrieveOptions(
+                joinChannel ? PlayerChannelBehavior.Join : PlayerChannelBehavior.None,
+                sameChannel ? MemberVoiceStateBehavior.RequireSame : MemberVoiceStateBehavior.Ignore,
+                Preconditions: ImmutableArray.Create(preconditions));
+
+            var result = await AudioService.Players.RetrieveAsync<AudioPlayer, AudioPlayerOptions>(
+                Context, AudioPlayer.CreatePlayerAsync, playerOptions, retrieveOptions);
+
+            switch (result.Status)
+            {
+                case PlayerRetrieveStatus.Success:
+                    return result.Player;
+
+                case PlayerRetrieveStatus.UserNotInVoiceChannel:
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                        .WithColor(220, 20, 60)
+                        .WithDescription("(Neplatný kanál)")
+                        .WithTitle("Mému jádru se nepodařilo naladit na stejnou zvukovou frekvenci")
+                        .Build());
+                    break;
+
+                case PlayerRetrieveStatus.VoiceChannelMismatch:
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                        .WithColor(220, 20, 60)
+                        .WithDescription("(Neplatný příkaz)")
+                        .WithTitle("Pro komunikaci s jádrem musíš být naladěn na stejnou frekvenci")
+                        .Build());
+                    break;
+
+                case PlayerRetrieveStatus.BotNotConnected:
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                        .WithColor(255, 150, 0)
+                        .WithDescription("(Služba není dostupná)")
+                        .WithTitle("Mé jádro pravě nemůže poskytnout stabilní stream audia")
+                        .Build());
+                    break;
+
+                case PlayerRetrieveStatus.PreconditionFailed when result.Precondition == PlayerPrecondition.NotPlaying:
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                        .WithColor(255, 150, 0)
+                        .WithDescription("(Neplatný příkaz)")
+                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                        .Build());
+                    break;
+
+                case PlayerRetrieveStatus.PreconditionFailed when result.Precondition == PlayerPrecondition.Playing:
+                case PlayerRetrieveStatus.PreconditionFailed when result.Precondition == PlayerPrecondition.NotPaused:
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                        .WithColor(255, 150, 0)
+                        .WithDescription("(Neplatný příkaz)")
+                        .WithTitle("Stream audia již běží")
+                        .Build());
+                    break;
+
+                case PlayerRetrieveStatus.PreconditionFailed when result.Precondition == PlayerPrecondition.Paused:
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                        .WithColor(255, 150, 0)
+                        .WithDescription("(Neplatný příkaz)")
+                        .WithTitle("Stream audia již byl pozastaven")
+                        .Build());
+                    break;
+
+                case PlayerRetrieveStatus.PreconditionFailed when result.Precondition == PlayerPrecondition.QueueEmpty:
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                        .WithColor(255, 150, 0)
+                        .WithDescription("(Neplatný příkaz)")
+                        .WithTitle("Právě teď se ve frontě nenachází žádná zvuková stopa")
+                        .Build());
+                    break;
+
+                default:
+                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                        .WithColor(220, 20, 60)
+                        .WithDescription("(Neznámá chyba)")
+                        .WithTitle("Při komunikaci s jádrem nastala neznámá chyba")
+                        .Build());
+                    break;
+            }
+
+            return null;
         }
+
         #endregion
 
         #region Commands
 
-        [SlashCommand("join", "Joins a selected voice channel")]
-        public async Task CmdJoinChannel(IVoiceChannel voiceChannel = null)
+        [SlashCommand("join", "Joins a voice channel")]
+        public async Task CmdJoinChannel()
         {
-            var guildUser = Context.User as IGuildUser;
-            voiceChannel ??= guildUser?.VoiceChannel;
-
-            if (!AudioNode.IsConnected)
-            {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Služba není dostupná)")
-                    .WithTitle("Mé jádro pravě nemůže poskytnout stabilní modul audia")
-                    .Build());
-
-                return;
-            }
-
-            if (voiceChannel == null)
-            {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný kanál)")
-                    .WithTitle("Mému jádru se nepodařilo naladit na stejnou zvukovou frekvenci")
-                    .Build());
-
-                return;
-            }
-
-            await JoinChannel(voiceChannel);
-        }
-
-        private async Task<AudioPlayer> JoinChannel(IVoiceChannel voiceChannel)
-        {
-            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
-            {
-                if (player.VoiceChannel == voiceChannel)
-                {
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(255, 150, 0)
-                        .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Mé jádro už bylo naladěno na stejnou zvukovou frekvenci")
-                        .Build());
-
-                    return null;
-                }
-
-                AudioContext.Queue.Clear();
-
-                await AudioNode.LeaveAsync(voiceChannel);
-                player = await AudioNode.JoinAsync(voiceChannel, Context.Channel as ITextChannel);
-            }
-
-            else
-                player = await AudioNode.JoinAsync(voiceChannel, Context.Channel as ITextChannel);
-
-            if (player.Volume == 0)
-                await player.SetVolumeAsync(100);
-
-            await AudioContext.InitiateDisconnectAsync(player, Config.Audio.Timeout.Idle);
+            var player = await GetPlayerAsync(joinChannel: true);
+            var voiceChannel = await player.GetVoiceChannel(Context.Client);
 
             await RespondAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
                 .WithTitle($"Připojuji se ke kanálu `{voiceChannel.Name}`")
                 .Build());
-
-            return player;
         }
 
         [SlashCommand("leave", "Leaves a voice channel")]
         public async Task CmdLeaveChannel()
         {
-            if (!AudioNode.IsConnected)
-            {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Služba není dostupná)")
-                    .WithTitle("Mé jádro pravě nemůže poskytnout stabilní modul audia")
-                    .Build());
+            var player = await GetPlayerAsync(joinChannel: false, sameChannel: true);
+            var voiceChannel = await player.GetVoiceChannel(Context.Client);
 
-                return;
-            }
+            await player.DisconnectAsync();
 
-            if (!AudioNode.TryGetPlayer(Context.Guild, out var player))
-            {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Mé jádro musí být před odpojením naladěno na správnou frekvenci")
-                    .Build());
-
-                return;
-            }
-
-            var guildUser = Context.User as IGuildUser;
-            var voiceChannel = guildUser?.VoiceChannel;
-
-            var usersInChannel = await player.VoiceChannel.GetHumanUsers().CountAsync();
-
-            if (player.VoiceChannel != voiceChannel && usersInChannel > 0)
-            {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Pro komunikaci s jádrem musíš být naladěn na stejnou frekvenci")
-                    .Build());
-
-                return;
-            }
-
-            await LeaveChannel(player);
-        }
-
-        private async Task LeaveChannel(AudioPlayer player)
-        {
-            if (player != null)
-            {
-                await RespondAsync(embed: new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithTitle($"Odpojuji se od kanálu `{player.VoiceChannel.Name}`")
-                    .Build());
-
-                await AudioNode.LeaveAsync(player.VoiceChannel);
-            }
-
-            AudioService.Remove(Context.Guild.Id);
+            await RespondAsync(embed: new EmbedBuilder()
+                .WithColor(52, 231, 231)
+                .WithTitle($"Odpojuji se od kanálu `{voiceChannel.Name}`")
+                .Build());
         }
 
         [Cooldown(5)]
         [SlashCommand("play", "Plays an audio transmission")]
         public async Task CmdPlayAudio(string input)
         {
+            await DeferAsync();
+
             try
             {
-                var tracks = await Search(input).ToListAsync();
-                await PlayAudio(tracks);
+                var tracks = await SearchAsync(input);
+                await PlayAudio(tracks.ToList());
             }
 
             catch (HttpRequestException)
             {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                await FollowupAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(255, 150, 0)
                     .WithDescription("(Služba není dostupná)")
                     .WithTitle("Mé jádro pravě nemůže poskytnout stabilní stream audia")
@@ -250,137 +207,85 @@ namespace NOVAxis.Modules.Audio
 
             catch (ArgumentNullException)
             {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                await FollowupAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
                     .WithDescription("(Neplatný argument)")
                     .WithTitle("Mému jádru se nepodařilo v databázi nalézt požadovanou stopu")
                     .Build());
             }
-        }
 
-        private async Task PlayAudio(List<AudioTrack> tracks)
-        {
-            if (!AudioNode.IsConnected)
-            {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Služba není dostupná)")
-                    .WithTitle("Mé jádro pravě nemůže poskytnout stabilní modul audia")
-                    .Build());
-
-                return;
-            }
-
-            var guildUser = Context.User as IGuildUser;
-            var voiceChannel = guildUser?.VoiceChannel;
-
-            if (voiceChannel == null)
+            catch (Exception)
             {
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný kanál)")
-                    .WithTitle("Mému jádru se nepodařilo naladit na stejnou zvukovou frekvenci")
+                    .WithDescription("(Neznámá chyba)")
+                    .WithTitle("Při komunikaci s jádrem nastala neznámá chyba")
                     .Build());
 
-                return;
-            }
-
-            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
-            {
-                if (player.VoiceChannel != voiceChannel)
-                {
-                    AudioContext.Queue.Clear();
-
-                    await AudioNode.LeaveAsync(voiceChannel);
-                    player = await JoinChannel(voiceChannel);
-                }
-
-                await PlayAudio(player, tracks);
-            }
-
-            else
-            {
-                AudioContext.Queue.Clear();
-                player = await JoinChannel(voiceChannel);
-
-                await PlayAudio(player, tracks);
+                throw;
             }
         }
 
-        private async Task PlayAudio(AudioPlayer player, List<AudioTrack> tracks)
+        private async Task PlayAudio(List<LavalinkTrack> tracks)
         {
-            AudioContext.Queue.Enqueue(tracks);
+            if (tracks == null || tracks.Count == 0)
+                throw new ArgumentNullException();
 
-            if (AudioContext.Queue.Count == 1)
+            var player = await GetPlayerAsync(joinChannel: true);
+
+            var items = tracks
+                .Select(t => new AudioTrackQueueItem(new TrackReference(t))
+                {
+                    RequestedBy = Context.User,
+                    RequestId = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now)
+                })
+                .ToList();
+
+            foreach (var item in items)
+                await player.PlayAsync(item);
+
+            if (items.Count > 1)
             {
-                var track = AudioContext.Track;
-                await player.PlayAsync(AudioContext.Queue.First());
+                var lastItem = items.Last();
+                var lastTrack = lastItem.Track!;
 
-                var id = InteractionCache.Store(track);
-
-                var embed = new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithAuthor("Právě přehrávám:")
-                    .WithTitle($"{track.Title}")
-                    .WithUrl(track.Url)
-                    .WithThumbnailUrl(track.GetThumbnailUrl())
-                    .AddField("Autor:", track.Author, true)
-                    .AddField("Délka:", $"`{track.Duration}`", true)
-                    .AddField("Vyžádal:", track.RequestedBy.Mention, true)
-                    .AddField("Hlasitost:", $"{player.Volume}%", true)
-                    .Build();
-
-                var components = new ComponentBuilder()
-                    .WithButton(customId: $"TrackControls_Remove,{id}", emote: new Emoji("\u2716"), style: ButtonStyle.Danger)
-                    .WithButton(customId: $"TrackControls_Add,{track.Url}", emote: new Emoji("\u2764"), style: ButtonStyle.Secondary)
-                    .WithButton(customId: "TrackControls_Add", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
-                    .Build();
-
-                if (Context.Interaction.HasResponded)
-                    await FollowupAsync(embed: embed, components: components);
-                else
-                    await RespondAsync(embed: embed, components: components);
-            }
-
-            else if (tracks.Count > 1)
-            {
-                var last = AudioContext.LastTrack;
                 var totalDuration = new TimeSpan();
-
                 foreach (var track in tracks)
                     totalDuration += track.Duration;
 
                 await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithAuthor($"Přidáno do fronty ({tracks.Count}):")
-                    .WithTitle($"{last.Title}")
-                    .WithUrl(last.Url)
-                    .WithThumbnailUrl(last.ThumbnailUrl)
+                    .WithTitle($"{lastTrack.Title}")
+                    .WithUrl(lastTrack.Uri?.AbsoluteUri)
+                    .WithThumbnailUrl(lastTrack.ArtworkUri?.AbsoluteUri)
                     .AddField("Délka:", $"`{totalDuration}`", true)
-                    .AddField("Vyžádal:", last.RequestedBy.Mention, true)
+                    .AddField("Vyžádal:", lastItem.RequestedBy.Mention, true)
                     .Build());
             }
 
-            else
+            else if (tracks.Count == 1)
             {
-                var track = AudioContext.LastTrack;
-                var id = InteractionCache.Store(track);
+                var lastItem = items.Last();
+                var lastTrack = lastItem.Track!;
+
+                var id = InteractionCache.Store(lastItem);
 
                 var embed = new EmbedBuilder()
                     .WithColor(52, 231, 231)
                     .WithAuthor("Přidáno do fronty:")
-                    .WithTitle($"{track.Title}")
-                    .WithUrl(track.Url)
-                    .WithThumbnailUrl(track.ThumbnailUrl)
-                    .AddField("Autor:", track.Author, true)
-                    .AddField("Délka:", $"`{track.Duration}`", true)
-                    .AddField("Vyžádal:", track.RequestedBy.Mention, true)
-                    .AddField("Pořadí ve frontě:", $"`{AudioContext.Queue.Count - 1}.`", true)
+                    .WithTitle($"{lastTrack.Title}")
+                    .WithUrl(lastTrack.Uri?.AbsoluteUri)
+                    .WithThumbnailUrl(lastTrack.ArtworkUri?.AbsoluteUri)
+                    .AddField("Autor:", lastTrack.Author, true)
+                    .AddField("Délka:", $"`{lastTrack.Duration}`", true)
+                    .AddField("Vyžádal:", lastItem.RequestedBy.Mention, true)
+                    .AddField("Pořadí ve frontě:", $"`{player.Queue.Count - 1}.`", true)
                     .Build();
 
                 var components = new ComponentBuilder()
                     .WithButton(customId: $"TrackControls_Remove,{id}", emote: new Emoji("\u2716"), style: ButtonStyle.Danger)
-                    .WithButton(customId: $"TrackControls_Add,{track.Url}", emote: new Emoji("\u2764"), style: ButtonStyle.Secondary)
+                    .WithButton(customId: $"TrackControls_Add,{lastTrack.Identifier}", emote: new Emoji("\u2764"), style: ButtonStyle.Secondary)
                     .WithButton(customId: "TrackControls_Add", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
                     .Build();
 
@@ -391,6 +296,8 @@ namespace NOVAxis.Modules.Audio
         [ComponentInteraction("AudioControls_*", true)]
         public async Task AudioControls(string action)
         {
+            var player = await GetPlayerAsync(joinChannel: false, sameChannel: true);
+
             switch (action)
             {
                 case "Skip":
@@ -400,18 +307,17 @@ namespace NOVAxis.Modules.Audio
                     await CmdStopAudio();
                     break;
                 case "Repeat":
-                    await (AudioContext.Repeat != RepeatMode.None
-                        ? CmdRepeatAudio()
-                        : CmdRepeatAudio(RepeatMode.First));
+                    await (player.RepeatMode != TrackRepeatMode.None
+                        ? CmdRepeatAudio(TrackRepeatMode.None)
+                        : CmdRepeatAudio(TrackRepeatMode.Queue));
                     break;
                 case "RepeatOnce":
-                    await (AudioContext.Repeat != RepeatMode.None
-                        ? CmdRepeatAudio()
-                        : CmdRepeatAudio(RepeatMode.Once));
+                    await (player.RepeatMode != TrackRepeatMode.None
+                        ? CmdRepeatAudio(TrackRepeatMode.None)
+                        : CmdRepeatAudio(TrackRepeatMode.Track));
                     break;
                 case "PlayPause":
-                    AudioNode.TryGetPlayer(Context.Guild, out var player);
-                    await (player == null || player.PlayerState == PlayerState.Playing
+                    await (player.State == PlayerState.Playing
                         ? CmdPauseAudio()
                         : CmdResumeAudio());
                     break;
@@ -433,7 +339,10 @@ namespace NOVAxis.Modules.Audio
         [ComponentInteraction("TrackControls_Remove,*", true)]
         public async Task TrackControls_Remove(ulong id)
         {
-            if (InteractionCache[id] is not AudioTrack track)
+            var player = await GetPlayerAsync(joinChannel: false, sameChannel: true);
+            var currentItem = (AudioTrackQueueItem) player.CurrentItem;
+
+            if (InteractionCache[id] is not AudioTrackQueueItem cachedItem)
             {
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
@@ -444,7 +353,7 @@ namespace NOVAxis.Modules.Audio
                 return;
             }
 
-            if (!AudioContext.Queue.Contains(track))
+            if (!player.Queue.Contains(cachedItem))
             {
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
@@ -454,13 +363,13 @@ namespace NOVAxis.Modules.Audio
                 return;
             }
 
-            if (AudioContext.Track.RequestId == track.RequestId)
+            if (currentItem != null && currentItem.RequestId == cachedItem.RequestId)
             {
                 await CmdSkipAudio();
                 return;
             }
 
-            AudioContext.Queue.Remove(track);
+            await player.Queue.RemoveAsync(cachedItem);
 
             await RespondAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
@@ -490,481 +399,295 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("skip", "Skips to the next audio transmission")]
         public async Task CmdSkipAudio()
         {
-            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
-            {
-                if (player.Track == null)
-                {
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(255, 150, 0)
-                        .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
-                        .Build());
+            var player = await GetPlayerAsync(
+                joinChannel: false, sameChannel: true, 
+                PlayerPrecondition.Playing);
+            
+            await RespondAsync(embed: new EmbedBuilder()
+                .WithColor(52, 231, 231)
+                .WithTitle("Stream audia byl úspěšně přeskočen")
+                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                .Build());
 
-                    return;
-                }
-
-                await RespondAsync(embed: new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithTitle("Stream audia byl úspěšně přeskočen")
-                    .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                    .Build());
-
-                await player.StopAsync();
-            }
-
-            else
-            {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio")
-                    .Build());
-            }
+            await player.SkipAsync();
         }
 
         [SlashCommand("stop", "Stops the audio transmission")]
         public async Task CmdStopAudio()
         {
-            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
-            {
-                if (player.Track == null)
-                {
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(255, 150, 0)
-                        .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
-                        .Build());
+            var player = await GetPlayerAsync(
+                joinChannel: false, sameChannel: true,
+                PlayerPrecondition.Playing);
+            
+            await RespondAsync(embed: new EmbedBuilder()
+                .WithColor(52, 231, 231)
+                .WithTitle("Stream audia byl úspěšně zastaven")
+                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                .Build());
 
-                    return;
-                }
-
-                AudioContext.Queue.Clear();
-                AudioContext.Repeat = RepeatMode.None;
-
-                await RespondAsync(embed: new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithTitle("Stream audia byl úspěšně zastaven")
-                    .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                    .Build());
-
-                await player.StopAsync();
-            }
-
-            else
-            {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio")
-                    .Build());
-            }
+            await player.StopAsync();
         }
 
         [SlashCommand("pause", "Pauses the audio transmission")]
         public async Task CmdPauseAudio()
         {
-            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
-            {
-                if (player.Track == null)
-                {
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(255, 150, 0)
-                        .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
-                        .Build());
+            var player = await GetPlayerAsync(
+                joinChannel: false, sameChannel: true, 
+                PlayerPrecondition.Playing, PlayerPrecondition.NotPaused);
+            
+            await player.PauseAsync();
 
-                    return;
-                }
-
-                if (player.PlayerState == PlayerState.Paused)
-                {
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(255, 150, 0)
-                        .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Stream audia byl dávno pozastaven (pro obnovení použíjte `~audio resume`)")
-                        .Build());
-
-                    return;
-                }
-
-                await player.PauseAsync();
-                await AudioContext.InitiateDisconnectAsync(player, Config.Audio.Timeout.Paused);
-
-                await RespondAsync(embed: new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithTitle("Stream audia byl úspěšně pozastaven")
-                    .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                    .Build());
-            }
-
-            else
-            {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio")
-                    .Build());
-            }
+            await RespondAsync(embed: new EmbedBuilder()
+                .WithColor(52, 231, 231)
+                .WithTitle("Stream audia byl úspěšně pozastaven")
+                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                .Build());
         }
 
         [SlashCommand("resume", "Resumes the audio transmission")]
         public async Task CmdResumeAudio()
         {
-            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
-            {
-                if (player.Track == null)
-                {
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(255, 150, 0)
-                        .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
-                        .Build());
+            var player = await GetPlayerAsync(
+                joinChannel: false, sameChannel: true, 
+                PlayerPrecondition.Playing, PlayerPrecondition.Paused);
+            
+            await player.ResumeAsync();
 
-                    return;
-                }
-
-                if (player.PlayerState == PlayerState.Playing)
-                {
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(255, 150, 0)
-                        .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Stream audia právě běží (pro pozastavení použíjte `~audio pause`)")
-                        .Build());
-
-                    return;
-                }
-
-                await player.ResumeAsync();
-                await AudioContext.CancelDisconnectAsync();
-
-                await RespondAsync(embed: new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithTitle("Stream audia byl úspěšně obnoven")
-                    .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                    .Build());
-            }
-
-            else
-            {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio")
-                    .Build());
-            }
+            await RespondAsync(embed: new EmbedBuilder()
+                .WithColor(52, 231, 231)
+                .WithTitle("Stream audia byl úspěšně obnoven")
+                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                .Build());
         }
 
         [SlashCommand("seek", "Seeks a position in the audio transmissions")]
         public async Task CmdSeekAudio(TimeSpan time)
         {
-            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
-            {
-                if (player.Track == null)
-                {
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(255, 150, 0)
-                        .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
-                        .Build());
+            var player = await GetPlayerAsync(
+                joinChannel: false, sameChannel: true, 
+                PlayerPrecondition.Playing);
 
-                    return;
-                }
+            var currentTrack = player.CurrentTrack!;
 
-                if (time > player.Track.Duration)
-                {
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(220, 20, 60)
-                        .WithDescription("(Neplatný argument)")
-                        .WithTitle("Nelze nastavit hodnotu přesahující maximální délku stopy")
-                        .Build());
-
-                    return;
-                }
-
-                if (time < TimeSpan.Zero)
-                {
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(220, 20, 60)
-                        .WithDescription("(Neplatný argument)")
-                        .WithTitle("Nelze nastavit zápornou hodnotu")
-                        .Build());
-
-                    return;
-                }
-
-                await RespondAsync(embed: new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithTitle($"Pozice audia byla úspěšně nastavena na `{time:hh\\:mm\\:ss}`")
-                    .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                    .Build());
-
-                await player.SeekAsync(time);
-            }
-
-            else
+            if (time > currentTrack.Duration)
             {
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio")
-                    .Build());
-            }
-        }
-
-        [SlashCommand("forward", "Forwards to a position in the audio transmissions")]
-        public async Task CmdForwardAudio(TimeSpan time)
-        {
-            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
-            {
-                if (player.Track == null)
-                {
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(255, 150, 0)
-                        .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
-                        .Build());
-
-                    return;
-                }
-
-                if (time <= TimeSpan.Zero)
-                {
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(220, 20, 60)
-                        .WithDescription("(Neplatný argument)")
-                        .WithTitle("Nelze posunout o zápornou nebo nulovou hodnotu")
-                        .Build());
-
-                    return;
-                }
-
-                var newTime = player.Track.Position + time;
-
-                if (newTime > player.Track.Duration)
-                    newTime = player.Track.Duration;
-
-                await RespondAsync(embed: new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime:hh\\:mm\\:ss}`")
-                    .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                    .Build());
-
-                await player.SeekAsync(newTime);
-            }
-
-            else
-            {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio")
-                    .Build());
-            }
-        }
-
-        [SlashCommand("backward", "Backwards to a position in the audio transmissions")]
-        public async Task CmdBackwardAudio(TimeSpan time)
-        {
-            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
-            {
-                if (player.Track == null)
-                {
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(255, 150, 0)
-                        .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
-                        .Build());
-
-                    return;
-                }
-
-                if (time <= TimeSpan.Zero)
-                {
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(220, 20, 60)
-                        .WithDescription("(Neplatný argument)")
-                        .WithTitle("Nelze posunout o zápornou nebo nulovou hodnotu")
-                        .Build());
-
-                    return;
-                }
-
-                var newTime = player.Track.Position - time;
-
-                if (newTime < TimeSpan.Zero)
-                    newTime = TimeSpan.Zero;
-
-                await RespondAsync(embed: new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime:hh\\:mm\\:ss}`")
-                    .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                    .Build());
-
-                await player.SeekAsync(newTime);
-            }
-
-            else
-            {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio")
-                    .Build());
-            }
-        }
-
-        [SlashCommand("volume", "Sets a volume of the audio transmissions")]
-        public async Task CmdAudioVolume(ushort percentage)
-        {
-            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
-            {
-                if (player.Track == null)
-                {
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(255, 150, 0)
-                        .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
-                        .Build());
-
-                    return;
-                }
-
-                if (percentage > 150)
-                {
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(255, 150, 0)
-                        .WithDescription("(Neplatný argument)")
-                        .WithTitle("Mé jádro nepodporuje hlasitost vyšší než 150%")
-                        .Build());
-
-                    return;
-                }
-
-                await RespondAsync(embed: new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithTitle($"Hlasitost audia byla úspěšně nastavena na {percentage}%")
-                    .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                    .Build());
-
-                await player.SetVolumeAsync(percentage);
-            }
-
-            else
-            {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio")
-                    .Build());
-            }
-        }
-
-        [SlashCommand("status", "Shows active audio transmissions")]
-        public async Task CmdAudioStatus()
-        {
-            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
-            {
-                if (player.Track == null)
-                {
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(255, 150, 0)
-                        .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
-                        .Build());
-
-                    return;
-                }
-
-                var statusEmoji = GetStatusEmoji(AudioContext, player);
-
-                var embed = new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithAuthor("Právě přehrávám:")
-                    .WithTitle($"{player.Track.Title}")
-                    .WithUrl(player.Track.Url)
-                    .WithThumbnailUrl(player.Track.GetThumbnailUrl())
-                    .AddField("Autor:", player.Track.Author, true)
-                    .AddField("Pozice:", $"`{player.Track.Position:hh\\:mm\\:ss} / {player.Track.Duration}`", true)
-                    .AddField("Vyžádal:", AudioContext.Track.RequestedBy.Mention, true)
-                    .AddField("Hlasitost:", $"{player.Volume}%", true)
-                    .AddField("Stav:", $"{string.Join(' ', statusEmoji)}", true)
-                    .Build();
-
-                var components = new ComponentBuilder()
-                    .WithButton(customId: "AudioControls_PlayPause", emote: new Emoji("\u23EF"))
-                    .WithButton(customId: "AudioControls_Stop", emote: new Emoji("\u23F9"))
-                    .WithButton(customId: "AudioControls_Skip", emote: new Emoji("\u23E9"))
-                    .WithButton(customId: "AudioControls_Repeat", emote: new Emoji("\uD83D\uDD01"))
-                    .WithButton(customId: "AudioControls_RepeatOnce", emote: new Emoji("\uD83D\uDD02"))
-                    .Build();
-
-                await RespondAsync(embed: embed, components: components);
-            }
-
-            else
-            {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio")
-                    .Build());
-            }
-        }
-
-        [SlashCommand("queue", "Shows enqueued audio transmissions")]
-        public async Task CmdAudioQueue()
-        {
-            if (AudioContext.Queue.Count < 1 || !AudioNode.HasPlayer(Context.Guild))
-            {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď se ve frontě nenachází žádná zvuková stopa")
+                    .WithColor(220, 20, 60)
+                    .WithDescription("(Neplatný argument)")
+                    .WithTitle("Nelze nastavit hodnotu přesahující maximální délku stopy")
                     .Build());
 
                 return;
             }
 
+            if (time < TimeSpan.Zero)
+            {
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                    .WithColor(220, 20, 60)
+                    .WithDescription("(Neplatný argument)")
+                    .WithTitle("Nelze nastavit zápornou hodnotu")
+                    .Build());
+
+                return;
+            }
+
+            await RespondAsync(embed: new EmbedBuilder()
+                .WithColor(52, 231, 231)
+                .WithTitle($"Pozice audia byla úspěšně nastavena na `{time:hh\\:mm\\:ss}`")
+                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                .Build());
+
+            await player.SeekAsync(time);
+        }
+
+        [SlashCommand("forward", "Forwards to a position in the audio transmissions")]
+        public async Task CmdForwardAudio(TimeSpan time)
+        {
+            var player = await GetPlayerAsync(
+                joinChannel: false, sameChannel: true, 
+                PlayerPrecondition.Playing);
+            
+            var currentTrack = player.CurrentTrack!;
+            var trackPosition = player.Position!.Value.Position;
+            
+            if (time <= TimeSpan.Zero)
+            {
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                    .WithColor(220, 20, 60)
+                    .WithDescription("(Neplatný argument)")
+                    .WithTitle("Nelze posunout o zápornou nebo nulovou hodnotu")
+                    .Build());
+
+                return;
+            }
+
+            var newTime = trackPosition + time;
+
+            if (newTime > currentTrack.Duration)
+                newTime = currentTrack.Duration;
+
+            await RespondAsync(embed: new EmbedBuilder()
+                .WithColor(52, 231, 231)
+                .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime:hh\\:mm\\:ss}`")
+                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                .Build());
+
+            await player.SeekAsync(newTime);
+        }
+
+        [SlashCommand("backward", "Backwards to a position in the audio transmissions")]
+        public async Task CmdBackwardAudio(TimeSpan time)
+        {
+            var player = await GetPlayerAsync(
+                joinChannel: false, sameChannel: true, 
+                PlayerPrecondition.Playing);
+            
+            var trackPosition = player.Position!.Value.Position;
+            
+            if (time <= TimeSpan.Zero)
+            {
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                    .WithColor(220, 20, 60)
+                    .WithDescription("(Neplatný argument)")
+                    .WithTitle("Nelze posunout o zápornou nebo nulovou hodnotu")
+                    .Build());
+
+                return;
+            }
+
+            var newTime = trackPosition - time;
+
+            if (newTime < TimeSpan.Zero)
+                newTime = TimeSpan.Zero;
+
+            await RespondAsync(embed: new EmbedBuilder()
+                .WithColor(52, 231, 231)
+                .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime:hh\\:mm\\:ss}`")
+                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                .Build());
+
+            await player.SeekAsync(newTime);
+        }
+
+        [SlashCommand("volume", "Sets a volume of the audio transmissions")]
+        public async Task CmdAudioVolume(ushort percentage)
+        {
+            var player = await GetPlayerAsync(
+                joinChannel: false, sameChannel: true, 
+                PlayerPrecondition.Playing);
+            
+            if (percentage > 150)
+            {
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                    .WithColor(255, 150, 0)
+                    .WithDescription("(Neplatný argument)")
+                    .WithTitle("Mé jádro nepodporuje hlasitost vyšší než 150%")
+                    .Build());
+
+                return;
+            }
+
+            await RespondAsync(embed: new EmbedBuilder()
+                .WithColor(52, 231, 231)
+                .WithTitle($"Hlasitost audia byla úspěšně nastavena na {percentage}%")
+                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                .Build());
+
+            await player.SetVolumeAsync(percentage);
+        }
+
+        [SlashCommand("status", "Shows active audio transmissions")]
+        public async Task CmdAudioStatus()
+        {
+            var player = await GetPlayerAsync(
+                joinChannel: false, sameChannel: false, 
+                PlayerPrecondition.Playing);
+
+            var item = (AudioTrackQueueItem) player.CurrentItem!;
+            var track = item.Track;
+            
+            var statusEmoji = !player.IsPaused
+                ? new Emoji("\u25B6") // Playing
+                : new Emoji("\u23F8"); // Paused
+
+            var embed = new EmbedBuilder()
+                .WithColor(52, 231, 231)
+                .WithAuthor("Právě přehrávám:")
+                .WithTitle($"{track.Title}")
+                .WithUrl(track.Uri?.AbsoluteUri)
+                .WithThumbnailUrl(track.ArtworkUri?.AbsoluteUri)
+                .AddField("Autor:", track.Author, true)
+                .AddField("Délka:", $"`{track.Duration}`", true)
+                .AddField("Vyžádal:", item.RequestedBy.Mention, true)
+                .AddField("Hlasitost:", $"{player.Volume}%", true)
+                .AddField("Stav:", $"{statusEmoji}", true)
+                .Build();
+
+            var components = new ComponentBuilder()
+                .WithButton(customId: "AudioControls_PlayPause", emote: new Emoji("\u23EF"))
+                .WithButton(customId: "AudioControls_Stop", emote: new Emoji("\u23F9"))
+                .WithButton(customId: "AudioControls_Skip", emote: new Emoji("\u23E9"))
+                .WithButton(customId: "AudioControls_Repeat", emote: new Emoji("\uD83D\uDD01"))
+                .WithButton(customId: "AudioControls_RepeatOnce", emote: new Emoji("\uD83D\uDD02"))
+                .Build();
+
+            await RespondAsync(embed: embed, components: components);
+        }
+
+        [SlashCommand("queue", "Shows enqueued audio transmissions")]
+        public async Task CmdAudioQueue()
+        {
+            var player = await GetPlayerAsync(
+                joinChannel: false, sameChannel: false, 
+                PlayerPrecondition.QueueNotEmpty);
+
             var paginator = new AudioQueuePaginator(5);
-            var statusEmoji = GetStatusEmoji(AudioContext);
             var totalDuration = TimeSpan.Zero;
+            var statusEmoji = !player.IsPaused
+                ? new Emoji("\u25B6") // Playing
+                : new Emoji("\u23F8"); // Paused
 
             var header = new List<EmbedFieldBuilder>();
             var tracks = new List<EmbedFieldBuilder>();
             var footer = new List<EmbedFieldBuilder>();
 
-            var currentNode = AudioContext.Queue.First;
-            for (int i = 0; currentNode != null; i++, currentNode = currentNode.Next)
+            int position = 0;
+            using var queueEnumerator = player.Queue.GetEnumerator();
+            
+            while (queueEnumerator.MoveNext())
             {
-                var track = currentNode.Value;
+                position++;
+                
+                var current = queueEnumerator.Current;
+                
+                var item = (AudioTrackQueueItem) current!;
+                var track = item.Track!;
 
-                if (i == 0)
+                var mention = item.RequestedBy.Mention;
+                var duration = track.Duration;
+                var url = track.Uri?.AbsoluteUri;
+                
+                if (position == 0)
                 {
-                    var emoji = statusEmoji[0];
-
                     header.Add(new EmbedFieldBuilder
                     {
-                        Name = $"{emoji} **{track.Title}**",
-                        Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Duration}` | [Odkaz]({track.Url})\n"
+                        Name = $"{statusEmoji} **{track.Title}**",
+                        Value = $"Vyžádal: {mention} | Délka: `{duration}` | [Odkaz]({url})\n"
                     });
 
                     header.Add(new EmbedFieldBuilder
                     {
                         Name = "\u200B",
-                        Value = $"**Stopy ve frontě ({AudioContext.Queue.Count - 1}):**"
+                        Value = $"**Stopy ve frontě ({player.Queue.Count - 1}):**"
                     });
                 }
 
                 else
                 {
-                    var emoji = AudioContext.Repeat == RepeatMode.Queue
-                        ? statusEmoji[0]
-                        : null;
-
                     tracks.Add(new EmbedFieldBuilder
                     {
-                        Name = $"{emoji} `{i}.` {track.Title}",
-                        Value = $"Vyžádal: {track.RequestedBy.Mention} | Délka: `{track.Duration}` | [Odkaz]({track.Url})"
+                        Name = $"`{position}.` {track.Title}",
+                        Value = $"Vyžádal: {mention} | Délka: `{duration}` | [Odkaz]({url})\n"
                     });
                 }
 
@@ -1064,18 +787,11 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("remove", "Removes an enqueued audio transmission")]
         public async Task CmdRemoveAudio(int index)
         {
-            if (AudioContext.Queue.Count <= 1)
-            {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď se ve frontě nenachází žádná zvuková stopa")
-                    .Build());
+            var player = await GetPlayerAsync(
+                joinChannel: false, sameChannel: true, 
+                PlayerPrecondition.QueueNotEmpty);
 
-                return;
-            }
-
-            if (index <= 0 || index >= AudioContext.Queue.Count)
+            if (index <= 0 || index >= player.Queue.Count)
             {
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
@@ -1086,7 +802,7 @@ namespace NOVAxis.Modules.Audio
                 return;
             }
 
-            AudioContext.Queue.RemoveAt(index);
+            await player.Queue.RemoveAtAsync(index);
 
             await RespondAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
@@ -1096,53 +812,34 @@ namespace NOVAxis.Modules.Audio
         }
 
         [SlashCommand("repeat", "Repeats enqueued audio transmission")]
-        public async Task CmdRepeatAudio(RepeatMode mode = RepeatMode.None)
+        public async Task CmdRepeatAudio(TrackRepeatMode mode)
         {
-            if (AudioNode.TryGetPlayer(Context.Guild, out var player))
+            var player = await GetPlayerAsync(
+                joinChannel: false, sameChannel: true, 
+                PlayerPrecondition.Playing);
+            
+            if (player.RepeatMode != mode && mode != TrackRepeatMode.None)
             {
-                if (player.Track == null)
-                {
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(255, 150, 0)
-                        .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
-                        .Build());
+                await RespondAsync(embed: new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithTitle("Nadcházející stopy nyní porušují časové kontinuum")
+                    .WithDescription("(Režim opakování byl zapnut)")
+                    .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                    .Build());
 
-                    return;
-                }
-
-                if (AudioContext.Repeat != mode && mode != RepeatMode.None)
-                {
-                    await RespondAsync(embed: new EmbedBuilder()
-                        .WithColor(52, 231, 231)
-                        .WithTitle("Nadcházející stopy nyní porušují časové kontinuum")
-                        .WithDescription("(Režim opakování byl zapnut)")
-                        .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                        .Build());
-
-                    AudioContext.Repeat = mode;
-                }
-
-                else
-                {
-                    await RespondAsync(embed: new EmbedBuilder()
-                        .WithColor(52, 231, 231)
-                        .WithTitle("Nadcházející stopy nyní dodržují časové kontinuum")
-                        .WithDescription("(Režim opakování byl vypnut)")
-                        .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                        .Build());
-
-                    AudioContext.Repeat = RepeatMode.None;
-                }
+                player.RepeatMode = mode;
             }
 
             else
             {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Právě teď není streamováno na serveru žádné audio")
+                await RespondAsync(embed: new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithTitle("Nadcházející stopy nyní dodržují časové kontinuum")
+                    .WithDescription("(Režim opakování byl vypnut)")
+                    .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
                     .Build());
+
+                player.RepeatMode = TrackRepeatMode.None;
             }
         }
 
