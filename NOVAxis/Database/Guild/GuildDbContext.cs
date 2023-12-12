@@ -1,11 +1,10 @@
-﻿using System;
+﻿/*
+using System;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 
 using Discord;
 using Discord.Commands;
-
-using NOVAxis.Core;
 
 namespace NOVAxis.Database.Guild
 {
@@ -108,3 +107,4 @@ namespace NOVAxis.Database.Guild
         }
     }
 }
+*/

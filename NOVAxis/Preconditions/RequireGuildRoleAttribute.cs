@@ -1,8 +1,8 @@
-﻿using System;
+﻿/*
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 
-using NOVAxis.Database.Guild;
 using Microsoft.Extensions.DependencyInjection;
 
 using Discord;
@@ -60,3 +60,4 @@ namespace NOVAxis.Preconditions
         }
     }
 }
+*/

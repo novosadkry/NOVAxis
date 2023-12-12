@@ -8,30 +8,27 @@ using Discord.Interactions;
 
 namespace NOVAxis.Preconditions
 {
+    public struct CooldownInfo
+    {
+        public IDiscordInteraction Interaction { get; set; }
+        public bool WarningTriggered { get; set; }
+    }
+
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
     public class CooldownAttribute : PreconditionAttribute
     {
-        private struct CooldownInfo
-        {
-            public IDiscordInteraction Interaction { get; set; }
-            public bool WarningTriggered { get; set; }
-        }
+        public CooldownCache CooldownCache { get; set; }
 
         private readonly TimeSpan _cooldown;
-        private readonly Cache<IUser, CooldownInfo> _users;
-
-        public CooldownAttribute(long millis)
-        {
-            _users = new Cache<IUser, CooldownInfo>();
-            _cooldown = TimeSpan.FromMilliseconds(millis);
-        }
 
         public CooldownAttribute(int seconds)
-            : this(seconds * 1000L) { }
+        {
+            _cooldown = TimeSpan.FromSeconds(seconds);
+        }
 
         public override Task<PreconditionResult> CheckRequirementsAsync(IInteractionContext context, ICommandInfo commandInfo, IServiceProvider services)
         {
-            var cooldownInfo = _users[context.User];
+            var cooldownInfo = CooldownCache[context.User];
 
             if (cooldownInfo.Interaction == context.Interaction)
                 return Task.FromResult(PreconditionResult.FromSuccess());
@@ -47,13 +44,13 @@ namespace NOVAxis.Preconditions
                         return Task.FromResult(PreconditionResult.FromError("User has command on cooldown (no warning)"));
 
                     cooldownInfo.WarningTriggered = true;
-                    _users[context.User] = cooldownInfo;
+                    CooldownCache[context.User] = cooldownInfo;
 
                     return Task.FromResult(PreconditionResult.FromError("User has command on cooldown"));
                 }
             }
 
-            _users[context.User] = new CooldownInfo { Interaction = context.Interaction };
+            CooldownCache[context.User] = new CooldownInfo { Interaction = context.Interaction };
             return Task.FromResult(PreconditionResult.FromSuccess());
         }
     }

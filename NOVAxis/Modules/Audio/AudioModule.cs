@@ -5,10 +5,11 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 
+using Microsoft.Extensions.Options;
+
 using NOVAxis.Core;
 using NOVAxis.Utilities;
 using NOVAxis.Preconditions;
-using NOVAxis.Database.Guild;
 using NOVAxis.Services.Audio;
 
 using Discord;
@@ -28,12 +29,10 @@ namespace NOVAxis.Modules.Audio
     [Cooldown(1)]
     [Group("audio", "Audio related commands")]
     [RequireContext(ContextType.Guild)]
-    [RequireGuildRole("DJ")]
     public class AudioModule : InteractionModuleBase<ShardedInteractionContext>
     {
-        public ProgramConfig Config { get; set; }
         public IAudioService AudioService { get; set; }
-        public GuildDbContext GuildDbContext { get; set; }
+        public IOptions<AudioOptions> Options { get; set; }
         public InteractionCache InteractionCache { get; set; }
 
         #region Functions
@@ -67,7 +66,7 @@ namespace NOVAxis.Modules.Audio
             var playerOptions = new AudioPlayerOptions
             {
                 TextChannel = textChannel,
-                SelfDeaf = Config.Lavalink.SelfDeaf,
+                SelfDeaf = Options.Value.SelfDeaf,
                 InitialVolume = 100,
                 DisconnectOnDestroy = true
             };
@@ -843,6 +842,7 @@ namespace NOVAxis.Modules.Audio
             }
         }
 
+        /*
         [RequireUserPermission(GuildPermission.Administrator)]
         [SlashCommand("setdj", "Sets the guild's DJ role which is used to identify eligible users")]
         public async Task CmdSetDjRole(IRole newRole = null)
@@ -891,6 +891,7 @@ namespace NOVAxis.Modules.Audio
 
             await GuildDbContext.SaveChangesAsync();
         }
+        */
 
         #endregion
     }

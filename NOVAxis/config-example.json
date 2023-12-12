@@ -2,15 +2,14 @@
   "LoginToken": "INSERT_LOGINTOKEN_HERE",
   "TotalShards": null,
   "Interaction": {
-    "DefaultPrefix": "~",
     "Commands": {
       "RegisterGlobally": false,
       "RegisterToGuild": 0
-    },
-    "Cache": {
-      "AbsoluteExpiration": "24:00:00",
-      "RelativeExpiration": "12:00:00"
     }
+  },
+  "Cache": {
+    "AbsoluteExpiration": "24:00:00",
+    "RelativeExpiration": "12:00:00"
   },
   "Activity": {
     "Online": "pohyb atomů",
@@ -26,8 +25,7 @@
   "Lavalink": {
     "Host": "localhost",
     "Port": 2333,
-    "Login": "123",
-    "SelfDeaf": true
+    "Login": "123"
   },
   "Database": {
     "Active": true,
@@ -39,13 +37,10 @@
     "DbName": "novaxis"
   },
   "Audio": {
+    "SelfDeaf": true,
     "Timeout": {
       "Idle": "00:00:30",
       "Paused": "00:02:00"
-    },
-    "Cache": {
-      "AbsoluteExpiration": null,
-      "RelativeExpiration": "12:00:00"
     }
   }
 }

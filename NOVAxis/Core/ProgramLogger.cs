@@ -1,22 +1,23 @@
 ﻿using System;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 using Discord;
-using Microsoft.Extensions.Logging;
 
 namespace NOVAxis.Core
 {
     public class ProgramLogger : ILogger
     {
         private string Source { get; }
-        private ProgramConfig Config { get; }
+        private IOptions<LogOptions> Options { get; }
 
-        public ProgramLogger(string source, ProgramConfig config)
+        public ProgramLogger(string source, IOptions<LogOptions> options)
         {
             Source = source;
-            Config = config;
+            Options = options;
         }
 
-        public bool IsEnabled(LogLevel logLevel) => logLevel >= Config.Log.Level;
+        public bool IsEnabled(LogLevel logLevel) => logLevel >= Options.Value.Level;
         public IDisposable BeginScope<TState>(TState state) where TState : notnull => default;
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
@@ -54,13 +55,13 @@ namespace NOVAxis.Core
 
     public class ProgramLoggerProvider : ILoggerProvider
     {
-        private ProgramConfig Config { get; }
+        private IOptions<LogOptions> Options { get; }
 
-        public ProgramLoggerProvider(ProgramConfig config)
-            { Config = config; }
+        public ProgramLoggerProvider(IOptions<LogOptions> options)
+            { Options = options; }
 
         public ILogger CreateLogger(string source) =>
-            new ProgramLogger(source, Config);
+            new ProgramLogger(source, Options);
 
         public void Dispose() { }
     }

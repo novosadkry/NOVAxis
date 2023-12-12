@@ -1,8 +1,11 @@
-using Xunit;
 using Moq;
+using Xunit;
 
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Caching.Memory;
+
+using NOVAxis.Core;
 using NOVAxis.Utilities;
-using Microsoft.Extensions.Internal;
 
 namespace NOVAxisTests.Utilities
 {
@@ -20,7 +23,9 @@ namespace NOVAxisTests.Utilities
         public void SetAndGet(object key, object value)
         {
             // Arrange
-            using var cache = new Cache<object, object>();
+            using var memoryCache = new MemoryCache(new MemoryCacheOptions());
+            var cacheOptions = Options.Create(new CacheOptions());
+            var cache = new Cache<object, object>("Mock", memoryCache, cacheOptions);
 
             // Act
             cache.Set(key, value);
@@ -35,7 +40,9 @@ namespace NOVAxisTests.Utilities
         public void Remove(object key, object value)
         {
             // Arrange
-            using var cache = new Cache<object, object>();
+            using var memoryCache = new MemoryCache(new MemoryCacheOptions());
+            var cacheOptions = Options.Create(new CacheOptions());
+            var cache = new Cache<object, object>("Mock", memoryCache, cacheOptions);
 
             // Act
             cache.Set(key, value);
@@ -50,11 +57,13 @@ namespace NOVAxisTests.Utilities
         public void ReplacesDuplicateKeys()
         {
             // Arrange
-            var a = new { Name = "Foo", Id = 1 };
-            var b = new { Name = "Foo", Id = 1 };
-            using var cache = new Cache<object, object>();
+            using var memoryCache = new MemoryCache(new MemoryCacheOptions());
+            var cacheOptions = Options.Create(new CacheOptions());
+            var cache = new Cache<object, object>("Mock", memoryCache, cacheOptions);
 
             // Act
+            var a = new { Name = "Foo", Id = 1 };
+            var b = new { Name = "Foo", Id = 1 };
             cache.Set(a, "A");
             cache.Set(b, "B");
 
@@ -67,11 +76,13 @@ namespace NOVAxisTests.Utilities
         public void CanHandleObjectsAsKeys()
         {
             // Arrange
-            var a = new { Name = "Foo", Id = 1 };
-            var b = new { Name = "Bar", Id = 2 };
-            using var cache = new Cache<object, object>();
+            using var memoryCache = new MemoryCache(new MemoryCacheOptions());
+            var cacheOptions = Options.Create(new CacheOptions());
+            var cache = new Cache<object, object>("Mock", memoryCache, cacheOptions);
 
             // Act
+            var a = new { Name = "Foo", Id = 1 };
+            var b = new { Name = "Bar", Id = 2 };
             cache.Set(a, "A");
             cache.Set(b, "B");
 
@@ -79,58 +90,5 @@ namespace NOVAxisTests.Utilities
             Assert.Equal(cache.Get(a), "A");
             Assert.Equal(cache.Get(b), "B");
         }
-
-        /*
-
-        --- Disabled until fixed ---
-
-        [Fact]
-        public void CallsDisposeOnEviction()
-        {
-            // Arrange
-            var mock = new Mock<IDisposable>();
-            var clock = new Mock<ISystemClock>();
-            
-            clock.Setup(x => x.UtcNow)
-                .Returns(() => DateTimeOffset.UtcNow.AddDays(1));
-
-            var expiration = TimeSpan.FromTicks(1);
-            var cacheOptions = new CacheOptions
-            {
-                Clock = clock.Object,
-                AbsoluteExpiration = expiration,
-                RelativeExpiration = expiration
-            };
-            using var cache = new Cache<int, IDisposable>(cacheOptions);
-
-            // Act
-            cache.Set(0, mock.Object);
-
-            // Assert
-            Assert.Null(cache.Get(0));
-
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
-
-            mock.Verify(x => x.Dispose(), Times.AtLeastOnce);
-        }
-
-        [Fact]
-        public void CallsDisposeOnRemove()
-        {
-            // Arrange
-            var mock = new Mock<IDisposable>();
-            using var cache = new Cache<int, IDisposable>();
-
-            // Act
-            cache.Set(0, mock.Object);
-            cache.Remove(0);
-
-            // Assert
-            mock.Verify(x => x.Dispose(), Times.AtLeastOnce);
-        }
-
-        */
     }
 }

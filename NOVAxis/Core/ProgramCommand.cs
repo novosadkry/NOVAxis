@@ -8,11 +8,11 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Discord;
-using Discord.WebSocket;
-
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
+
+using Discord;
+using Discord.WebSocket;
 
 namespace NOVAxis.Core
 {
@@ -22,16 +22,16 @@ namespace NOVAxis.Core
         public string[] Alias { get; }
         private Func<IServiceProvider, Task> Command { get; }
 
-        public Task Execute(IServiceProvider services)
-        {
-            return Task.Run(() => Command(services));
-        }
-
-        public ProgramCommand(string name, string[] alias, Func<IServiceProvider, Task> command)
+        private ProgramCommand(string name, string[] alias, Func<IServiceProvider, Task> command)
         {
             Name = name;
             Alias = alias ?? new[] { "" };
             Command = command;
+        }
+
+        public Task Execute(IServiceProvider services)
+        {
+            return Task.Run(() => Command(services));
         }
 
         public static Task AwaitCommands(IServiceProvider services)
@@ -83,8 +83,8 @@ namespace NOVAxis.Core
             });
         }
 
-        public static readonly List<ProgramCommand> CommandList = new()
-        {
+        private static readonly List<ProgramCommand> CommandList =
+        [
             new ProgramCommand("exit", new[] { "logout", "stop" }, async services =>
             {
                 var logger = services.GetRequiredService<ILogger<Program>>();
@@ -96,12 +96,12 @@ namespace NOVAxis.Core
 
                 catch (Exception e)
                 {
-                    logger.LogError("An exception occurred while ending the flow of execution" + 
+                    logger.LogError("An exception occurred while ending the flow of execution" +
                                     $"\nReason: {e.Message}");
                 }
             }),
 
-            new ProgramCommand("reload", null, async services => 
+            new ProgramCommand("reload", null, async services =>
             {
                 var logger = services.GetRequiredService<ILogger<Program>>();
 
@@ -120,14 +120,6 @@ namespace NOVAxis.Core
                                     $"\nReason: {e.Message}");
                 }
             }),
-
-            new ProgramCommand("config_reset", null, async services =>
-            {
-                var logger = services.GetRequiredService<ILogger<Program>>();
-
-                await ProgramConfig.ResetConfig();
-                logger.LogInformation("Forcing config reset");
-            }),           
 
             new ProgramCommand("clear", null, async services =>
             {
@@ -155,7 +147,7 @@ namespace NOVAxis.Core
             {
                 var client = services.GetService<DiscordShardedClient>();
                 var logger = services.GetRequiredService<ILogger<Program>>();
-                var config = services.GetService<ProgramConfig>();
+                var config = services.GetService<ProgramOptions>();
 
                 await client.SetStatusAsync(UserStatus.DoNotDisturb);
                 await client.SetGameAsync(config.Activity.Offline, type: ActivityType.Watching);
@@ -166,7 +158,7 @@ namespace NOVAxis.Core
             {
                 var client = services.GetService<DiscordShardedClient>();
                 var logger = services.GetRequiredService<ILogger<Program>>();
-                var config = services.GetService<ProgramConfig>();
+                var config = services.GetService<ProgramOptions>();
 
                 await client.SetStatusAsync(UserStatus.Online);
                 await client.SetGameAsync(config.Activity.Online, type: config.Activity.ActivityType);
@@ -177,12 +169,12 @@ namespace NOVAxis.Core
             {
                 var client = services.GetService<DiscordShardedClient>();
                 var logger = services.GetRequiredService<ILogger<Program>>();
-                var config = services.GetService<ProgramConfig>();
+                var config = services.GetService<ProgramOptions>();
 
                 await client.SetStatusAsync(UserStatus.AFK);
                 await client.SetGameAsync(config.Activity.Afk, type: ActivityType.Watching);
                 logger.LogInformation("UserStatus set to 'AFK'");
             })
-        };
+        ];
     }
 }

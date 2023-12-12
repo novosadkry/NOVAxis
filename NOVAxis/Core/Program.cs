@@ -3,11 +3,12 @@ using System.Reflection;
 using System.Threading.Tasks;
 
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using NOVAxis.Modules;
 using NOVAxis.Extensions;
-using NOVAxis.Database.Guild;
 
 using Discord;
 using Discord.WebSocket;
@@ -29,12 +30,13 @@ namespace NOVAxis.Core
         {
             IsRunning = true;
 
-            var services = await SetupServices();
+            var config = await SetupConfig();
+            var services = await SetupServices(config);
 
             var client = services.GetRequiredService<DiscordShardedClient>();
-            var config = services.GetRequiredService<ProgramConfig>();
-            var logger = services.GetRequiredService<ILogger<Program>>();
             var audio = services.GetRequiredService<IAudioService>();
+            var logger = services.GetRequiredService<ILogger<Program>>();
+            var options = services.GetRequiredService<IOptions<ProgramOptions>>();
 
             logger.LogInformation("NOVAxis v" + Version);
 
@@ -42,11 +44,11 @@ namespace NOVAxis.Core
             {
                 await audio.StartAsync();
 
-                await client.LoginAsync(TokenType.Bot, config.LoginToken);
+                await client.LoginAsync(TokenType.Bot, options.Value.LoginToken);
                 await client.StartAsync();
 
-                await client.SetGameAsync(config.Activity.Online, type: config.Activity.ActivityType);
-                await client.SetStatusAsync(config.Activity.UserStatus);
+                await client.SetGameAsync(options.Value.Activity.Online, type: options.Value.Activity.ActivityType);
+                await client.SetStatusAsync(options.Value.Activity.UserStatus);
             }
 
             catch (Exception e)
@@ -60,17 +62,23 @@ namespace NOVAxis.Core
             await ProgramCommand.AwaitCommands(services);
         }
 
-        public static async Task<IServiceProvider> SetupServices()
+        private static async Task<IConfiguration> SetupConfig()
         {
-            var config = await ProgramConfig.LoadConfig();
+            var config = new ConfigurationBuilder()
+                .AddJsonFile("config.json", true)
+                .AddEnvironmentVariables()
+                .Build();
 
+            return await Task.FromResult<IConfiguration>(config);
+        }
+
+        private static async Task<IServiceProvider> SetupServices(IConfiguration config)
+        {
             var services = new ServiceCollection()
-                .AddSingleton(config)
                 .AddSingleton<ProgramLogger>()
-                .AddDbContext<GuildDbContext>()
+                .AddConfiguration(config)
                 .AddDiscord(config)
-                .AddAudio(config)
-                .AddCommands(config)
+                .AddAudio()
                 .AddInteractions(config)
                 .AddMemoryCache()
                 .AddLogging(builder => builder.AddProgramLogger())
@@ -82,12 +90,7 @@ namespace NOVAxis.Core
             client.Log += logger.Log;
             client.ShardReady += shard => Client_Ready(shard, services);
 
-            await using var scope = services.CreateAsyncScope();
-            await scope.ServiceProvider
-                .GetService<GuildDbContext>()
-                .Database.EnsureCreatedAsync();
-
-            return services;
+            return await Task.FromResult(services);
         }
 
         public static async Task Exit(IServiceProvider services)

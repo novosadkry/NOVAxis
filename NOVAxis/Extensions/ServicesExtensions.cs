@@ -1,4 +1,6 @@
 ﻿using System;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using NOVAxis.Core;
@@ -6,27 +8,26 @@ using NOVAxis.Modules;
 using NOVAxis.Utilities;
 
 using Discord;
-using Discord.Commands;
 using Discord.WebSocket;
 using Discord.Interactions;
 
+using Lavalink4NET;
 using Lavalink4NET.Extensions;
 using Lavalink4NET.InactivityTracking.Extensions;
-
-using CommandRunMode = Discord.Commands.RunMode;
-using InteractionRunMode = Discord.Interactions.RunMode;
 
 namespace NOVAxis.Extensions
 {
     public static class ServicesExtensions
     {
-        public static IServiceCollection AddAudio(this IServiceCollection collection, ProgramConfig config)
+        public static IServiceCollection AddAudio(this IServiceCollection collection)
         {
-            collection.ConfigureLavalink(options =>
-            {
-                options.BaseAddress = new Uri($"http://{config.Lavalink.Host}:{config.Lavalink.Port}");
-                options.Passphrase = config.Lavalink.Login;
-            });
+            collection
+                .AddOptions<AudioServiceOptions>()
+                .Configure<IOptions<LavalinkOptions>>((s, l) =>
+                {
+                    s.BaseAddress = new Uri($"http://{l.Value.Host}:{l.Value.Port}");
+                    s.Passphrase = l.Value.Login;
+                });
 
             collection.AddLavalink();
             collection.AddInactivityTracking();
@@ -34,34 +35,52 @@ namespace NOVAxis.Extensions
             return collection;
         }
 
-        public static IServiceCollection AddInteractions(this IServiceCollection collection, ProgramConfig config)
+        public static IServiceCollection AddConfiguration(this IServiceCollection collection, IConfiguration config)
         {
-            var interactionConfig = new InteractionServiceConfig
-            {
-                UseCompiledLambda = true,
-                DefaultRunMode = InteractionRunMode.Async,
-                LogLevel = config.Log.Level.ToSeverity()
-            };
-
-            var interactionCacheOptions = new CacheOptions
-            {
-                AbsoluteExpiration = config.Interaction.Cache.AbsoluteExpiration,
-                RelativeExpiration = config.Interaction.Cache.RelativeExpiration
-            };
-
-            collection.AddSingleton(interactionConfig);
-            collection.AddSingleton<InteractionService>();
-            collection.AddInteractionCache(interactionCacheOptions);
+            collection.AddOptions();
+            collection.AddSingleton(config);
+            collection.Configure<ProgramOptions>(config);
+            collection.Configure<LogOptions>(config.GetSection(LogOptions.Log));
+            collection.Configure<AudioOptions>(config.GetSection(AudioOptions.Audio));
+            collection.Configure<CacheOptions>(config.GetSection(CacheOptions.Cache));
+            collection.Configure<ActivityOptions>(config.GetSection(ActivityOptions.Activity));
+            collection.Configure<DatabaseOptions>(config.GetSection(DatabaseOptions.Database));
+            collection.Configure<LavalinkOptions>(config.GetSection(LavalinkOptions.Lavalink));
+            collection.Configure<InteractionOptions>(config.GetSection(InteractionOptions.Interaction));
 
             return collection;
         }
 
-        public static IServiceCollection AddDiscord(this IServiceCollection collection, ProgramConfig config)
+        public static IServiceCollection AddInteractions(this IServiceCollection collection, IConfiguration config)
         {
+            var options = new ProgramOptions();
+            config.Bind(options);
+
+            var interactionConfig = new InteractionServiceConfig
+            {
+                UseCompiledLambda = true,
+                DefaultRunMode = RunMode.Async,
+                LogLevel = options.Log.Level.ToSeverity()
+            };
+
+            collection.AddSingleton<ModuleHandler>();
+            collection.AddSingleton(interactionConfig);
+            collection.AddSingleton<InteractionService>();
+            collection.AddSingleton<InteractionCache>();
+            collection.AddSingleton<CooldownCache>();
+
+            return collection;
+        }
+
+        public static IServiceCollection AddDiscord(this IServiceCollection collection, IConfiguration config)
+        {
+            var options = new ProgramOptions();
+            config.Bind(options);
+
             var clientConfig = new DiscordSocketConfig
             {
-                LogLevel = config.Log.Level.ToSeverity(),
-                TotalShards = config.TotalShards,
+                LogLevel = options.Log.Level.ToSeverity(),
+                TotalShards = options.TotalShards,
                 MessageCacheSize = 100,
                 UseInteractionSnowflakeDate = false,
                 GatewayIntents = GatewayIntents.All,
@@ -73,32 +92,6 @@ namespace NOVAxis.Extensions
             collection.AddSingleton(p => (DiscordShardedClient) p.GetService<IDiscordClient>());
 
             return collection;
-        }
-
-        public static IServiceCollection AddCommands(this IServiceCollection collection, ProgramConfig config)
-        {
-            var commandServiceConfig = new CommandServiceConfig
-            {
-                CaseSensitiveCommands = false,
-                DefaultRunMode = CommandRunMode.Async,
-                LogLevel = config.Log.Level.ToSeverity()
-            };
-
-            collection.AddSingleton(commandServiceConfig);
-            collection.AddSingleton<ModuleHandler>();
-            collection.AddSingleton<CommandService>();
-
-            return collection;
-        }
-
-        public static IServiceCollection AddCache<TKey, TValue>(this IServiceCollection collection, CacheOptions options)
-        {
-            return collection.AddSingleton(new Cache<TKey, TValue>(options));
-        }
-
-        public static IServiceCollection AddInteractionCache(this IServiceCollection collection, CacheOptions options)
-        {
-            return collection.AddSingleton(new InteractionCache(options));
         }
     }
 }
