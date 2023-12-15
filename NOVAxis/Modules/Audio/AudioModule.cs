@@ -851,6 +851,32 @@ namespace NOVAxis.Modules.Audio
             }
         }
 
+        [SlashCommand("tts", "Plays text to speech audio transmission")]
+        public async Task CmdTextToSpeech(string text)
+        {
+            await DeferAsync();
+
+            var player = await GetPlayerAsync(joinChannel: true);
+
+            var input = Uri.EscapeDataString(text);
+            var uri = $"ftts://{input}";
+
+            var options = new TrackLoadOptions(
+                SearchMode: TrackSearchMode.None,
+                StrictSearch: false);
+
+            var track = await AudioService.Tracks
+                .LoadTrackAsync(uri, options);
+
+            await player.PlayAsync(track!, false);
+
+            await FollowupAsync(embed: new EmbedBuilder()
+                .WithColor(52, 231, 231)
+                .WithTitle("Přehrávám text-to-speech")
+                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                .Build());
+        }
+
         /*
         [RequireUserPermission(GuildPermission.Administrator)]
         [SlashCommand("setdj", "Sets the guild's DJ role which is used to identify eligible users")]
