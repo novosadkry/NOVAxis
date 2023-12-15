@@ -47,10 +47,44 @@ namespace NOVAxis.Services.Audio
             CancellationToken cancellationToken = default)
         {
             await base.NotifyTrackStartedAsync(queueItem, cancellationToken);
-            await OnNextTrackQueueItem(queueItem as AudioTrackQueueItem);
+            await OnTrackStarted(queueItem as AudioTrackQueueItem);
         }
 
-        private async ValueTask OnNextTrackQueueItem(AudioTrackQueueItem item)
+        protected override async ValueTask NotifyTrackEnqueuedAsync(
+            ITrackQueueItem queueItem, int position,
+            CancellationToken cancellationToken = default)
+        {
+            await base.NotifyTrackEnqueuedAsync(queueItem, position, cancellationToken);
+            await OnTrackEnqueued(queueItem as AudioTrackQueueItem, position);
+        }
+
+        private async ValueTask OnTrackEnqueued(AudioTrackQueueItem item, int position)
+        {
+            var id = InteractionCache.Store(item);
+            var track = item.Track!;
+
+            var embed = new EmbedBuilder()
+                .WithColor(52, 231, 231)
+                .WithAuthor("Přidáno do fronty:")
+                .WithTitle($"{track.Title}")
+                .WithUrl(track.Uri?.AbsoluteUri)
+                .WithThumbnailUrl(track.ArtworkUri?.AbsoluteUri)
+                .AddField("Autor:", track.Author, true)
+                .AddField("Délka:", $"`{track.Duration}`", true)
+                .AddField("Vyžádal:", item.RequestedBy.Mention, true)
+                .AddField("Pořadí ve frontě:", $"`{position}.`", true)
+                .Build();
+
+            var components = new ComponentBuilder()
+                .WithButton(customId: $"TrackControls_Remove,{id}", emote: new Emoji("\u2716"), style: ButtonStyle.Danger)
+                .WithButton(customId: $"TrackControls_Add,{track.Identifier}", emote: new Emoji("\u2764"), style: ButtonStyle.Secondary)
+                .WithButton(customId: "TrackControls_Add", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
+                .Build();
+
+            await TextChannel.SendMessageAsync(embed: embed, components: components);
+        }
+
+        private async ValueTask OnTrackStarted(AudioTrackQueueItem item)
         {
             var id = InteractionCache.Store(item);
             var track = item.Track!;
@@ -68,7 +102,7 @@ namespace NOVAxis.Services.Audio
                 .AddField("Autor:", track.Author, true)
                 .AddField("Délka:", $"`{track.Duration}`", true)
                 .AddField("Vyžádal:", item.RequestedBy.Mention, true)
-                .AddField("Hlasitost:", $"{Volume}%", true)
+                .AddField("Hlasitost:", $"{Volume * 100.0f}%", true)
                 .AddField("Stav:", $"{statusEmoji}", true)
                 .Build();
 

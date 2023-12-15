@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 
 using NOVAxis.Utilities;
 
@@ -17,8 +18,6 @@ namespace NOVAxis.Preconditions
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
     public class CooldownAttribute : PreconditionAttribute
     {
-        public CooldownCache CooldownCache { get; set; }
-
         private readonly TimeSpan _cooldown;
 
         public CooldownAttribute(int seconds)
@@ -28,7 +27,8 @@ namespace NOVAxis.Preconditions
 
         public override Task<PreconditionResult> CheckRequirementsAsync(IInteractionContext context, ICommandInfo commandInfo, IServiceProvider services)
         {
-            var cooldownInfo = CooldownCache[context.User];
+            var cooldownCache = services.GetRequiredService<CooldownCache>();
+            var cooldownInfo = cooldownCache[context.User];
 
             if (cooldownInfo.Interaction == context.Interaction)
                 return Task.FromResult(PreconditionResult.FromSuccess());
@@ -44,13 +44,13 @@ namespace NOVAxis.Preconditions
                         return Task.FromResult(PreconditionResult.FromError("User has command on cooldown (no warning)"));
 
                     cooldownInfo.WarningTriggered = true;
-                    CooldownCache[context.User] = cooldownInfo;
+                    cooldownCache[context.User] = cooldownInfo;
 
                     return Task.FromResult(PreconditionResult.FromError("User has command on cooldown"));
                 }
             }
 
-            CooldownCache[context.User] = new CooldownInfo { Interaction = context.Interaction };
+            cooldownCache[context.User] = new CooldownInfo { Interaction = context.Interaction };
             return Task.FromResult(PreconditionResult.FromSuccess());
         }
     }
