@@ -48,7 +48,7 @@ namespace NOVAxis.Modules.Audio
             // Add header to first page
             if (pageIndex == 0)
             {
-                page.WithTitle("Právě přehrávám:");
+                page.WithTitle("Ve frontě:");
                 content.AddRange(Header);
             }
 

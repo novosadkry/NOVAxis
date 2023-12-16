@@ -37,7 +37,7 @@ namespace NOVAxis.Modules.Audio
 
         #region Functions
 
-        private async Task<IEnumerable<LavalinkTrack>> SearchAsync(string input)
+        private Task<IEnumerable<LavalinkTrack>> SearchAsync(string input)
         {
             var searchMode = TrackSearchMode.YouTube;
 
@@ -53,6 +53,13 @@ namespace NOVAxis.Modules.Audio
                 };
             }
 
+            return SearchAsync(input, searchMode);
+        }
+
+        private async Task<IEnumerable<LavalinkTrack>> SearchAsync(
+            string input,
+            TrackSearchMode searchMode)
+        {
             var result = await AudioService.Tracks
                 .LoadTracksAsync(input, searchMode);
 
@@ -171,6 +178,8 @@ namespace NOVAxis.Modules.Audio
         public async Task CmdJoinChannel()
         {
             var player = await GetPlayerAsync(joinChannel: true);
+            if (player == null) return;
+
             var voiceChannel = await player.GetVoiceChannel(Context.Client);
 
             await RespondAsync(embed: new EmbedBuilder()
@@ -183,6 +192,8 @@ namespace NOVAxis.Modules.Audio
         public async Task CmdLeaveChannel()
         {
             var player = await GetPlayerAsync(joinChannel: false, sameChannel: true);
+            if (player == null) return;
+
             var voiceChannel = await player.GetVoiceChannel(Context.Client);
 
             await player.DisconnectAsync();
@@ -241,6 +252,7 @@ namespace NOVAxis.Modules.Audio
                 throw new ArgumentNullException();
 
             var player = await GetPlayerAsync(joinChannel: true);
+            if (player == null) return;
 
             var items = tracks
                 .Select(t => new AudioTrackQueueItem(new TrackReference(t))
@@ -253,10 +265,10 @@ namespace NOVAxis.Modules.Audio
             var lastItem = items.Last();
             var lastTrack = lastItem.Track!;
 
+            await player.Queue.AddRangeAsync(items);
+
             if (items.Count > 1)
             {
-                await player.Queue.AddRangeAsync(items);
-
                 var totalDuration = new TimeSpan();
                 foreach (var track in tracks)
                     totalDuration += track.Duration;
@@ -267,44 +279,60 @@ namespace NOVAxis.Modules.Audio
                     .WithTitle($"{lastTrack.Title}")
                     .WithUrl(lastTrack.Uri?.AbsoluteUri)
                     .WithThumbnailUrl(lastTrack.ArtworkUri?.AbsoluteUri)
-                    .AddField("Délka:", $"`{totalDuration}`", true)
+                    .AddField("Délka:", $"`{totalDuration:hh\\:mm\\:ss}`", true)
                     .AddField("Vyžádal:", lastItem.RequestedBy.Mention, true)
                     .Build());
+            }
 
-                if (player.State == PlayerState.NotPlaying)
-                    await player.SkipAsync();
+            else if (player.State == PlayerState.NotPlaying)
+            {
+                await FollowupAsync(embed: new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithAuthor("Přidáno do fronty:")
+                    .WithTitle($"{lastTrack.Title}")
+                    .WithUrl(lastTrack.Uri?.AbsoluteUri)
+                    .WithThumbnailUrl(lastTrack.ArtworkUri?.AbsoluteUri)
+                    .AddField("Autor:", lastTrack.Author, true)
+                    .AddField("Délka:", $"`{lastTrack.Duration:hh\\:mm\\:ss}`", true)
+                    .AddField("Vyžádal:", lastItem.RequestedBy.Mention, true)
+                    .AddField("Pořadí ve frontě:", $"`{player.Queue.Count}.`", true)
+                    .Build());
             }
 
             else
             {
-                if (player.State == PlayerState.NotPlaying)
-                {
-                    await player.Queue.AddAsync(lastItem);
+                var id = InteractionCache.Store(lastItem);
 
-                    await FollowupAsync(embed: new EmbedBuilder()
-                        .WithColor(52, 231, 231)
-                        .WithAuthor("Přidáno do fronty:")
-                        .WithTitle($"{lastTrack.Title}")
-                        .WithUrl(lastTrack.Uri?.AbsoluteUri)
-                        .WithThumbnailUrl(lastTrack.ArtworkUri?.AbsoluteUri)
-                        .AddField("Autor:", lastTrack.Author, true)
-                        .AddField("Délka:", $"`{lastTrack.Duration}`", true)
-                        .AddField("Vyžádal:", lastItem.RequestedBy.Mention, true)
-                        .AddField("Pořadí ve frontě:", $"`{player.Queue.Count}.`", true)
-                        .Build());
+                var embed = new EmbedBuilder()
+                    .WithColor(52, 231, 231)
+                    .WithAuthor("Přidáno do fronty:")
+                    .WithTitle($"{lastTrack.Title}")
+                    .WithUrl(lastTrack.Uri?.AbsoluteUri)
+                    .WithThumbnailUrl(lastTrack.ArtworkUri?.AbsoluteUri)
+                    .AddField("Autor:", lastTrack.Author, true)
+                    .AddField("Délka:", $"`{lastTrack.Duration:hh\\:mm\\:ss}`", true)
+                    .AddField("Vyžádal:", lastItem.RequestedBy.Mention, true)
+                    .AddField("Pořadí ve frontě:", $"`{player.Queue.Count}.`", true)
+                    .Build();
 
-                    await player.SkipAsync();
-                }
+                var components = new ComponentBuilder()
+                    .WithButton(customId: $"TrackControls_Remove,{id}", emote: new Emoji("\u2716"), style: ButtonStyle.Danger)
+                    .WithButton(customId: $"TrackControls_Add,{lastTrack.Uri?.AbsoluteUri}", emote: new Emoji("\u2764"), style: ButtonStyle.Secondary)
+                    .WithButton(customId: "TrackControls_Add", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
+                    .Build();
 
-                else
-                    await player.PlayAsync(lastItem);
+                await FollowupAsync(embed: embed, components: components);
             }
+
+            if (player.State == PlayerState.NotPlaying)
+                await player.SkipAsync();
         }
 
         [ComponentInteraction("AudioControls_*", true)]
         public async Task AudioControls(string action)
         {
             var player = await GetPlayerAsync(joinChannel: false, sameChannel: true);
+            if (player == null) return;
 
             switch (action)
             {
@@ -339,18 +367,55 @@ namespace NOVAxis.Modules.Audio
         }
 
         [ComponentInteraction("TrackControls_Add,*", true)]
-        public async Task TrackControls_Add(string url)
+        public async Task TrackControls_Add(string trackUrl)
         {
-            await CmdPlayAudio(url);
+            await DeferAsync(ephemeral: true);
+
+            try
+            {
+                var tracks = await SearchAsync(trackUrl);
+                await PlayAudio(tracks.ToList());
+            }
+
+            catch (HttpRequestException)
+            {
+                await FollowupAsync(ephemeral: true, embed: new EmbedBuilder()
+                    .WithColor(255, 150, 0)
+                    .WithDescription("(Služba není dostupná)")
+                    .WithTitle("Mé jádro pravě nemůže poskytnout stabilní stream audia")
+                    .Build());
+            }
+
+            catch (ArgumentNullException)
+            {
+                await FollowupAsync(ephemeral: true, embed: new EmbedBuilder()
+                    .WithColor(220, 20, 60)
+                    .WithDescription("(Neplatný argument)")
+                    .WithTitle("Mému jádru se nepodařilo v databázi nalézt požadovanou stopu")
+                    .Build());
+            }
+
+            catch (Exception)
+            {
+                await FollowupAsync(ephemeral: true, embed: new EmbedBuilder()
+                    .WithColor(220, 20, 60)
+                    .WithDescription("(Neznámá chyba)")
+                    .WithTitle("Při komunikaci s jádrem nastala neznámá chyba")
+                    .Build());
+
+                throw;
+            }
         }
 
         [ComponentInteraction("TrackControls_Remove,*", true)]
-        public async Task TrackControls_Remove(ulong id)
+        public async Task TrackControls_Remove(ulong interactionId)
         {
             var player = await GetPlayerAsync(joinChannel: false, sameChannel: true);
+            if (player == null) return;
+
             var currentItem = (AudioTrackQueueItem) player.CurrentItem;
 
-            if (InteractionCache[id] is not AudioTrackQueueItem cachedItem)
+            if (InteractionCache[interactionId] is not AudioTrackQueueItem cachedItem)
             {
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
@@ -410,7 +475,9 @@ namespace NOVAxis.Modules.Audio
             var player = await GetPlayerAsync(
                 joinChannel: false, sameChannel: true, 
                 PlayerPrecondition.Playing);
-            
+
+            if (player == null) return;
+
             await RespondAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
                 .WithTitle("Stream audia byl úspěšně přeskočen")
@@ -426,7 +493,9 @@ namespace NOVAxis.Modules.Audio
             var player = await GetPlayerAsync(
                 joinChannel: false, sameChannel: true,
                 PlayerPrecondition.Playing);
-            
+
+            if (player == null) return;
+
             await RespondAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
                 .WithTitle("Stream audia byl úspěšně zastaven")
@@ -442,7 +511,9 @@ namespace NOVAxis.Modules.Audio
             var player = await GetPlayerAsync(
                 joinChannel: false, sameChannel: true, 
                 PlayerPrecondition.NotPaused);
-            
+
+            if (player == null) return;
+
             await player.PauseAsync();
 
             await RespondAsync(embed: new EmbedBuilder()
@@ -458,7 +529,9 @@ namespace NOVAxis.Modules.Audio
             var player = await GetPlayerAsync(
                 joinChannel: false, sameChannel: true, 
                 PlayerPrecondition.Paused);
-            
+
+            if (player == null) return;
+
             await player.ResumeAsync();
 
             await RespondAsync(embed: new EmbedBuilder()
@@ -474,6 +547,8 @@ namespace NOVAxis.Modules.Audio
             var player = await GetPlayerAsync(
                 joinChannel: false, sameChannel: true, 
                 PlayerPrecondition.Playing);
+
+            if (player == null) return;
 
             var currentTrack = player.CurrentTrack!;
 
@@ -514,7 +589,9 @@ namespace NOVAxis.Modules.Audio
             var player = await GetPlayerAsync(
                 joinChannel: false, sameChannel: true, 
                 PlayerPrecondition.Playing);
-            
+
+            if (player == null) return;
+
             var currentTrack = player.CurrentTrack!;
             var trackPosition = player.Position!.Value.Position;
             
@@ -549,7 +626,9 @@ namespace NOVAxis.Modules.Audio
             var player = await GetPlayerAsync(
                 joinChannel: false, sameChannel: true, 
                 PlayerPrecondition.Playing);
-            
+
+            if (player == null) return;
+
             var trackPosition = player.Position!.Value.Position;
             
             if (time <= TimeSpan.Zero)
@@ -583,7 +662,9 @@ namespace NOVAxis.Modules.Audio
             var player = await GetPlayerAsync(
                 joinChannel: false, sameChannel: true, 
                 PlayerPrecondition.Playing);
-            
+
+            if (player == null) return;
+
             if (percentage > 150)
             {
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
@@ -611,6 +692,8 @@ namespace NOVAxis.Modules.Audio
                 joinChannel: false, sameChannel: false, 
                 PlayerPrecondition.Playing);
 
+            if (player == null) return;
+
             var item = (AudioTrackQueueItem) player.CurrentItem!;
             var track = item.Track;
             
@@ -625,7 +708,7 @@ namespace NOVAxis.Modules.Audio
                 .WithUrl(track.Uri?.AbsoluteUri)
                 .WithThumbnailUrl(track.ArtworkUri?.AbsoluteUri)
                 .AddField("Autor:", track.Author, true)
-                .AddField("Délka:", $"`{track.Duration}`", true)
+                .AddField("Délka:", $"`{track.Duration:hh\\:mm\\:ss}`", true)
                 .AddField("Vyžádal:", item.RequestedBy.Mention, true)
                 .AddField("Hlasitost:", $"{player.Volume * 100.0f}%", true)
                 .AddField("Stav:", $"{statusEmoji}", true)
@@ -648,6 +731,8 @@ namespace NOVAxis.Modules.Audio
             var player = await GetPlayerAsync(
                 joinChannel: false, sameChannel: false, 
                 PlayerPrecondition.QueueNotEmpty);
+
+            if (player == null) return;
 
             var paginator = new AudioQueuePaginator(5);
             var totalDuration = TimeSpan.Zero;
@@ -680,7 +765,7 @@ namespace NOVAxis.Modules.Audio
                     header.Add(new EmbedFieldBuilder
                     {
                         Name = $"{statusEmoji} **{track.Title}**",
-                        Value = $"Vyžádal: {mention} | Délka: `{duration}` | [Odkaz]({url})\n"
+                        Value = $"Vyžádal: {mention} | Délka: `{duration:hh\\:mm\\:ss}` | [Odkaz]({url})\n"
                     });
 
                     header.Add(new EmbedFieldBuilder
@@ -695,7 +780,7 @@ namespace NOVAxis.Modules.Audio
                     tracks.Add(new EmbedFieldBuilder
                     {
                         Name = $"`{position}.` {track.Title}",
-                        Value = $"Vyžádal: {mention} | Délka: `{duration}` | [Odkaz]({url})\n"
+                        Value = $"Vyžádal: {mention} | Délka: `{duration:hh\\:mm\\:ss}` | [Odkaz]({url})\n"
                     });
                 }
 
@@ -705,7 +790,7 @@ namespace NOVAxis.Modules.Audio
             footer.Add(new EmbedFieldBuilder
             {
                 Name = "\u200B",
-                Value = $"Celková doba poslechu: `{totalDuration}`"
+                Value = $"Celková doba poslechu: `{totalDuration:hh\\:mm\\:ss}`"
             });
 
             var page = paginator
@@ -799,6 +884,8 @@ namespace NOVAxis.Modules.Audio
                 joinChannel: false, sameChannel: true, 
                 PlayerPrecondition.QueueNotEmpty);
 
+            if (player == null) return;
+
             if (index <= 0 || index >= player.Queue.Count)
             {
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
@@ -825,7 +912,9 @@ namespace NOVAxis.Modules.Audio
             var player = await GetPlayerAsync(
                 joinChannel: false, sameChannel: true, 
                 PlayerPrecondition.Playing);
-            
+
+            if (player == null) return;
+
             if (player.RepeatMode != mode && mode != TrackRepeatMode.None)
             {
                 await RespondAsync(embed: new EmbedBuilder()
@@ -857,6 +946,7 @@ namespace NOVAxis.Modules.Audio
             await DeferAsync();
 
             var player = await GetPlayerAsync(joinChannel: true);
+            if (player == null) return;
 
             var input = Uri.EscapeDataString(text);
             var uri = $"ftts://{input}";

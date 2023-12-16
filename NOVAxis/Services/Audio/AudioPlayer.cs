@@ -70,14 +70,14 @@ namespace NOVAxis.Services.Audio
                 .WithUrl(track.Uri?.AbsoluteUri)
                 .WithThumbnailUrl(track.ArtworkUri?.AbsoluteUri)
                 .AddField("Autor:", track.Author, true)
-                .AddField("Délka:", $"`{track.Duration}`", true)
+                .AddField("Délka:", $"`{track.Duration:hh\\:mm\\:ss}`", true)
                 .AddField("Vyžádal:", item.RequestedBy.Mention, true)
                 .AddField("Pořadí ve frontě:", $"`{position}.`", true)
                 .Build();
 
             var components = new ComponentBuilder()
                 .WithButton(customId: $"TrackControls_Remove,{id}", emote: new Emoji("\u2716"), style: ButtonStyle.Danger)
-                .WithButton(customId: $"TrackControls_Add,{track.Identifier}", emote: new Emoji("\u2764"), style: ButtonStyle.Secondary)
+                .WithButton(customId: $"TrackControls_Add,{track.Uri?.AbsoluteUri}", emote: new Emoji("\u2764"), style: ButtonStyle.Secondary)
                 .WithButton(customId: "TrackControls_Add", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
                 .Build();
 
@@ -100,7 +100,7 @@ namespace NOVAxis.Services.Audio
                 .WithUrl(track.Uri?.AbsoluteUri)
                 .WithThumbnailUrl(track.ArtworkUri?.AbsoluteUri)
                 .AddField("Autor:", track.Author, true)
-                .AddField("Délka:", $"`{track.Duration}`", true)
+                .AddField("Délka:", $"`{track.Duration:hh\\:mm\\:ss}`", true)
                 .AddField("Vyžádal:", item.RequestedBy.Mention, true)
                 .AddField("Hlasitost:", $"{Volume * 100.0f}%", true)
                 .AddField("Stav:", $"{statusEmoji}", true)
@@ -108,7 +108,7 @@ namespace NOVAxis.Services.Audio
 
             var components = new ComponentBuilder()
                 .WithButton(customId: $"TrackControls_Remove,{id}", emote: new Emoji("\u2716"), style: ButtonStyle.Danger)
-                .WithButton(customId: $"TrackControls_Add,{track.Identifier}", emote: new Emoji("\u2764"), style: ButtonStyle.Secondary)
+                .WithButton(customId: $"TrackControls_Add,{track.Uri?.AbsoluteUri}", emote: new Emoji("\u2764"), style: ButtonStyle.Secondary)
                 .WithButton(customId: "TrackControls_Add", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
                 .Build();
 
@@ -125,7 +125,7 @@ namespace NOVAxis.Services.Audio
             await TextChannel.SendMessageAsync(embed: new EmbedBuilder()
                 .WithColor(220, 20, 60)
                 .WithDescription("(Skladba přeskočena)")
-                .WithTitle("Při přehrávání stopy nastala kritická chyba")
+                .WithTitle("Při přehrávání stopy nastala neznámá chyba")
                 .Build());
 
             Logger.LogError("Track failed to start, throwing an exception before providing any audio");
