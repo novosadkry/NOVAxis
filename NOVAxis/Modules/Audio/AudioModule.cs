@@ -17,12 +17,12 @@ using Discord.Interactions;
 
 using Lavalink4NET;
 using Lavalink4NET.Clients;
-using Lavalink4NET.Tracks;
 using Lavalink4NET.Players;
 using Lavalink4NET.DiscordNet;
 using Lavalink4NET.Players.Preconditions;
 using Lavalink4NET.Players.Queued;
 using Lavalink4NET.Rest.Entities.Tracks;
+using Lavalink4NET.Integrations.Lavasrc;
 
 namespace NOVAxis.Modules.Audio
 {
@@ -37,7 +37,7 @@ namespace NOVAxis.Modules.Audio
 
         #region Functions
 
-        private Task<IEnumerable<LavalinkTrack>> SearchAsync(string input)
+        private Task<TrackLoadResult> SearchAsync(string input)
         {
             var searchMode = TrackSearchMode.YouTube;
 
@@ -56,21 +56,12 @@ namespace NOVAxis.Modules.Audio
             return SearchAsync(input, searchMode);
         }
 
-        private async Task<IEnumerable<LavalinkTrack>> SearchAsync(
+        private async Task<TrackLoadResult> SearchAsync(
             string input,
             TrackSearchMode searchMode)
         {
-            var result = await AudioService.Tracks
+            return await AudioService.Tracks
                 .LoadTracksAsync(input, searchMode);
-
-            if (result.IsFailed)
-                return Enumerable.Empty<LavalinkTrack>();
-
-            // Check if search result is a playlist
-            if (result.IsPlaylist)
-                return result.Tracks;
-
-            return new[] { result.Track };
         }
 
         private async ValueTask<AudioPlayer> GetPlayerAsync(
@@ -212,8 +203,8 @@ namespace NOVAxis.Modules.Audio
 
             try
             {
-                var tracks = await SearchAsync(input);
-                await PlayAudio(tracks.ToList());
+                var result = await SearchAsync(input);
+                await PlayAudio(result);
             }
 
             catch (HttpRequestException)
@@ -246,82 +237,95 @@ namespace NOVAxis.Modules.Audio
             }
         }
 
-        private async Task PlayAudio(List<LavalinkTrack> tracks)
+        private async Task PlayAudio(TrackLoadResult result)
         {
-            if (tracks == null || tracks.Count == 0)
+            if (result.IsFailed)
                 throw new ArgumentNullException();
 
             var player = await GetPlayerAsync(joinChannel: true);
             if (player == null) return;
 
-            var items = tracks
-                .Select(t => new AudioTrackQueueItem(new TrackReference(t))
-                {
-                    RequestedBy = Context.User,
-                    RequestId = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now)
-                })
-                .ToList();
-
-            var lastItem = items.Last();
-            var lastTrack = lastItem.Track!;
-
-            await player.Queue.AddRangeAsync(items);
-
-            if (items.Count > 1)
+            if (result.IsPlaylist)
             {
+                var items = result.Tracks
+                    .Select(t => new AudioTrackQueueItem(new TrackReference(t))
+                    {
+                        RequestedBy = Context.User,
+                        RequestId = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now)
+                    })
+                    .ToList();
+
+                var lastItem = items.Last();
+                await player.Queue.AddRangeAsync(items);
+
                 var totalDuration = new TimeSpan();
-                foreach (var track in tracks)
+                foreach (var track in result.Tracks)
                     totalDuration += track.Duration;
+
+                var playlist = new ExtendedPlaylistInformation(result.Playlist!);
 
                 await FollowupAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
-                    .WithAuthor($"Přidáno do fronty ({tracks.Count}):")
-                    .WithTitle($"{lastTrack.Title}")
-                    .WithUrl(lastTrack.Uri?.AbsoluteUri)
-                    .WithThumbnailUrl(lastTrack.ArtworkUri?.AbsoluteUri)
+                    .WithAuthor($"Přidáno do fronty ({playlist.TotalTracks}):")
+                    .WithTitle($"{playlist.Name}")
+                    .WithUrl(playlist.Uri?.AbsoluteUri)
+                    .WithThumbnailUrl(playlist.ArtworkUri?.AbsoluteUri)
+                    .AddField("Autor:", playlist.Author, true)
                     .AddField("Délka:", $"`{totalDuration:hh\\:mm\\:ss}`", true)
                     .AddField("Vyžádal:", lastItem.RequestedBy.Mention, true)
                     .Build());
             }
 
-            else if (player.State == PlayerState.NotPlaying)
-            {
-                await FollowupAsync(embed: new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithAuthor("Přidáno do fronty:")
-                    .WithTitle($"{lastTrack.Title}")
-                    .WithUrl(lastTrack.Uri?.AbsoluteUri)
-                    .WithThumbnailUrl(lastTrack.ArtworkUri?.AbsoluteUri)
-                    .AddField("Autor:", lastTrack.Author, true)
-                    .AddField("Délka:", $"`{lastTrack.Duration:hh\\:mm\\:ss}`", true)
-                    .AddField("Vyžádal:", lastItem.RequestedBy.Mention, true)
-                    .AddField("Pořadí ve frontě:", $"`{player.Queue.Count}.`", true)
-                    .Build());
-            }
-
             else
             {
-                var id = InteractionCache.Store(lastItem);
+                var track = result.Track!;
+                var item = new AudioTrackQueueItem(new TrackReference(track))
+                {
+                    RequestedBy = Context.User,
+                    RequestId = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now)
+                };
 
-                var embed = new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithAuthor("Přidáno do fronty:")
-                    .WithTitle($"{lastTrack.Title}")
-                    .WithUrl(lastTrack.Uri?.AbsoluteUri)
-                    .WithThumbnailUrl(lastTrack.ArtworkUri?.AbsoluteUri)
-                    .AddField("Autor:", lastTrack.Author, true)
-                    .AddField("Délka:", $"`{lastTrack.Duration:hh\\:mm\\:ss}`", true)
-                    .AddField("Vyžádal:", lastItem.RequestedBy.Mention, true)
-                    .AddField("Pořadí ve frontě:", $"`{player.Queue.Count}.`", true)
-                    .Build();
+                await player.Queue.AddAsync(item);
 
-                var components = new ComponentBuilder()
-                    .WithButton(customId: $"TrackControls_Remove,{id}", emote: new Emoji("\u2716"), style: ButtonStyle.Danger)
-                    .WithButton(customId: $"TrackControls_Add,{lastTrack.Uri?.AbsoluteUri}", emote: new Emoji("\u2764"), style: ButtonStyle.Secondary)
-                    .WithButton(customId: "TrackControls_Add", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
-                    .Build();
+                if (player.State == PlayerState.NotPlaying)
+                {
+                    await FollowupAsync(embed: new EmbedBuilder()
+                        .WithColor(52, 231, 231)
+                        .WithAuthor("Přidáno do fronty:")
+                        .WithTitle($"{track.Title}")
+                        .WithUrl(track.Uri?.AbsoluteUri)
+                        .WithThumbnailUrl(track.ArtworkUri?.AbsoluteUri)
+                        .AddField("Autor:", track.Author, true)
+                        .AddField("Délka:", $"`{track.Duration:hh\\:mm\\:ss}`", true)
+                        .AddField("Vyžádal:", item.RequestedBy.Mention, true)
+                        .AddField("Pořadí ve frontě:", $"`{player.Queue.Count}.`", true)
+                        .Build());
+                }
 
-                await FollowupAsync(embed: embed, components: components);
+                else
+                {
+                    var id = InteractionCache.Store(item);
+
+                    var embed = new EmbedBuilder()
+                        .WithColor(52, 231, 231)
+                        .WithAuthor("Přidáno do fronty:")
+                        .WithTitle($"{track.Title}")
+                        .WithUrl(track.Uri?.AbsoluteUri)
+                        .WithThumbnailUrl(track.ArtworkUri?.AbsoluteUri)
+                        .AddField("Autor:", track.Author, true)
+                        .AddField("Délka:", $"`{track.Duration:hh\\:mm\\:ss}`", true)
+                        .AddField("Vyžádal:", item.RequestedBy.Mention, true)
+                        .AddField("Pořadí ve frontě:", $"`{player.Queue.Count}.`", true)
+                        .Build();
+
+                    var components = new ComponentBuilder()
+                        .WithButton(customId: $"TrackControls_Remove,{id}", emote: new Emoji("\u2716"), style: ButtonStyle.Danger)
+                        .WithButton(customId: $"TrackControls_Add,{track.Uri?.AbsoluteUri}", emote: new Emoji("\u2764"), style: ButtonStyle.Secondary)
+                        .WithButton(customId: "TrackControls_Add", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
+                        .Build();
+
+                    await FollowupAsync(embed: embed, components: components);
+                }
             }
 
             if (player.State == PlayerState.NotPlaying)
@@ -373,8 +377,8 @@ namespace NOVAxis.Modules.Audio
 
             try
             {
-                var tracks = await SearchAsync(trackUrl);
-                await PlayAudio(tracks.ToList());
+                var result = await SearchAsync(trackUrl);
+                await PlayAudio(result);
             }
 
             catch (HttpRequestException)

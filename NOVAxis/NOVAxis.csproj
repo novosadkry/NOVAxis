@@ -49,6 +49,8 @@
     <PackageReference Include="Lavalink4NET" Version="4.0.0" />
     <PackageReference Include="Lavalink4NET.Discord.NET" Version="4.0.0" />
     <PackageReference Include="Lavalink4NET.InactivityTracking" Version="4.0.0" />
+    <PackageReference Include="Lavalink4NET.Integrations.Lavasearch" Version="4.0.0" />
+    <PackageReference Include="Lavalink4NET.Integrations.Lavasrc" Version="4.0.0" />
     <PackageReference Include="Lavalink4NET.Integrations.TextToSpeech" Version="4.0.0" />
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
