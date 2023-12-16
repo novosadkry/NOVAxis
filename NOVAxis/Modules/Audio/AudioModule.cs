@@ -19,8 +19,8 @@ using Lavalink4NET;
 using Lavalink4NET.Clients;
 using Lavalink4NET.Players;
 using Lavalink4NET.DiscordNet;
-using Lavalink4NET.Players.Preconditions;
 using Lavalink4NET.Players.Queued;
+using Lavalink4NET.Players.Preconditions;
 using Lavalink4NET.Rest.Entities.Tracks;
 using Lavalink4NET.Integrations.Lavasrc;
 
@@ -108,14 +108,6 @@ namespace NOVAxis.Modules.Audio
                         .Build());
                     break;
 
-                case PlayerRetrieveStatus.BotNotConnected:
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(255, 150, 0)
-                        .WithDescription("(Služba není dostupná)")
-                        .WithTitle("Mé jádro pravě nemůže poskytnout stabilní stream audia")
-                        .Build());
-                    break;
-
                 case PlayerRetrieveStatus.PreconditionFailed when result.Precondition == PlayerPrecondition.Paused:
                 case PlayerRetrieveStatus.PreconditionFailed when result.Precondition == PlayerPrecondition.NotPlaying:
                     await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
@@ -125,6 +117,7 @@ namespace NOVAxis.Modules.Audio
                         .Build());
                     break;
 
+                case PlayerRetrieveStatus.BotNotConnected:
                 case PlayerRetrieveStatus.PreconditionFailed when result.Precondition == PlayerPrecondition.Playing:
                     await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                         .WithColor(255, 150, 0)
@@ -474,7 +467,7 @@ namespace NOVAxis.Modules.Audio
         }
 
         [SlashCommand("skip", "Skips to the next audio transmission")]
-        public async Task CmdSkipAudio()
+        public async Task CmdSkipAudio(int count = 1)
         {
             var player = await GetPlayerAsync(
                 joinChannel: false, sameChannel: true, 
@@ -487,6 +480,9 @@ namespace NOVAxis.Modules.Audio
                 .WithTitle("Stream audia byl úspěšně přeskočen")
                 .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
                 .Build());
+
+            if (count > 1)
+                await player.Queue.RemoveRangeAsync(0, count - 1);
 
             await player.SkipAsync();
         }
@@ -507,6 +503,24 @@ namespace NOVAxis.Modules.Audio
                 .Build());
 
             await player.StopAsync();
+        }
+
+        [SlashCommand("clear", "Clears the audio queue contents")]
+        public async Task CmdClearAudio()
+        {
+            var player = await GetPlayerAsync(
+                joinChannel: false, sameChannel: true,
+                PlayerPrecondition.QueueNotEmpty);
+
+            if (player == null) return;
+
+            await RespondAsync(embed: new EmbedBuilder()
+                .WithColor(52, 231, 231)
+                .WithTitle("Fronta audia byla úspěšně promazána")
+                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
+                .Build());
+
+            await player.Queue.ClearAsync();
         }
 
         [SlashCommand("pause", "Pauses the audio transmission")]
