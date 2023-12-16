@@ -5,8 +5,6 @@ VisualStudioVersion = 17.4.33213.308
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NOVAxis", "NOVAxis\NOVAxis.csproj", "{94F2B8A8-88F9-4032-8EA5-B7865F2C140C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NOVAxisTests", "NOVAxisTests\NOVAxisTests.csproj", "{242FFEFD-3877-4F19-8272-5C6DA2C98208}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -17,10 +15,6 @@ Global
 		{94F2B8A8-88F9-4032-8EA5-B7865F2C140C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{94F2B8A8-88F9-4032-8EA5-B7865F2C140C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{94F2B8A8-88F9-4032-8EA5-B7865F2C140C}.Release|Any CPU.Build.0 = Release|Any CPU
-		{242FFEFD-3877-4F19-8272-5C6DA2C98208}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{242FFEFD-3877-4F19-8272-5C6DA2C98208}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{242FFEFD-3877-4F19-8272-5C6DA2C98208}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{242FFEFD-3877-4F19-8272-5C6DA2C98208}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
