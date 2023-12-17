@@ -1,20 +1,22 @@
 name: Publish Release
 
 on:
-  push:
-    tags:
-      - v*
-  release:
+  workflow_call:
+    inputs:
+      publish_github:
+        required: false
+        default: true
+        type: boolean
+      publish_docker:
+        required: false
+        default: true
+        type: boolean
 
 jobs:
-  compile:
-    uses: ./.github/workflows/compile.yml
-
   publish_github:
     name: Create Release on GitHub
     runs-on: ubuntu-latest
-    needs: [compile]
-    if: ${{ github.event_name != 'release' }}
+    if: ${{ inputs.publish_github }}
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
@@ -28,11 +30,11 @@ jobs:
           release_name: ${{ github.ref }}
           draft: false
           prerelease: false
-          
+
   publish_docker:
     name: Push Docker image to Docker Hub
     runs-on: ubuntu-latest
-    needs: [compile]
+    if: ${{ inputs.publish_docker }}
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
@@ -48,6 +50,10 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: novosadkry/novaxis
+          tags: |
+            type=ref,event=tag
+            type=ref,event=branch
+            type=semver,pattern=v{{version}}
       
       - name: Build and push Docker image
         uses: docker/build-push-action@v5

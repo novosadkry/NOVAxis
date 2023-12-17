@@ -6,9 +6,23 @@ on:
       publish_docker:
         description: 'Publish to Docker'
         required: false
+        default: true
+        type: boolean
+      update_server:
+        description: 'Update runner'
+        required: false
+        default: true
         type: boolean
   workflow_call:
     inputs:
+      publish_docker:
+        required: false
+        default: true
+        type: boolean
+      update_server:
+        required: false
+        default: true
+        type: boolean
       tag:
         required: false
         type: string
@@ -16,55 +30,23 @@ on:
 concurrency: production
 
 jobs:
-  compile:
-    name: Compile and Test
-    uses: ./.github/workflows/compile.yml
-    if: ${{ inputs.publish_docker }}
-    
   publish_docker:
-    name: Push Docker image to Docker Hub
-    runs-on: ubuntu-latest
-    needs: [compile]
+    uses: ./.github/workflows/publish.yml
     if: ${{ inputs.publish_docker }}
-    steps:
-      - name: Check out the repo
-        uses: actions/checkout@v4
-      
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: novosadkry/novaxis
-          tags: |
-            type=raw,value=${{ inputs.tag || github.ref_name }}
-          flavor: |
-            latest=false
-      
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+    with:
+      publish_github: false
           
   update_server:
     name: Update production environment
     runs-on: ubuntu-latest
     needs: [publish_docker]
-    if: ${{ !failure() && !cancelled() }}
+    if: ${{ inputs.update_server }}
     environment: production
     steps:
     - name: Replace Docker container
       uses: appleboy/ssh-action@master
       env:
-        TAG: ${{ inputs.tag || github.ref_name }}
+        TAG: ${{ github.ref_name }}
       with:
         host: ${{ secrets.PROD_HOST }}
         username: ${{ secrets.PROD_USER }}
