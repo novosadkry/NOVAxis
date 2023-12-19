@@ -3,115 +3,60 @@ using System.Reflection;
 using System.Threading.Tasks;
 
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-using NOVAxis.Modules;
 using NOVAxis.Extensions;
-
-using Discord;
-using Discord.WebSocket;
-
-using Lavalink4NET;
 
 namespace NOVAxis.Core
 {
     public class Program
     {
-        public static bool IsRunning { get; private set; }
-        public static short ShardsReady { get; private set; }
         public static ulong OwnerId => 269182357704015873L;
 
         public static string Version
             => Assembly.GetExecutingAssembly().GetName().Version?.ToString()[..5];
 
-        public static async Task Main()
+        public static Task Main(string[] args)
         {
-            IsRunning = true;
+            Console.WriteLine("NOVAxis v" + Version);
 
-            var config = await SetupConfig();
-            var services = await SetupServices(config);
+            var builder = Host.CreateDefaultBuilder(args)
+                .ConfigureServices(SetupServices)
+                .ConfigureAppConfiguration(SetupConfig)
+                .ConfigureLogging(SetupLogging);
 
-            var client = services.GetRequiredService<DiscordShardedClient>();
-            var audio = services.GetRequiredService<IAudioService>();
-            var logger = services.GetRequiredService<ILogger<Program>>();
-            var options = services.GetRequiredService<IOptions<ProgramOptions>>();
-
-            logger.LogInformation("NOVAxis v" + Version);
-
-            try
-            {
-                await audio.StartAsync();
-
-                await client.LoginAsync(TokenType.Bot, options.Value.LoginToken);
-                await client.StartAsync();
-
-                await client.SetGameAsync(options.Value.Activity.Online, type: options.Value.Activity.ActivityType);
-                await client.SetStatusAsync(options.Value.Activity.UserStatus);
-            }
-
-            catch (Exception e)
-            {
-                logger.LogError("The flow of execution has been halted due to an exception" +
-                                $"\nReason: {e.Message}");
-                Console.Read();
-                return;
-            }
-
-            await ProgramCommand.AwaitCommands(services);
+            var host = builder.Build();
+            return host.RunAsync();
         }
 
-        private static async Task<IConfiguration> SetupConfig()
+        private static void SetupConfig(IConfigurationBuilder config)
         {
-            var config = new ConfigurationBuilder()
+            config
                 .AddJsonFile("config.json", true)
                 .AddEnvironmentVariables()
                 .Build();
-
-            return await Task.FromResult<IConfiguration>(config);
         }
 
-        private static async Task<IServiceProvider> SetupServices(IConfiguration config)
+        private static void SetupServices(HostBuilderContext host, IServiceCollection services)
         {
-            var services = new ServiceCollection()
+            services
                 .AddSingleton<ProgramLogger>()
-                .AddConfiguration(config)
-                .AddDiscord(config)
-                .AddAudio()
-                .AddInteractions(config)
+                .AddConfiguration(host.Configuration)
+                .AddDiscord(host.Configuration)
                 .AddMemoryCache()
-                .AddLogging(builder => builder.AddProgramLogger())
+                .AddAudio()
+                .AddInteractions(host.Configuration)
                 .BuildServiceProvider(true);
-
-            var client = services.GetRequiredService<DiscordShardedClient>();
-            var logger = services.GetService<ILogger<DiscordShardedClient>>();
-
-            client.Log += logger.Log;
-            client.ShardReady += shard => Client_Ready(shard, services);
-
-            return await Task.FromResult(services);
         }
 
-        public static async Task Exit(IServiceProvider services)
+        private static void SetupLogging(HostBuilderContext host, ILoggingBuilder builder)
         {
-            var client = services.GetRequiredService<DiscordShardedClient>();
-            var audio = services.GetService<IAudioService>();
+            builder.AddConfiguration(host.Configuration);
 
-            await audio.DisposeAsync();
-            await client.LogoutAsync();
-
-            IsRunning = false;
-        }
-
-        private static async Task Client_Ready(DiscordSocketClient shard, IServiceProvider services)
-        {
-            var client = services.GetRequiredService<DiscordShardedClient>();
-            var modules = services.GetRequiredService<ModuleHandler>();
-
-            // Execute after all shards are ready
-            if (++ShardsReady == client.Shards.Count)
-                await modules.Setup();
+            builder.ClearProviders();
+            builder.AddProgramLogger();
         }
     }
 }

@@ -192,7 +192,7 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("play", "Plays an audio transmission")]
         public async Task CmdPlayAudio(string input)
         {
-            await DeferAsync();
+            await DeferAsync(ephemeral: true);
 
             try
             {
@@ -818,7 +818,7 @@ namespace NOVAxis.Modules.Audio
 
             var id = InteractionCache.Store(page);
 
-            await DeferAsync();
+            await DeferAsync(ephemeral: true);
             await CmdAudioQueue_Page(id, 0, "next");
         }
 
@@ -961,7 +961,7 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("tts", "Plays text to speech audio transmission")]
         public async Task CmdTextToSpeech(string text)
         {
-            await DeferAsync();
+            await DeferAsync(ephemeral: true);
 
             var player = await GetPlayerAsync(joinChannel: true);
             if (player == null) return;

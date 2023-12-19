@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NOVAxis.Core;
 using NOVAxis.Modules;
 using NOVAxis.Utilities;
+using NOVAxis.Services.Discord;
 
 using Discord;
 using Discord.WebSocket;
@@ -13,54 +14,34 @@ using Discord.Interactions;
 
 using Lavalink4NET;
 using Lavalink4NET.Extensions;
+using Lavalink4NET.InactivityTracking;
 using Lavalink4NET.InactivityTracking.Extensions;
+using Lavalink4NET.InactivityTracking.Trackers.Idle;
+using Lavalink4NET.InactivityTracking.Trackers.Users;
 
 namespace NOVAxis.Extensions
 {
     public static class ServicesExtensions
     {
-        public static IServiceCollection AddAudio(this IServiceCollection collection)
-        {
-            collection
-                .AddOptions<AudioServiceOptions>()
-                .Configure<IOptions<LavalinkOptions>>((s, l) =>
-                {
-                    s.BaseAddress = new Uri($"http://{l.Value.Host}:{l.Value.Port}");
-                    s.Passphrase = l.Value.Login;
-                });
-
-            collection.AddLavalink();
-            collection.AddInactivityTracking();
-
-            return collection;
-        }
-
         public static IServiceCollection AddConfiguration(this IServiceCollection collection, IConfiguration config)
         {
             collection.AddOptions();
             collection.AddSingleton(config);
-            collection.Configure<ProgramOptions>(config);
-            collection.Configure<LogOptions>(config.GetSection(LogOptions.Log));
-            collection.Configure<AudioOptions>(config.GetSection(AudioOptions.Audio));
-            collection.Configure<CacheOptions>(config.GetSection(CacheOptions.Cache));
-            collection.Configure<ActivityOptions>(config.GetSection(ActivityOptions.Activity));
-            collection.Configure<DatabaseOptions>(config.GetSection(DatabaseOptions.Database));
-            collection.Configure<LavalinkOptions>(config.GetSection(LavalinkOptions.Lavalink));
-            collection.Configure<InteractionOptions>(config.GetSection(InteractionOptions.Interaction));
+            collection.Configure<DiscordOptions>(config.GetSection(DiscordOptions.Key));
+            collection.Configure<AudioOptions>(config.GetSection(AudioOptions.Key));
+            collection.Configure<DatabaseOptions>(config.GetSection(DatabaseOptions.Key));
+            collection.Configure<CacheOptions>(config.GetSection(CacheOptions.Key));
 
             return collection;
         }
 
         public static IServiceCollection AddInteractions(this IServiceCollection collection, IConfiguration config)
         {
-            var options = new ProgramOptions();
-            config.Bind(options);
-
             var interactionConfig = new InteractionServiceConfig
             {
                 UseCompiledLambda = true,
                 DefaultRunMode = RunMode.Async,
-                LogLevel = options.Log.Level.ToSeverity()
+                LogLevel = LogSeverity.Debug
             };
 
             collection.AddSingleton<ModuleHandler>();
@@ -74,12 +55,12 @@ namespace NOVAxis.Extensions
 
         public static IServiceCollection AddDiscord(this IServiceCollection collection, IConfiguration config)
         {
-            var options = new ProgramOptions();
+            var options = new DiscordOptions();
             config.Bind(options);
 
             var clientConfig = new DiscordSocketConfig
             {
-                LogLevel = options.Log.Level.ToSeverity(),
+                LogLevel = LogSeverity.Debug,
                 TotalShards = options.TotalShards,
                 MessageCacheSize = 100,
                 UseInteractionSnowflakeDate = false,
@@ -90,6 +71,49 @@ namespace NOVAxis.Extensions
             collection.AddSingleton(clientConfig);
             collection.AddSingleton<IDiscordClient, DiscordShardedClient>();
             collection.AddSingleton(p => (DiscordShardedClient) p.GetService<IDiscordClient>());
+            collection.AddHostedService<DiscordHostService>();
+
+            return collection;
+        }
+
+        public static IServiceCollection AddAudio(this IServiceCollection collection)
+        {
+            collection
+                .AddOptions<AudioServiceOptions>()
+                .Configure<IOptions<AudioOptions>>((s, l) =>
+                {
+                    var options = l.Value.Lavalink;
+                    s.BaseAddress = new Uri($"http://{options.Host}:{options.Port}");
+                    s.Passphrase = options.Login;
+                });
+
+            collection
+                .AddOptions<IdleInactivityTrackerOptions>()
+                .Configure<IOptions<AudioOptions>>((i, a) =>
+                {
+                    var options = a.Value.Timeout;
+                    i.Timeout = options.IdleInactivity;
+                });
+
+            collection
+                .AddOptions<UsersInactivityTrackerOptions>()
+                .Configure<IOptions<AudioOptions>>((i, a) =>
+                {
+                    var options = a.Value.Timeout;
+                    i.Timeout = options.UsersInactivity;
+                });
+
+            collection
+                .ConfigureInactivityTracking(options =>
+                {
+                    options.DefaultTimeout = TimeSpan.Zero;
+                    options.InactivityBehavior = PlayerInactivityBehavior.None;
+                });
+
+            collection.AddLavalink();
+            collection.AddInactivityTracking();
+            collection.AddInactivityTracker<IdleInactivityTracker>();
+            collection.AddInactivityTracker<UsersInactivityTracker>();
 
             return collection;
         }

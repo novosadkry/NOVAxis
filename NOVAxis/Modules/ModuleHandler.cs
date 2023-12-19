@@ -18,13 +18,13 @@ namespace NOVAxis.Modules
     public class ModuleHandler
     {
         private DiscordShardedClient Client { get; }
-        private IOptions<InteractionOptions> Options { get; }
+        private IOptions<DiscordOptions> Options { get; }
         private ILogger<ModuleHandler> Logger { get; }
         private IServiceProvider Services { get; }
         private InteractionService InteractionService { get; }
 
         public ModuleHandler(DiscordShardedClient client, 
-            IOptions<InteractionOptions> options,
+            IOptions<DiscordOptions> options,
             ILogger<ModuleHandler> logger,
             IServiceProvider services,
             InteractionService interactionService)
@@ -45,13 +45,13 @@ namespace NOVAxis.Modules
             await using var scope = Services.CreateAsyncScope();
             await InteractionService.AddModulesAsync(Assembly.GetEntryAssembly(), scope.ServiceProvider);
 
-            var config = Options.Value.Commands;
+            var options = Options.Value.Interactions;
 
-            if (config.RegisterGlobally)
+            if (options.RegisterGlobally)
                 await InteractionService.RegisterCommandsGloballyAsync();
 
-            else if (config.RegisterToGuild != 0)
-                await InteractionService.RegisterCommandsToGuildAsync(config.RegisterToGuild);
+            else if (options.RegisterToGuild != 0)
+                await InteractionService.RegisterCommandsToGuildAsync(options.RegisterToGuild);
         }
 
         private async Task InteractionCreated(SocketInteraction arg)

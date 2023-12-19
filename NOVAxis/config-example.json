@@ -1,46 +1,49 @@
 {
-  "LoginToken": "INSERT_LOGINTOKEN_HERE",
-  "TotalShards": null,
-  "Interaction": {
-    "Commands": {
+  "Discord": {
+    "LoginToken": "INSERT_TOKEN_HERE",
+    "TotalShards": 1,
+    "Interactions": {
       "RegisterGlobally": false,
       "RegisterToGuild": 0
+    },
+    "Activity": {
+      "Online": "pohyb atomů",
+      "Afk": "ochlazování jádra",
+      "Offline": "repair/reboot jádra",
+      "ActivityType": 2,
+      "UserStatus": 1
     }
   },
-  "Cache": {
-    "AbsoluteExpiration": "24:00:00",
-    "RelativeExpiration": "12:00:00"
-  },
-  "Activity": {
-    "Online": "pohyb atomů",
-    "Afk": "ochlazování jádra",
-    "Offline": "repair/reboot jádra",
-    "ActivityType": 2,
-    "UserStatus": 1
-  },
-  "Log": {
-    "Active": true,
-    "Level": 3
-  },
-  "Lavalink": {
-    "Host": "localhost",
-    "Port": 2333,
-    "Login": "123"
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "System.Net.Http.HttpClient": "Warning",
+      "Lavalink4NET.InactivityTracking": "Warning"
+    }
   },
   "Database": {
     "Active": true,
     "DbType": "sqlite",
     "DbHost": "localhost",
-    "DbPort": 0,
+    "DbPort": 3306,
     "DbUsername": "novaxis",
-    "DbPassword": "123",
+    "DbPassword": "password",
     "DbName": "novaxis"
   },
   "Audio": {
     "SelfDeaf": true,
+    "Lavalink": {
+      "Host": "localhost",
+      "Port": 2333,
+      "Login": "password"
+    },
     "Timeout": {
-      "Idle": "00:00:30",
-      "Paused": "00:02:00"
+      "IdleInactivity": "00:00:10",
+      "UsersInactivity": "00:00:30"
     }
+  },
+  "Cache": {
+    "AbsoluteExpiration": "24:00:00",
+    "RelativeExpiration": "12:00:00"
   }
 }

@@ -1,36 +1,29 @@
 ﻿using System;
-using Microsoft.Extensions.Logging;
-
 using Discord;
 
 namespace NOVAxis.Core
 {
-    public class InteractionOptions
+    public class DiscordOptions
     {
-        public const string Interaction = "Interaction";
+        public const string Key = "Discord";
 
-        public class CommandsOptions
-        {
-            public const string Commands = "Interaction:Commands";
-
-            public bool RegisterGlobally { get; set; }
-            public ulong RegisterToGuild { get; set; }
-        }
-
-        public CommandsOptions Commands { get; set; } = new();
+        public int? TotalShards { get; set; }
+        public string LoginToken { get; set; }
+        public DiscordActivityOptions Activity { get; set; } = new();
+        public DiscordInteractionOptions Interactions { get; set; } = new();
     }
 
-    public class CacheOptions
+    public class DiscordInteractionOptions
     {
-        public const string Cache = "Cache";
+        public const string Key = "Discord:Interactions";
 
-        public TimeSpan? AbsoluteExpiration { get; set; }
-        public TimeSpan? RelativeExpiration { get; set; }
+        public bool RegisterGlobally { get; set; }
+        public ulong RegisterToGuild { get; set; }
     }
 
-    public class ActivityOptions
+    public class DiscordActivityOptions
     {
-        public const string Activity = "Activity";
+        public const string Key = "Discord:Activity";
 
         public string Online { get; set; } = "pohyb atomů";
         public string Afk { get; set; } = "ochlazování jádra";
@@ -39,9 +32,17 @@ namespace NOVAxis.Core
         public UserStatus UserStatus { get; set; } = UserStatus.Online;
     }
 
+    public class CacheOptions
+    {
+        public const string Key = "Cache";
+
+        public TimeSpan? AbsoluteExpiration { get; set; }
+        public TimeSpan? RelativeExpiration { get; set; }
+    }
+
     public class DatabaseOptions
     {
-        public const string Database = "Database";
+        public const string Key = "Database";
 
         public bool Active { get; set; }
         public string DbType { get; set; }
@@ -52,49 +53,29 @@ namespace NOVAxis.Core
         public string DbName { get; set; }
     }
 
-    public class LavalinkOptions
+    public class AudioOptions
     {
-        public const string Lavalink = "Lavalink";
+        public const string Key = "Audio";
+
+        public bool SelfDeaf { get; set; } = true;
+        public AudioTimeoutOptions Timeout { get; set; } = new();
+        public AudioLavalinkOptions Lavalink { get; set; } = new();
+    }
+
+    public class AudioTimeoutOptions
+    {
+        public const string Key = "Audio:Timeout";
+
+        public TimeSpan IdleInactivity { get; set; }
+        public TimeSpan UsersInactivity { get; set; }
+    }
+
+    public class AudioLavalinkOptions
+    {
+        public const string Key = "Audio:Lavalink";
 
         public string Host { get; set; } = "localhost";
         public ushort Port { get; set; } = 2333;
         public string Login { get; set; } = "youshallnotpass";
-    }
-
-    public class LogOptions
-    {
-        public const string Log = "Log";
-
-        public bool Active { get; set; } = true;
-        public LogLevel Level { get; set; } = LogLevel.Debug;
-    }
-
-    public class AudioOptions
-    {
-        public const string Audio = "Audio";
-
-        public class TimeoutOptions
-        {
-            public const string Timeout = "Audio:Timeout";
-
-            public TimeSpan Idle { get; set; }
-            public TimeSpan Paused { get; set; }
-        }
-
-        public bool SelfDeaf { get; set; } = true;
-        public TimeoutOptions Timeout { get; set; } = new();
-    }
-
-    public class ProgramOptions
-    {
-        public int? TotalShards { get; set; }
-        public string LoginToken { get; set; }
-        public LogOptions Log { get; set; } = new();
-        public CacheOptions Cache { get; set; } = new();
-        public AudioOptions Audio { get; set; } = new();
-        public ActivityOptions Activity { get; set; } = new();
-        public LavalinkOptions Lavalink { get; set; } = new();
-        public DatabaseOptions Database { get; set; } = new();
-        public InteractionOptions Interaction { get; set; } = new();
     }
 }
