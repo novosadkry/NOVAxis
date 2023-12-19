@@ -4,6 +4,22 @@ on:
   push:
     tags:
       - v*
+  workflow_dispatch:
+    inputs:
+      publish_docker:
+        description: 'Publish to Docker'
+        required: false
+        default: false
+        type: boolean
+      update_server:
+        description: 'Update runner'
+        required: false
+        default: true
+        type: boolean
+      tag:
+        required: false
+        description: 'Tag to deploy'
+        type: string
 
 jobs:
   compile:
@@ -12,7 +28,15 @@ jobs:
   publish:
     uses: ./.github/workflows/publish.yml
     needs: [compile]
+    with:
+      publish_docker: ${{ inputs.publish_docker || true }}
+      publish_github: ${{ github.event_name != 'workflow_dispatch' }}
+    secrets: inherit
 
   deploy:
     uses: ./.github/workflows/deploy.yml
+    if: ${{ inputs.update_server || true }}
     needs: [publish]
+    secrets: inherit
+    with:
+      tag: ${{ inputs.tag }}

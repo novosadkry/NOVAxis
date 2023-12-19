@@ -1,74 +1,31 @@
 name: Deploy to Production
 
-on: 
-  workflow_dispatch:
-    inputs:
-      publish_docker:
-        description: 'Publish to Docker'
-        required: false
-        default: true
-        type: boolean
-      update_server:
-        description: 'Update runner'
-        required: false
-        default: true
-        type: boolean
+on:
   workflow_call:
     inputs:
-      publish_docker:
-        required: false
-        default: true
-        type: boolean
-      update_server:
-        required: false
-        default: true
-        type: boolean
       tag:
         required: false
         type: string
+    secrets:
+      PROD_HOST:
+        required: true
+      PROD_USER:
+        required: true
+      PROD_SSH_KEY:
+        required: true
 
 concurrency: production
 
 jobs:
-  publish_docker:
-    uses: ./.github/workflows/publish.yml
-    if: ${{ inputs.publish_docker }}
-    with:
-      publish_github: false
-          
-  update_server:
+  update_runner:
     name: Update production environment
     runs-on: ubuntu-latest
-    needs: [publish_docker]
-    if: ${{ inputs.update_server }}
     environment: production
     steps:
     - name: Replace Docker container
       uses: appleboy/ssh-action@master
       env:
-        TAG: ${{ github.ref_name }}
-      with:
-        host: ${{ secrets.PROD_HOST }}
-        username: ${{ secrets.PROD_USER }}
-        key: ${{ secrets.PROD_SSH_KEY }}
-        envs: TAG
-        script: |
-          cd ./files/novaxis/
-          sudo -E docker-compose down
-          sudo -E docker-compose pull
-          sudo -E docker-compose up -d
-          
-  restore_server:
-    name: Restore production environment
-    runs-on: ubuntu-latest
-    needs: [update_server]
-    if: ${{ failure() && needs.update_server.result == 'failure' }}
-    environment: production
-    steps:
-    - name: Replace Docker container
-      uses: appleboy/ssh-action@master
-      env:
-        TAG: 'latest'
+        TAG: ${{ inputs.tag || github.ref_name }}
       with:
         host: ${{ secrets.PROD_HOST }}
         username: ${{ secrets.PROD_USER }}
