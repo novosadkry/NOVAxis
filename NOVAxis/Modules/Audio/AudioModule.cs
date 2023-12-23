@@ -40,19 +40,6 @@ namespace NOVAxis.Modules.Audio
         private Task<TrackLoadResult> SearchAsync(string input)
         {
             var searchMode = TrackSearchMode.YouTube;
-
-            if (Uri.IsWellFormedUriString(input, UriKind.Absolute))
-            {
-                var uri = new Uri(input);
-
-                searchMode = uri.Host switch
-                {
-                    "spotify.com" => TrackSearchMode.Spotify,
-                    "youtube.com" => TrackSearchMode.YouTube,
-                    _ => TrackSearchMode.None
-                };
-            }
-
             return SearchAsync(input, searchMode);
         }
 
@@ -192,12 +179,15 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("play", "Plays an audio transmission")]
         public async Task CmdPlayAudio(string input)
         {
-            await DeferAsync(ephemeral: true);
+            var player = await GetPlayerAsync(joinChannel: true);
+            if (player == null) return;
+
+            await DeferAsync();
 
             try
             {
                 var result = await SearchAsync(input);
-                await PlayAudio(result);
+                await PlayAudio(player, result);
             }
 
             catch (HttpRequestException)
@@ -230,13 +220,10 @@ namespace NOVAxis.Modules.Audio
             }
         }
 
-        private async Task PlayAudio(TrackLoadResult result)
+        private async Task PlayAudio(AudioPlayer player, TrackLoadResult result)
         {
             if (result.IsFailed)
                 throw new ArgumentNullException();
-
-            var player = await GetPlayerAsync(joinChannel: true);
-            if (player == null) return;
 
             if (result.IsPlaylist)
             {
@@ -248,7 +235,8 @@ namespace NOVAxis.Modules.Audio
                     })
                     .ToList();
 
-                var lastItem = items.Last();
+                var firstItem = items.First();
+                var firstTrack = firstItem.Track!;
                 await player.Queue.AddRangeAsync(items);
 
                 var totalDuration = new TimeSpan();
@@ -257,15 +245,21 @@ namespace NOVAxis.Modules.Audio
 
                 var playlist = new ExtendedPlaylistInformation(result.Playlist!);
 
+                // TODO: LavaSrc doesn't return playlist information for YouTube playlists
+                var total = playlist.TotalTracks ?? result.Tracks.Length;
+                var uri = playlist.Uri?.AbsoluteUri ?? firstTrack.Uri?.AbsoluteUri;
+                var artworkUri = playlist.ArtworkUri?.AbsoluteUri ?? firstTrack.ArtworkUri?.AbsoluteUri;
+                var author = playlist.Author ?? firstTrack.Author;
+
                 await FollowupAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
-                    .WithAuthor($"Přidáno do fronty ({playlist.TotalTracks}):")
+                    .WithAuthor($"Přidáno do fronty ({total}):")
                     .WithTitle($"{playlist.Name}")
-                    .WithUrl(playlist.Uri?.AbsoluteUri)
-                    .WithThumbnailUrl(playlist.ArtworkUri?.AbsoluteUri)
-                    .AddField("Autor:", playlist.Author, true)
+                    .WithUrl(uri)
+                    .WithThumbnailUrl(artworkUri)
+                    .AddField("Autor:", author, true)
                     .AddField("Délka:", $"`{totalDuration:hh\\:mm\\:ss}`", true)
-                    .AddField("Vyžádal:", lastItem.RequestedBy.Mention, true)
+                    .AddField("Vyžádal:", firstItem.RequestedBy.Mention, true)
                     .Build());
             }
 
@@ -366,12 +360,15 @@ namespace NOVAxis.Modules.Audio
         [ComponentInteraction("TrackControls_Add,*", true)]
         public async Task TrackControls_Add(string trackUrl)
         {
-            await DeferAsync(ephemeral: true);
+            var player = await GetPlayerAsync(joinChannel: true);
+            if (player == null) return;
+
+            await DeferAsync();
 
             try
             {
                 var result = await SearchAsync(trackUrl);
-                await PlayAudio(result);
+                await PlayAudio(player, result);
             }
 
             catch (HttpRequestException)
@@ -818,7 +815,7 @@ namespace NOVAxis.Modules.Audio
 
             var id = InteractionCache.Store(page);
 
-            await DeferAsync(ephemeral: true);
+            await DeferAsync();
             await CmdAudioQueue_Page(id, 0, "next");
         }
 
@@ -961,7 +958,7 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("tts", "Plays text to speech audio transmission")]
         public async Task CmdTextToSpeech(string text)
         {
-            await DeferAsync(ephemeral: true);
+            await DeferAsync();
 
             var player = await GetPlayerAsync(joinChannel: true);
             if (player == null) return;
