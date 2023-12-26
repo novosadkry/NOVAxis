@@ -265,7 +265,9 @@ namespace NOVAxis.Modules.Audio
 
             else
             {
-                var track = result.Track!;
+                var track = result.Track;
+                ArgumentNullException.ThrowIfNull(track);
+
                 var item = new AudioTrackQueueItem(new TrackReference(track))
                 {
                     RequestedBy = Context.User,
@@ -973,7 +975,24 @@ namespace NOVAxis.Modules.Audio
             var track = await AudioService.Tracks
                 .LoadTrackAsync(uri, options);
 
-            await player.PlayAsync(track!, false);
+            if (track == null)
+            {
+                await FollowupAsync(ephemeral: true, embed: new EmbedBuilder()
+                    .WithColor(220, 20, 60)
+                    .WithDescription("(Neplatný argument)")
+                    .WithTitle("Mému jádru se nepodařilo v databázi nalézt požadovanou stopu")
+                    .Build());
+
+                return;
+            }
+
+            var item = new AudioTrackQueueItem(new TrackReference(track))
+            {
+                RequestedBy = Context.User,
+                RequestId = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now)
+            };
+
+            await player.PlayAsync(item, false);
 
             await FollowupAsync(embed: new EmbedBuilder()
                 .WithColor(52, 231, 231)
