@@ -43,7 +43,6 @@ namespace NOVAxis.Core
         {
             services
                 .AddMemoryCache()
-                .AddSingleton<ProgramLogger>()
                 .AddConfiguration(host.Configuration)
                 .AddDiscord(host.Configuration)
                 .AddInteractions(host.Configuration)
@@ -54,7 +53,6 @@ namespace NOVAxis.Core
         private static void SetupLogging(HostBuilderContext host, ILoggingBuilder builder)
         {
             builder.AddConfiguration(host.Configuration);
-
             builder.ClearProviders();
             builder.AddProgramLogger();
         }
