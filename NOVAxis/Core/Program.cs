@@ -42,12 +42,12 @@ namespace NOVAxis.Core
         private static void SetupServices(HostBuilderContext host, IServiceCollection services)
         {
             services
+                .AddMemoryCache()
                 .AddSingleton<ProgramLogger>()
                 .AddConfiguration(host.Configuration)
                 .AddDiscord(host.Configuration)
-                .AddMemoryCache()
-                .AddAudio()
                 .AddInteractions(host.Configuration)
+                .AddAudio(host.Configuration)
                 .BuildServiceProvider(true);
         }
 

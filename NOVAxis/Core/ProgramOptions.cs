@@ -57,6 +57,7 @@ namespace NOVAxis.Core
     {
         public const string Key = "Audio";
 
+        public bool Active { get; set; } = true;
         public bool SelfDeaf { get; set; } = true;
         public AudioTimeoutOptions Timeout { get; set; } = new();
         public AudioLavalinkOptions Lavalink { get; set; } = new();

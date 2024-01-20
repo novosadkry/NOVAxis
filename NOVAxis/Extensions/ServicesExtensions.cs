@@ -56,7 +56,7 @@ namespace NOVAxis.Extensions
         public static IServiceCollection AddDiscord(this IServiceCollection collection, IConfiguration config)
         {
             var options = new DiscordOptions();
-            config.Bind(options);
+            config.GetSection(DiscordOptions.Key).Bind(options);
 
             var clientConfig = new DiscordSocketConfig
             {
@@ -76,8 +76,14 @@ namespace NOVAxis.Extensions
             return collection;
         }
 
-        public static IServiceCollection AddAudio(this IServiceCollection collection)
+        public static IServiceCollection AddAudio(this IServiceCollection collection, IConfiguration config)
         {
+            var options = new AudioOptions();
+            config.GetSection(AudioOptions.Key).Bind(options);
+
+            if (!options.Active)
+                return collection;
+
             collection
                 .AddOptions<AudioServiceOptions>()
                 .Configure<IOptions<AudioOptions>>((s, l) =>
