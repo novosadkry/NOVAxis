@@ -31,6 +31,7 @@
     "DbName": "novaxis"
   },
   "Audio": {
+    "Active": true,
     "SelfDeaf": true,
     "Lavalink": {
       "Host": "localhost",
