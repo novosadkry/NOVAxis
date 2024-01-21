@@ -25,7 +25,8 @@ namespace NOVAxis.Modules.Vote
         [ModalInteraction(nameof(StartVote), true)]
         public async Task StartVoteModalResponse(StartVoteModal modal)
         {
-            var voteContext = new VoteContext(modal);
+            var guildUser = (IGuildUser)Context.User;
+            var voteContext = new VoteContext(guildUser, modal);
 
             var embed = BuildVoteEmbed(voteContext);
             var id = InteractionCache.Store(voteContext);
@@ -39,14 +40,54 @@ namespace NOVAxis.Modules.Vote
                     builder.WithButton(options[i], $"vote_{id},{i}", ButtonStyle.Success);
             }
 
+            builder.WithButton("Ukončit hlasování", $"vote_end_{id}", ButtonStyle.Danger);
+
             await RespondAsync(embed: embed, components: builder.Build());
+        }
+
+        [ComponentInteraction("vote_end_*")]
+        public async Task VoteEnd(ulong id)
+        {
+            var interaction = (IComponentInteraction)Context.Interaction;
+
+            if (InteractionCache[id] is not VoteContext voteContext)
+            {
+                await interaction!.UpdateAsync(message =>
+                {
+                    message.Components = new ComponentBuilder()
+                        .WithButton("Hlasování skončilo", "vote_ended", ButtonStyle.Secondary, disabled: true)
+                        .Build();
+                });
+
+                return;
+            }
+
+            if (voteContext.Owner != Context.User)
+            {
+                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
+                    .WithColor(220, 20, 60)
+                    .WithDescription("(Hlasování může ukončit pouze ten, kdo jej vytvořil)")
+                    .WithTitle("Pro tuto akci nemáš dostatečnou kvalifikaci")
+                    .Build());
+
+                return;
+            }
+
+            InteractionCache.Remove(id);
+
+            await interaction!.UpdateAsync(message =>
+            {
+                message.Components = new ComponentBuilder()
+                    .WithButton("Hlasování skončilo", "vote_ended", ButtonStyle.Secondary, disabled: true)
+                    .Build();
+            });
         }
 
         [ComponentInteraction("vote_*,*")]
         public async Task VoteFor(ulong id, int optionIndex)
         {
-            var guildUser = (IGuildUser) Context.User;
-            var interaction = (IComponentInteraction) Context.Interaction;
+            var guildUser = (IGuildUser)Context.User;
+            var interaction = (IComponentInteraction)Context.Interaction;
 
             if (InteractionCache[id] is not VoteContext voteContext)
             {
@@ -87,35 +128,38 @@ namespace NOVAxis.Modules.Vote
         private Embed BuildVoteEmbed(VoteContext voteContext)
         {
             var votes = voteContext.Votes;
-            var votesTotal = voteContext.Votes.Count;
+            var owner = voteContext.Owner;
             var options = voteContext.Options;
 
             const int barLength = 15;
 
-            var users = votes.Select(vote =>
-            {
-                var option = options[vote.OptionIndex];
-                return $"{vote.User.DisplayName} ({option})";
-            });
+            var users = votes
+                .Select(vote =>
+                {
+                    var option = options[vote.OptionIndex];
+                    return $"{vote.User.DisplayName} ({option})";
+                }).ToList();
 
             var builder = new EmbedBuilder()
                 .WithColor(52, 231, 231)
                 .WithTitle(voteContext.Subject)
-                .WithAuthor("zahájil nové hlasování", Context.User.GetAvatarUrl())
-                .WithDescription($"Celkový počet hlasů: {votes.Count}")
-                .WithFooter($"Hlasovali:\n {string.Join(", ", users)}");
+                .WithAuthor("zahájil nové hlasování", owner.GetAvatarUrl())
+                .WithDescription($"Celkový počet hlasů: {votes.Count}");
+
+            if (users.Count > 0)
+                builder.WithFooter($"Hlasovali:\n {string.Join(", ", users)}");
 
             for (int i = 0; i < options.Length; i++)
             {
                 var votesBar = new StringBuilder();
                 var votesCount = votes.Count(x => x.OptionIndex == i);
-                var votesRatio = SafeDivision(votesCount, votesTotal);
+                var votesRatio = SafeDivision(votesCount, votes.Count);
 
                 for (int j = 0; j < barLength; j++)
                 {
                     var threshold = votesRatio * barLength;
 
-                    votesBar.Append(i < threshold
+                    votesBar.Append(j < threshold
                         ? new Emoji("\ud83d\udfe9")
                         : new Emoji("\u2b1b"));
                 }

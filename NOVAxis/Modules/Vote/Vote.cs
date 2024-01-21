@@ -10,14 +10,16 @@ namespace NOVAxis.Modules.Vote
 
     public class VoteContext
     {
-        public VoteContext(StartVoteModal modal)
+        public VoteContext(IGuildUser owner, StartVoteModal modal)
         {
             Votes = [];
+            Owner = owner;
             Subject = modal.Subject;
             Options = modal.Options.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         }
 
         public string Subject { get; }
+        public IGuildUser Owner { get; }
         public string[] Options { get; }
         public List<Vote> Votes { get; }
     }
