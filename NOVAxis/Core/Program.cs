@@ -47,6 +47,7 @@ namespace NOVAxis.Core
                 .AddDiscord(host.Configuration)
                 .AddInteractions(host.Configuration)
                 .AddAudio(host.Configuration)
+                .AddVote(host.Configuration)
                 .BuildServiceProvider(true);
         }
 

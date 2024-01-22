@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NOVAxis.Core;
 using NOVAxis.Modules;
 using NOVAxis.Utilities;
+using NOVAxis.Services.Vote;
 using NOVAxis.Services.Discord;
 
 using Discord;
@@ -120,6 +121,13 @@ namespace NOVAxis.Extensions
             collection.AddInactivityTracking();
             collection.AddInactivityTracker<IdleInactivityTracker>();
             collection.AddInactivityTracker<UsersInactivityTracker>();
+
+            return collection;
+        }
+
+        public static IServiceCollection AddVote(this IServiceCollection collection, IConfiguration config)
+        {
+            collection.AddHostedService<VoteHostService>();
 
             return collection;
         }
