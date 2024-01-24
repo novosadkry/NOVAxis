@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NOVAxis.Core;
 using NOVAxis.Modules;
 using NOVAxis.Utilities;
-using NOVAxis.Services.Vote;
+using NOVAxis.Services.Polls;
 using NOVAxis.Services.Discord;
 
 using Discord;
@@ -125,9 +125,10 @@ namespace NOVAxis.Extensions
             return collection;
         }
 
-        public static IServiceCollection AddVote(this IServiceCollection collection, IConfiguration config)
+        public static IServiceCollection AddPolls(this IServiceCollection collection, IConfiguration config)
         {
-            collection.AddHostedService<VoteHostService>();
+            collection.AddSingleton<PollService>();
+            collection.AddHostedService<PollHostService>();
 
             return collection;
         }

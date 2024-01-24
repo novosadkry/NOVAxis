@@ -1,20 +1,26 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace NOVAxis.Services.Vote
+namespace NOVAxis.Services.Polls
 {
-    public class VoteHostService : IHostedService, IDisposable
+    public class PollHostService : IHostedService, IDisposable
     {
         private Task _executionTask;
-        private ILogger<VoteHostService> _logger;
         private CancellationTokenSource _stopTokenSource;
 
-        public VoteHostService(ILogger<VoteHostService> logger)
+        private PollService PollService { get; }
+        private ILogger<PollHostService> Logger { get; }
+
+        public PollHostService(PollService pollService, ILogger<PollHostService> logger)
         {
-            _logger = logger;
+            Logger = logger;
+            PollService = pollService;
+
             _stopTokenSource = new CancellationTokenSource();
         }
 
@@ -22,12 +28,12 @@ namespace NOVAxis.Services.Vote
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            _logger.LogInformation("Vote host service starting...");
+            Logger.LogInformation("Polls host service starting...");
 
             var stopToken = _stopTokenSource.Token;
             _executionTask = Task.Run(() => RunAsync(stopToken), cancellationToken);
 
-            _logger.LogInformation("Vote host service started");
+            Logger.LogInformation("Polls host service started");
         }
 
         private async Task RunAsync(CancellationToken stopToken)
@@ -45,23 +51,45 @@ namespace NOVAxis.Services.Vote
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            _logger.LogInformation("Vote host service stopping...");
+            Logger.LogInformation("Polls host service stopping...");
 
             await _stopTokenSource.CancelAsync();
 
             try { await _executionTask.WaitAsync(cancellationToken); }
             catch (TaskCanceledException) { }
 
-            _logger.LogInformation("Vote host service stopped");
+            Logger.LogInformation("Polls host service stopped");
         }
 
         private async Task DoWork(CancellationToken stopToken)
         {
             stopToken.ThrowIfCancellationRequested();
 
-            _logger.LogDebug("Vote host service tick");
+            Logger.LogDebug("Polls host service tick");
 
-            // TODO: Go through each active vote and remove ones that reached end-of-life
+            var toRemove = new List<ulong>();
+
+            foreach (var poll in PollService.Polls)
+            {
+                switch (poll.State)
+                {
+                    case PollState.Opened:
+                        if (await poll.CloseCondition())
+                            await poll.Close();
+                        break;
+
+                    case PollState.Closed:
+                        if (await poll.EndCondition())
+                            await poll.End();
+                        break;
+                }
+
+                if (poll.State == PollState.Ended)
+                    toRemove.Add(poll.Id);
+            }
+
+            foreach (var id in toRemove)
+                PollService.Remove(id);
         }
 
         public void Dispose()
