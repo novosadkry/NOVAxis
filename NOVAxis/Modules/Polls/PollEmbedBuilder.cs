@@ -1,6 +1,7 @@
 ﻿using System.Linq;
 using System.Text;
 
+using NOVAxis.Utilities;
 using NOVAxis.Services.Polls;
 
 using Discord;
@@ -21,9 +22,9 @@ namespace NOVAxis.Modules.Polls
                 .WithButton("Hlasování uzavřeno", "poll_closed", ButtonStyle.Secondary, disabled: true)
                 .Build();
 
-        public static MessageComponent ComponentsEnded =>
+        public static MessageComponent ComponentsExpired =>
             new ComponentBuilder()
-                .WithButton("Hlasování skončilo", "poll_ended", ButtonStyle.Secondary, disabled: true)
+                .WithButton("Hlasování skončilo", "poll_expired", ButtonStyle.Secondary, disabled: true)
                 .Build();
 
         public MessageComponent BuildComponents()
@@ -38,7 +39,7 @@ namespace NOVAxis.Modules.Polls
                     builder.WithButton(options[i], $"poll_vote_{id},{i}", ButtonStyle.Success);
             }
 
-            builder.WithButton("Ukončit hlasování", $"poll_end_{id}", ButtonStyle.Danger);
+            builder.WithButton("Uzavřít hlasování", $"poll_close_{id}", ButtonStyle.Danger);
 
             return builder.Build();
         }
@@ -60,7 +61,7 @@ namespace NOVAxis.Modules.Polls
 
             var builder = new EmbedBuilder()
                 .WithColor(52, 231, 231)
-                .WithTitle(_poll.Subject)
+                .WithTitle(_poll.Question)
                 .WithAuthor("zahájil nové hlasování", owner.GetAvatarUrl())
                 .WithDescription($"Celkový počet hlasů: {votes.Count}");
 
@@ -71,7 +72,7 @@ namespace NOVAxis.Modules.Polls
             {
                 var votesBar = new StringBuilder();
                 var votesCount = votes.Count(x => x.Value == i);
-                var votesRatio = SafeDivision(votesCount, votes.Count);
+                var votesRatio = Math.SafeDivision(votesCount, votes.Count);
 
                 for (int j = 0; j < barLength; j++)
                 {
@@ -86,11 +87,6 @@ namespace NOVAxis.Modules.Polls
             }
 
             return builder.Build();
-        }
-
-        private static float SafeDivision(float a, float b)
-        {
-            return a == 0 ? 0 : a / b;
         }
     }
 }

@@ -14,76 +14,54 @@ namespace NOVAxis.Modules.Polls
     [RequireContext(ContextType.Guild)]
     public class PollModule : InteractionModuleBase<ShardedInteractionContext>
     {
-        public class BasicPollModal : IModal
-        {
-            public string Title => "Nové hlasování";
-
-            [RequiredInput]
-            [InputLabel("Zadejte téma pro nové hlasování")]
-            [ModalTextInput("subject", maxLength: 100)]
-            public string Subject { get; set; }
-
-            [RequiredInput]
-            [InputLabel("Možnosti (každá na novém řádku)")]
-            [ModalTextInput("options", maxLength: 200, initValue: "Ano\nNe", style: TextInputStyle.Paragraph)]
-            public string Options { get; set; }
-
-            public string[] GetOptionsArray()
-            {
-                return Options.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            }
-        }
-
         public PollService PollService { get; set; }
 
-        [SlashCommand("basic", "Creates a poll on a given subject")]
-        public async Task PollStartBasic()
+        [SlashCommand("question", "Creates a poll on a given question")]
+        public async Task PollStartQuestion()
         {
-            await RespondWithModalAsync<BasicPollModal>("poll_start_basic");
+            await RespondWithModalAsync<QuestionPollModal>(nameof(PollStartQuestionHandler));
         }
 
-        [ModalInteraction("poll_start_basic", true)]
-        public async Task PollStartBasicHandler(BasicPollModal modal)
+        [ModalInteraction(nameof(PollStartQuestionHandler), true)]
+        public async Task PollStartQuestionHandler(QuestionPollModal modal)
         {
             var guildUser = (IGuildUser)Context.User;
-            var subject = modal.Subject;
+            var question = modal.Question;
             var options = modal.GetOptionsArray();
 
-            var poll = new PollBuilder(guildUser, subject, options)
-                .OnEnded(async poll =>
-                {
-                    await poll.Message.ModifyAsync(message =>
-                    {
-                        message.Components = PollEmbedBuilder.ComponentsEnded;
-                    });
-                })
+            var poll = new QuestionPollBuilder()
+                .WithOwner(guildUser)
+                .WithQuestion(question)
+                .WithOptions(options)
                 .Build();
 
-            PollService.Add(poll);
+            PollService.Add(new QuestionPollTracker(poll, TimeSpan.FromMinutes(15)));
 
             var embedBuilder = new PollEmbedBuilder(poll);
             await RespondAsync(
                 embed: embedBuilder.BuildEmbed(),
                 components: embedBuilder.BuildComponents());
 
-            poll.Message = await GetOriginalResponseAsync();
+            poll.InteractionMessage = await GetOriginalResponseAsync();
         }
 
-        [ComponentInteraction("poll_end_*", true)]
-        public async Task PollEnd(ulong id)
+        [ComponentInteraction("poll_close_*", true)]
+        public async Task PollClose(ulong id)
         {
             var interaction = (IComponentInteraction)Context.Interaction;
-            var poll = PollService.Get(id);
+            var pollTracker = PollService.Get(id);
 
-            if (poll == null)
+            if (pollTracker == null)
             {
                 await interaction!.UpdateAsync(message =>
                 {
-                    message.Components = PollEmbedBuilder.ComponentsEnded;
+                    message.Components = PollEmbedBuilder.ComponentsExpired;
                 });
 
                 return;
             }
+
+            var poll = pollTracker.Poll;
 
             if (poll.Owner != Context.User)
             {
@@ -96,7 +74,8 @@ namespace NOVAxis.Modules.Polls
                 return;
             }
 
-            await poll.End();
+            poll.Close();
+
             await DeferAsync();
         }
 
@@ -106,22 +85,22 @@ namespace NOVAxis.Modules.Polls
             var guildUser = (IGuildUser)Context.User;
             var interaction = (IComponentInteraction)Context.Interaction;
 
-            var poll = PollService.Get(id);
-            var pollBuilder = new PollEmbedBuilder(poll);
+            var pollTracker = PollService.Get(id);
 
-            if (poll == null)
+            if (pollTracker == null)
             {
                 await interaction!.UpdateAsync(message =>
                 {
-                    message.Components = PollEmbedBuilder.ComponentsEnded;
+                    message.Components = PollEmbedBuilder.ComponentsExpired;
                 });
 
                 return;
             }
 
-            var votes = poll.Votes;
+            var poll = pollTracker.Poll;
+            var pollBuilder = new PollEmbedBuilder(poll);
 
-            if (votes.TryGetValue(guildUser, out var value) && value == optionIndex)
+            if (!poll.AddVote(guildUser, optionIndex))
             {
                 await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
                     .WithColor(220, 20, 60)
@@ -131,8 +110,6 @@ namespace NOVAxis.Modules.Polls
 
                 return;
             }
-
-            votes[guildUser] = optionIndex;
 
             await interaction!.UpdateAsync(message =>
             {

@@ -3,30 +3,38 @@ using System.Collections.Generic;
 
 namespace NOVAxis.Services.Polls
 {
+    public interface IPollTracker
+    {
+        public Poll Poll { get; }
+        public bool ShouldClose();
+        public bool ShouldExpire();
+    }
+
     public class PollService
     {
-        public ICollection<Poll> Polls => _inner.Values;
-        private ConcurrentDictionary<ulong, Poll> _inner;
+        public IEnumerable<IPollTracker> Trackers => _trackers.Values;
+
+        private ConcurrentDictionary<ulong, IPollTracker> _trackers;
 
         public PollService()
         {
-            _inner = new ConcurrentDictionary<ulong, Poll>();
+            _trackers = new ConcurrentDictionary<ulong, IPollTracker>();
         }
 
-        public void Add(Poll poll)
+        public void Add(IPollTracker tracker)
         {
-            _inner.TryAdd(poll.Id, poll);
+            _trackers.TryAdd(tracker.Poll.Id, tracker);
         }
 
-        public Poll Get(ulong id)
+        public IPollTracker Get(ulong id)
         {
-            _inner.TryGetValue(id, out var poll);
-            return poll;
+            _trackers.TryGetValue(id, out var tracker);
+            return tracker;
         }
 
         public void Remove(ulong id)
         {
-            _inner.TryRemove(id, out _);
+            _trackers.TryRemove(id, out _);
         }
     }
 }
