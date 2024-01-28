@@ -1,12 +1,14 @@
 ﻿using System;
+using System.Threading.Tasks;
 using System.Collections.Generic;
+
+using NOVAxis.Utilities;
+using NOVAxis.Extensions;
 
 using Discord;
 
 namespace NOVAxis.Services.Polls
 {
-    public delegate void PollEventHandler();
-
     public enum PollState
     {
         Opened,
@@ -27,8 +29,8 @@ namespace NOVAxis.Services.Polls
         public Dictionary<IGuildUser, int> Votes { get; }
         public IUserMessage InteractionMessage { get; set; }
 
-        public event PollEventHandler OnClosed;
-        public event PollEventHandler OnExpired;
+        public event AsyncEventHandler OnClosed;
+        public event AsyncEventHandler OnExpired;
 
         public Poll(IGuildUser owner, string question, string[] options)
         {
@@ -53,16 +55,16 @@ namespace NOVAxis.Services.Polls
             return true;
         }
 
-        public void Close()
+        public async Task Close()
         {
             State = PollState.Closed;
-            OnClosed?.Invoke();
+            await OnClosed.InvokeAsync(this);
         }
 
-        public void Expire()
+        public async Task Expire()
         {
             State = PollState.Expired;
-            OnExpired?.Invoke();
+            await OnExpired.InvokeAsync(this);
         }
     }
 }

@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using NOVAxis.Utilities;
+using NOVAxis.Extensions;
 
 using Discord;
 using Microsoft.Extensions.Logging;
@@ -128,7 +129,7 @@ namespace NOVAxis.Services.Audio
                 .WithTitle("Při přehrávání stopy nastala neznámá chyba")
                 .Build());
 
-            Logger.LogError("Track failed to start, throwing an exception before providing any audio");
+            Logger.Error("Track failed to start, throwing an exception before providing any audio");
         }
 
         public async ValueTask NotifyPlayerInactiveAsync(

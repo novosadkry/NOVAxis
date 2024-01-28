@@ -1,6 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+
 using NOVAxis.Utilities;
 
 namespace NOVAxis.Extensions
@@ -39,6 +41,35 @@ namespace NOVAxis.Extensions
         public static TValue Get<TKey, TValue>(this Cache<TKey, object> cache, TKey key)
         {
             return (TValue)(cache.Get(key) ?? default(TValue));
+        }
+
+        public static Task InvokeAsync(this AsyncEventHandler eventHandler, object sender)
+        {
+            ArgumentNullException.ThrowIfNull(sender);
+
+            if (eventHandler == null)
+                return Task.CompletedTask;
+
+            var tasks = eventHandler.GetInvocationList()
+                .Cast<AsyncEventHandler>()
+                .Select(e => e.Invoke(sender, EventArgs.Empty));
+
+            return Task.WhenAll(tasks);
+        }
+
+        public static Task InvokeAsync<TEventArgs>(this AsyncEventHandler<TEventArgs> eventHandler, object sender, TEventArgs eventArgs)
+        {
+            ArgumentNullException.ThrowIfNull(sender);
+            ArgumentNullException.ThrowIfNull(eventArgs);
+
+            if (eventHandler == null)
+                return Task.CompletedTask;
+
+            var tasks = eventHandler.GetInvocationList()
+                .Cast<AsyncEventHandler<TEventArgs>>()
+                .Select(e => e.Invoke(sender, eventArgs));
+
+            return Task.WhenAll(tasks);
         }
     }
 }

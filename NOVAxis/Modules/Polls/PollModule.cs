@@ -74,7 +74,7 @@ namespace NOVAxis.Modules.Polls
                 return;
             }
 
-            poll.Close();
+            await poll.Close();
 
             await DeferAsync();
         }

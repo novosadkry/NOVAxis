@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 
 using NOVAxis.Services.Polls;
 
@@ -35,7 +36,7 @@ namespace NOVAxis.Modules.Polls
         {
             var poll = new Poll(Owner, Question, Options);
 
-            poll.OnClosed += async () =>
+            poll.OnClosed += async (_, _) =>
             {
                 await poll.InteractionMessage.ModifyAsync(message =>
                 {
@@ -43,7 +44,7 @@ namespace NOVAxis.Modules.Polls
                 });
             };
 
-            poll.OnExpired += async () =>
+            poll.OnExpired += async (_, _) =>
             {
                 await poll.InteractionMessage.ModifyAsync(message =>
                 {
@@ -86,15 +87,17 @@ namespace NOVAxis.Modules.Polls
             Duration = duration;
         }
 
-        public bool ShouldClose()
+        public ValueTask<bool> ShouldClose()
         {
-            return Poll.State == PollState.Opened &&
-                   Poll.StartTime + Duration > DateTime.Now;
+            var result = Poll.State == PollState.Opened &&
+                         Poll.StartTime + Duration > DateTime.Now;
+
+            return new ValueTask<bool>(result);
         }
 
-        public bool ShouldExpire()
+        public async ValueTask<bool> ShouldExpire()
         {
-            return Poll.State == PollState.Closed || ShouldClose();
+            return Poll.State == PollState.Closed || await ShouldClose();
         }
     }
 }

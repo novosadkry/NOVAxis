@@ -43,7 +43,7 @@ namespace NOVAxis.Services.Discord
             Client.Log += Logger.Log;
             Client.ShardReady += Client_Ready;
 
-            Logger.LogDebug("Discord starting");
+            Logger.Debug("Discord starting");
 
             try
             {
@@ -58,11 +58,11 @@ namespace NOVAxis.Services.Discord
 
             catch (Exception e)
             {
-                Logger.LogError(e, "The flow of execution has been halted due to an exception");
+                Logger.Error("The flow of execution has been halted due to an exception", e);
                 throw;
             }
 
-            Logger.LogDebug("Discord started");
+            Logger.Debug("Discord started");
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)

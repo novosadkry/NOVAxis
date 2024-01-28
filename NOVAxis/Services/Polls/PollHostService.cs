@@ -3,6 +3,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 
+using NOVAxis.Extensions;
+
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -28,22 +30,27 @@ namespace NOVAxis.Services.Polls
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            Logger.LogInformation("Polls host service starting...");
+            Logger.Info("Polls host service starting...");
 
             var stopToken = _stopTokenSource.Token;
             _executionTask = Task.Run(() => RunAsync(stopToken), cancellationToken);
 
-            Logger.LogInformation("Polls host service started");
+            Logger.Info("Polls host service started");
         }
 
         private async Task RunAsync(CancellationToken stopToken)
         {
             while (!stopToken.IsCancellationRequested)
             {
-                var workTask = DoWork(stopToken);
-                var delayTask = Task.Delay(TimeSpan.FromMinutes(1), stopToken);
-
-                await Task.WhenAll(workTask, delayTask);
+                try
+                {
+                    await DoWork(stopToken);
+                    await Task.Delay(TimeSpan.FromMinutes(1), stopToken);
+                }
+                catch (Exception e) when (e is not TaskCanceledException)
+                {
+                    Logger.Error("The flow of execution has been halted due to an exception", e);
+                }
             }
         }
 
@@ -51,21 +58,21 @@ namespace NOVAxis.Services.Polls
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            Logger.LogInformation("Polls host service stopping...");
+            Logger.Info("Polls host service stopping...");
 
             await _stopTokenSource.CancelAsync();
 
             try { await _executionTask.WaitAsync(cancellationToken); }
             catch (TaskCanceledException) { }
 
-            Logger.LogInformation("Polls host service stopped");
+            Logger.Info("Polls host service stopped");
         }
 
         private async Task DoWork(CancellationToken stopToken)
         {
             stopToken.ThrowIfCancellationRequested();
 
-            Logger.LogDebug("Polls host service tick");
+            Logger.Debug("Polls host service tick");
 
             var toRemove = new List<ulong>();
 
@@ -73,11 +80,11 @@ namespace NOVAxis.Services.Polls
             {
                 var poll = tracker.Poll;
 
-                if (tracker.ShouldExpire())
-                    poll.Expire();
+                if (await tracker.ShouldExpire())
+                    await poll.Expire();
 
-                if (tracker.ShouldClose())
-                    poll.Close();
+                if (await tracker.ShouldClose())
+                    await poll.Close();
 
                 if (poll.State == PollState.Expired)
                     toRemove.Add(poll.Id);
@@ -86,7 +93,7 @@ namespace NOVAxis.Services.Polls
             foreach (var id in toRemove)
             {
                 PollService.Remove(id);
-                Logger.LogDebug("Removed tracker for poll id {}", id);
+                Logger.Debug($"Removed tracker for poll id {id}");
             }
         }
 

@@ -53,6 +53,11 @@ namespace NOVAxis.Core
             Console.ResetColor();
         }
 
+        public static string MessageFormatter(string msg, Exception error)
+        {
+            return $"{msg} {error}";
+        }
+
         public static string MessageFormatter(LogMessage msg, Exception error)
         {
             return $"<{msg.Source}> {msg.Message} {error}";

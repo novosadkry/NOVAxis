@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 
 using NOVAxis.Core;
+
 using Discord;
 
 namespace NOVAxis.Extensions

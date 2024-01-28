@@ -1,13 +1,14 @@
-﻿using System.Collections.Concurrent;
+﻿using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 
 namespace NOVAxis.Services.Polls
 {
     public interface IPollTracker
     {
         public Poll Poll { get; }
-        public bool ShouldClose();
-        public bool ShouldExpire();
+        public ValueTask<bool> ShouldClose();
+        public ValueTask<bool> ShouldExpire();
     }
 
     public class PollService
