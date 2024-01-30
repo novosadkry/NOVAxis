@@ -76,24 +76,18 @@ namespace NOVAxis.Services.Polls
 
             var toRemove = new List<ulong>();
 
-            foreach (var tracker in PollService.Trackers)
+            foreach (var interaction in PollService.Interactions)
             {
-                var poll = tracker.Poll;
+                await interaction.Refresh();
 
-                if (await tracker.ShouldExpire())
-                    await poll.Expire();
-
-                if (await tracker.ShouldClose())
-                    await poll.Close();
-
-                if (poll.State == PollState.Expired)
-                    toRemove.Add(poll.Id);
+                if (interaction.Poll.State == PollState.Expired)
+                    toRemove.Add(interaction.Poll.Id);
             }
 
             foreach (var id in toRemove)
             {
                 PollService.Remove(id);
-                Logger.Debug($"Removed tracker for poll id {id}");
+                Logger.Debug($"Removed interaction for poll id {id}");
             }
         }
 

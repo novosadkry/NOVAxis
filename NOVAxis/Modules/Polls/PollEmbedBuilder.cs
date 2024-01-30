@@ -8,47 +8,64 @@ using Discord;
 
 namespace NOVAxis.Modules.Polls
 {
-    public class PollEmbedBuilder
+    public class VotePollEmbedBuilder : IPollEmbedBuilder
     {
-        private Poll _poll;
+        private VotePoll Poll { get; }
+        private PollEmbedBuilder PollBuilder { get; }
 
-        public PollEmbedBuilder(Poll poll)
+        public VotePollEmbedBuilder(VotePoll poll)
         {
-            _poll = poll;
-        }
-
-        public static MessageComponent ComponentsClosed =>
-            new ComponentBuilder()
-                .WithButton("Hlasování uzavřeno", "poll_closed", ButtonStyle.Secondary, disabled: true)
-                .Build();
-
-        public static MessageComponent ComponentsExpired =>
-            new ComponentBuilder()
-                .WithButton("Hlasování skončilo", "poll_expired", ButtonStyle.Secondary, disabled: true)
-                .Build();
-
-        public MessageComponent BuildComponents()
-        {
-            var id = _poll.Id;
-            var options = _poll.Options;
-            var builder = new ComponentBuilder();
-
-            for (int i = 0; i < options.Length; i++)
-            {
-                if (!string.IsNullOrEmpty(options[i]))
-                    builder.WithButton(options[i], $"poll_vote_{id},{i}", ButtonStyle.Success);
-            }
-
-            builder.WithButton("Uzavřít hlasování", $"poll_close_{id}", ButtonStyle.Danger);
-
-            return builder.Build();
+            Poll = poll;
+            PollBuilder = new PollEmbedBuilder(poll);
         }
 
         public Embed BuildEmbed()
         {
-            var owner = _poll.Owner;
-            var options = _poll.Options;
-            var votes = _poll.Votes;
+            var votes = Poll.Votes;
+
+            return PollBuilder.GetEmbedBuilder()
+                .WithDescription($"Potřebný počet hlasů: {votes.Count}/")
+                .Build();
+        }
+
+        public MessageComponent BuildComponents()
+        {
+            return PollBuilder.GetComponentBuilder().Build();
+        }
+    }
+
+    public class PollEmbedBuilder : IPollEmbedBuilder
+    {
+        public static ComponentBuilder ComponentsClosed =>
+            new ComponentBuilder()
+                .WithButton("Hlasování uzavřeno", "poll_closed", ButtonStyle.Secondary, disabled: true);
+
+        public static ComponentBuilder ComponentsExpired =>
+            new ComponentBuilder()
+                .WithButton("Hlasování skončilo", "poll_expired", ButtonStyle.Secondary, disabled: true);
+
+        private Poll Poll { get; }
+
+        public PollEmbedBuilder(Poll poll)
+        {
+            Poll = poll;
+        }
+
+        public Embed BuildEmbed()
+        {
+            return GetEmbedBuilder().Build();
+        }
+
+        public MessageComponent BuildComponents()
+        {
+            return GetComponentBuilder().Build();
+        }
+
+        public EmbedBuilder GetEmbedBuilder()
+        {
+            var owner = Poll.Owner;
+            var options = Poll.Options;
+            var votes = Poll.Votes;
 
             const int barLength = 15;
 
@@ -61,7 +78,7 @@ namespace NOVAxis.Modules.Polls
 
             var builder = new EmbedBuilder()
                 .WithColor(52, 231, 231)
-                .WithTitle(_poll.Question)
+                .WithTitle(Poll.Subject)
                 .WithAuthor("zahájil nové hlasování", owner.GetAvatarUrl())
                 .WithDescription($"Celkový počet hlasů: {votes.Count}");
 
@@ -86,7 +103,32 @@ namespace NOVAxis.Modules.Polls
                 builder.AddField($"{options[i]} ({votesRatio * 100:0.0}%)", $"`{votesBar}`");
             }
 
-            return builder.Build();
+            return builder;
+        }
+
+        public ComponentBuilder GetComponentBuilder()
+        {
+            switch (Poll.State)
+            {
+                case PollState.Closed:
+                    return ComponentsClosed;
+                case PollState.Expired:
+                    return ComponentsExpired;
+            }
+
+            var id = Poll.Id;
+            var options = Poll.Options;
+            var builder = new ComponentBuilder();
+
+            for (int i = 0; i < options.Length; i++)
+            {
+                if (!string.IsNullOrEmpty(options[i]))
+                    builder.WithButton(options[i], $"poll_vote_{id},{i}", ButtonStyle.Success);
+            }
+
+            builder.WithButton("Uzavřít hlasování", $"poll_close_{id}", ButtonStyle.Danger);
+
+            return builder;
         }
     }
 }

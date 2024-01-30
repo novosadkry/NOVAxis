@@ -1,41 +1,32 @@
-﻿using System.Threading.Tasks;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.Concurrent;
 
 namespace NOVAxis.Services.Polls
 {
-    public interface IPollTracker
-    {
-        public Poll Poll { get; }
-        public ValueTask<bool> ShouldClose();
-        public ValueTask<bool> ShouldExpire();
-    }
-
     public class PollService
     {
-        public IEnumerable<IPollTracker> Trackers => _trackers.Values;
-
-        private ConcurrentDictionary<ulong, IPollTracker> _trackers;
+        public IEnumerable<PollInteraction> Interactions => _interactions.Values;
+        private readonly ConcurrentDictionary<ulong, PollInteraction> _interactions;
 
         public PollService()
         {
-            _trackers = new ConcurrentDictionary<ulong, IPollTracker>();
+            _interactions = new ConcurrentDictionary<ulong, PollInteraction>();
         }
 
-        public void Add(IPollTracker tracker)
+        public void Add(PollInteraction interaction)
         {
-            _trackers.TryAdd(tracker.Poll.Id, tracker);
+            _interactions.TryAdd(interaction.Poll.Id, interaction);
         }
 
-        public IPollTracker Get(ulong id)
+        public PollInteraction Get(ulong id)
         {
-            _trackers.TryGetValue(id, out var tracker);
-            return tracker;
+            _interactions.TryGetValue(id, out var interaction);
+            return interaction;
         }
 
         public void Remove(ulong id)
         {
-            _trackers.TryRemove(id, out _);
+            _interactions.TryRemove(id, out _);
         }
     }
 }

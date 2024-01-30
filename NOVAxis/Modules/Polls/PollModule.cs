@@ -10,58 +10,60 @@ using NOVAxis.Services.Polls;
 namespace NOVAxis.Modules.Polls
 {
     [Cooldown(1)]
-    [Group("poll", "Create interactive polls")]
     [RequireContext(ContextType.Guild)]
     public class PollModule : InteractionModuleBase<ShardedInteractionContext>
     {
         public PollService PollService { get; set; }
 
-        [SlashCommand("question", "Creates a poll on a given question")]
-        public async Task PollStartQuestion()
+        [SlashCommand("poll", "Creates a poll on a given subject")]
+        public async Task PollStart()
         {
-            await RespondWithModalAsync<QuestionPollModal>(nameof(PollStartQuestionHandler));
+            await RespondWithModalAsync<PollModal>(nameof(PollStartHandler));
         }
 
-        [ModalInteraction(nameof(PollStartQuestionHandler), true)]
-        public async Task PollStartQuestionHandler(QuestionPollModal modal)
+        [ModalInteraction(nameof(PollStartHandler), true)]
+        public async Task PollStartHandler(PollModal modal)
         {
             var guildUser = (IGuildUser)Context.User;
-            var question = modal.Question;
+            var subject = modal.Subject;
             var options = modal.GetOptionsArray();
 
-            var poll = new QuestionPollBuilder()
-                .WithOwner(guildUser)
-                .WithQuestion(question)
-                .WithOptions(options)
-                .Build();
+            var poll = new Poll(guildUser, subject, options);
+            var pollInteraction = new PollInteraction
+            {
+                Poll = poll,
+                Builder = new PollEmbedBuilder(poll),
+                Tracker = new TimeoutPollTracker(poll, TimeSpan.FromMinutes(15))
+            };
 
-            PollService.Add(new QuestionPollTracker(poll, TimeSpan.FromMinutes(15)));
+            PollService.Add(pollInteraction);
 
             var embedBuilder = new PollEmbedBuilder(poll);
             await RespondAsync(
                 embed: embedBuilder.BuildEmbed(),
                 components: embedBuilder.BuildComponents());
 
-            poll.InteractionMessage = await GetOriginalResponseAsync();
+            pollInteraction.Message = await GetOriginalResponseAsync();
         }
 
         [ComponentInteraction("poll_close_*", true)]
         public async Task PollClose(ulong id)
         {
             var interaction = (IComponentInteraction)Context.Interaction;
-            var pollTracker = PollService.Get(id);
+            var pollInteraction = PollService.Get(id);
 
-            if (pollTracker == null)
+            if (pollInteraction == null)
             {
                 await interaction!.UpdateAsync(message =>
                 {
-                    message.Components = PollEmbedBuilder.ComponentsExpired;
+                    message.Components = PollEmbedBuilder
+                        .ComponentsExpired.Build();
                 });
 
                 return;
             }
 
-            var poll = pollTracker.Poll;
+            var poll = pollInteraction.Poll;
 
             if (poll.Owner != Context.User)
             {
@@ -74,7 +76,7 @@ namespace NOVAxis.Modules.Polls
                 return;
             }
 
-            await poll.Close();
+            await pollInteraction.Close();
 
             await DeferAsync();
         }
@@ -85,20 +87,20 @@ namespace NOVAxis.Modules.Polls
             var guildUser = (IGuildUser)Context.User;
             var interaction = (IComponentInteraction)Context.Interaction;
 
-            var pollTracker = PollService.Get(id);
+            var pollInteraction = PollService.Get(id);
 
-            if (pollTracker == null)
+            if (pollInteraction == null)
             {
                 await interaction!.UpdateAsync(message =>
                 {
-                    message.Components = PollEmbedBuilder.ComponentsExpired;
+                    message.Components = PollEmbedBuilder
+                        .ComponentsExpired.Build();
                 });
 
                 return;
             }
 
-            var poll = pollTracker.Poll;
-            var pollBuilder = new PollEmbedBuilder(poll);
+            var poll = pollInteraction.Poll;
 
             if (!poll.AddVote(guildUser, optionIndex))
             {
@@ -111,10 +113,7 @@ namespace NOVAxis.Modules.Polls
                 return;
             }
 
-            await interaction!.UpdateAsync(message =>
-            {
-                message.Embed = pollBuilder.BuildEmbed();
-            });
+            await pollInteraction.Rebuild();
         }
     }
 }
