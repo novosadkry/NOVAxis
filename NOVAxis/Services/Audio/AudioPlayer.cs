@@ -9,7 +9,6 @@ using Discord;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 
-using Lavalink4NET.Tracks;
 using Lavalink4NET.Players;
 using Lavalink4NET.Players.Queued;
 using Lavalink4NET.Rest.Entities.Tracks;
@@ -70,9 +69,8 @@ namespace NOVAxis.Services.Audio
                 .WithTitle($"{track.Title}")
                 .WithUrl(track.Uri?.AbsoluteUri)
                 .WithThumbnailUrl(track.ArtworkUri?.AbsoluteUri)
-                .AddField("Autor:", track.Author, true)
+                .AddField("Vyžádal:", item.RequestedBy.Mention)
                 .AddField("Délka:", $"`{track.Duration:hh\\:mm\\:ss}`", true)
-                .AddField("Vyžádal:", item.RequestedBy.Mention, true)
                 .AddField("Pořadí ve frontě:", $"`{position}.`", true)
                 .Build();
 
@@ -100,11 +98,10 @@ namespace NOVAxis.Services.Audio
                 .WithTitle($"{track.Title}")
                 .WithUrl(track.Uri?.AbsoluteUri)
                 .WithThumbnailUrl(track.ArtworkUri?.AbsoluteUri)
-                .AddField("Autor:", track.Author, true)
-                .AddField("Délka:", $"`{track.Duration:hh\\:mm\\:ss}`", true)
-                .AddField("Vyžádal:", item.RequestedBy.Mention, true)
-                .AddField("Hlasitost:", $"{Volume * 100.0f}%", true)
+                .AddField("Vyžádal:", item.RequestedBy.Mention)
                 .AddField("Stav:", $"{statusEmoji}", true)
+                .AddField("Hlasitost:", $"{Volume * 100.0f}%", true)
+                .AddField("Délka:", $"`{track.Duration:hh\\:mm\\:ss}`", true)
                 .Build();
 
             var components = new ComponentBuilder()
@@ -117,7 +114,7 @@ namespace NOVAxis.Services.Audio
         }
 
         protected override async ValueTask NotifyTrackExceptionAsync(
-            LavalinkTrack track,
+            ITrackQueueItem track,
             TrackException exception,
             CancellationToken cancellationToken = default)
         {

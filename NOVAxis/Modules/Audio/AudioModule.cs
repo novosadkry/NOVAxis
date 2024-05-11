@@ -47,8 +47,12 @@ namespace NOVAxis.Modules.Audio
             string input,
             TrackSearchMode searchMode)
         {
+            var options = new TrackLoadOptions(
+                searchMode,
+                StrictSearchBehavior.Resolve);
+
             return await AudioService.Tracks
-                .LoadTracksAsync(input, searchMode);
+                .LoadTracksAsync(input, options);
         }
 
         private async ValueTask<AudioPlayer> GetPlayerAsync(
@@ -61,7 +65,7 @@ namespace NOVAxis.Modules.Audio
             var playerOptions = new AudioPlayerOptions
             {
                 TextChannel = textChannel,
-                SelfDeaf = Options.Value.SelfDeaf,
+                // SelfDeaf = Options.Value.SelfDeaf,
                 InitialVolume = 1.0f,
                 DisconnectOnDestroy = true
             };
@@ -257,9 +261,8 @@ namespace NOVAxis.Modules.Audio
                     .WithTitle($"{playlist.Name}")
                     .WithUrl(uri)
                     .WithThumbnailUrl(artworkUri)
-                    .AddField("Autor:", author, true)
-                    .AddField("Délka:", $"`{totalDuration:hh\\:mm\\:ss}`", true)
                     .AddField("Vyžádal:", firstItem.RequestedBy.Mention, true)
+                    .AddField("Délka:", $"`{totalDuration:hh\\:mm\\:ss}`", true)
                     .Build());
             }
 
@@ -284,9 +287,8 @@ namespace NOVAxis.Modules.Audio
                         .WithTitle($"{track.Title}")
                         .WithUrl(track.Uri?.AbsoluteUri)
                         .WithThumbnailUrl(track.ArtworkUri?.AbsoluteUri)
-                        .AddField("Autor:", track.Author, true)
+                        .AddField("Vyžádal:", item.RequestedBy.Mention)
                         .AddField("Délka:", $"`{track.Duration:hh\\:mm\\:ss}`", true)
-                        .AddField("Vyžádal:", item.RequestedBy.Mention, true)
                         .AddField("Pořadí ve frontě:", $"`{player.Queue.Count}.`", true)
                         .Build());
                 }
@@ -301,9 +303,8 @@ namespace NOVAxis.Modules.Audio
                         .WithTitle($"{track.Title}")
                         .WithUrl(track.Uri?.AbsoluteUri)
                         .WithThumbnailUrl(track.ArtworkUri?.AbsoluteUri)
-                        .AddField("Autor:", track.Author, true)
+                        .AddField("Vyžádal:", item.RequestedBy.Mention)
                         .AddField("Délka:", $"`{track.Duration:hh\\:mm\\:ss}`", true)
-                        .AddField("Vyžádal:", item.RequestedBy.Mention, true)
                         .AddField("Pořadí ve frontě:", $"`{player.Queue.Count}.`", true)
                         .Build();
 
@@ -712,11 +713,13 @@ namespace NOVAxis.Modules.Audio
             if (player == null) return;
 
             var item = (AudioTrackQueueItem) player.CurrentItem!;
-            var track = item.Track;
+            var track = item.Track!;
             
             var statusEmoji = !player.IsPaused
                 ? new Emoji("\u25B6") // Playing
                 : new Emoji("\u23F8"); // Paused
+
+            var position = player.Position.GetValueOrDefault().Position;
 
             var embed = new EmbedBuilder()
                 .WithColor(52, 231, 231)
@@ -724,11 +727,10 @@ namespace NOVAxis.Modules.Audio
                 .WithTitle($"{track.Title}")
                 .WithUrl(track.Uri?.AbsoluteUri)
                 .WithThumbnailUrl(track.ArtworkUri?.AbsoluteUri)
-                .AddField("Autor:", track.Author, true)
-                .AddField("Délka:", $"`{track.Duration:hh\\:mm\\:ss}`", true)
-                .AddField("Vyžádal:", item.RequestedBy.Mention, true)
-                .AddField("Hlasitost:", $"{player.Volume * 100.0f}%", true)
+                .AddField("Vyžádal:", item.RequestedBy.Mention)
                 .AddField("Stav:", $"{statusEmoji}", true)
+                .AddField("Hlasitost:", $"{player.Volume * 100.0f}%", true)
+                .AddField("Délka:", $"`{position:hh\\:mm\\:ss}/{track.Duration:hh\\:mm\\:ss}`", true)
                 .Build();
 
             var components = new ComponentBuilder()
@@ -970,7 +972,7 @@ namespace NOVAxis.Modules.Audio
 
             var options = new TrackLoadOptions(
                 SearchMode: TrackSearchMode.None,
-                StrictSearch: false);
+                SearchBehavior: StrictSearchBehavior.Passthrough);
 
             var track = await AudioService.Tracks
                 .LoadTrackAsync(uri, options);
