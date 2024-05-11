@@ -1,5 +1,4 @@
-﻿/*
-namespace NOVAxis.Database.Guild
+﻿namespace NOVAxis.Database.Guild
 {
     public class GuildRole
     {
@@ -9,4 +8,3 @@ namespace NOVAxis.Database.Guild
         public string Name { get; set; }
     }
 }
-*/

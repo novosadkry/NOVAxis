@@ -1,10 +1,8 @@
-﻿/*
-using System;
-using System.Threading.Tasks;
+﻿using System;
+using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
 
-using Discord;
-using Discord.Commands;
+using NOVAxis.Core;
 
 namespace NOVAxis.Database.Guild
 {
@@ -13,35 +11,35 @@ namespace NOVAxis.Database.Guild
         public virtual DbSet<GuildInfo> Guilds { get; set; }
         public virtual DbSet<GuildRole> GuildRoles { get; set; }
 
-        private ProgramConfig Config { get; }
+        private DatabaseOptions Options { get; }
 
-        public GuildDbContext(ProgramConfig config)
+        public GuildDbContext(IOptions<DatabaseOptions> options)
         {
-            Config = config;
+            Options = options.Value;
         }
 
-        private string ConnectionString => Config.Database.DbType switch
+        private string ConnectionString => Options.DbType switch
         {
-            "mysql" => $"Server={Config.Database.DbHost};" +
-                       $"Port={Config.Database.DbPort};" +
-                       $"Database={Config.Database.DbName};" +
-                       $"Uid={Config.Database.DbUsername};" +
-                       $"Pwd={Config.Database.DbPassword}",
+            "mysql" => $"Server={Options.DbHost};" +
+                       $"Port={Options.DbPort};" +
+                       $"Database={Options.DbName};" +
+                       $"Uid={Options.DbUsername};" +
+                       $"Pwd={Options.DbPassword}",
 
-            "sqlite" => $"Data Source={Config.Database.DbName}.db",
+            "sqlite" => $"Data Source={Options.DbName}.db",
 
             _ => throw new InvalidOperationException("Invalid DbType supplied")
         };
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
-            if (!Config.Database.Active)
+            if (!Options.Active)
             {
                 options.UseInMemoryDatabase("novaxis");
                 return;
             }
 
-            switch (Config.Database.DbType)
+            switch (Options.DbType)
             {
                 case "mysql":
                     var serverVersion = ServerVersion.AutoDetect(ConnectionString);
@@ -68,43 +66,5 @@ namespace NOVAxis.Database.Guild
                 .Property(x => x.Id)
                 .ValueGeneratedNever();
         }
-
-        public async Task<GuildInfo> Get(ICommandContext context)
-        {
-            if (context.User is IGuildUser)
-                return await Get(context.Guild);
-
-            return null;
-        }
-
-        public async Task<GuildInfo> Get(IInteractionContext context)
-        {
-            if (context.User is IGuildUser)
-                return await Get(context.Guild);
-
-            return null;
-        }
-
-        public async Task<GuildInfo> Get(IGuild guild)
-        {
-            return await Guilds
-                .Include(x => x.Roles)
-                .SingleOrDefaultAsync(x => x.Id == guild.Id);
-        }
-
-        public async Task<GuildInfo> Create(IGuild guild)
-        {
-            var guildInfo = new GuildInfo
-            {
-                Id = guild.Id,
-                Prefix = Config.Interaction.DefaultPrefix
-            };
-
-            Guilds.Add(guildInfo);
-            await SaveChangesAsync();
-
-            return guildInfo;
-        }
     }
 }
-*/

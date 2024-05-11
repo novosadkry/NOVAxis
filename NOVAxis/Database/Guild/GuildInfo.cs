@@ -1,5 +1,4 @@
-﻿/*
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace NOVAxis.Database.Guild
 {
@@ -10,4 +9,3 @@ namespace NOVAxis.Database.Guild
         public List<GuildRole> Roles { get; set; } = new();
     }
 }
-*/

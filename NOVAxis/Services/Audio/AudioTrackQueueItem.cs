@@ -1,7 +1,6 @@
 ﻿using Discord;
 using Lavalink4NET.Tracks;
 using Lavalink4NET.Players;
-using Lavalink4NET.Players.Queued;
 
 namespace NOVAxis.Services.Audio
 {

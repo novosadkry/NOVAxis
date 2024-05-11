@@ -253,7 +253,6 @@ namespace NOVAxis.Modules.Audio
                 var total = playlist.TotalTracks ?? result.Tracks.Length;
                 var uri = playlist.Uri?.AbsoluteUri ?? firstTrack.Uri?.AbsoluteUri;
                 var artworkUri = playlist.ArtworkUri?.AbsoluteUri ?? firstTrack.ArtworkUri?.AbsoluteUri;
-                var author = playlist.Author ?? firstTrack.Author;
 
                 await FollowupAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
