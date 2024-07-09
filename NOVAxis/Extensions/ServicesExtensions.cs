@@ -1,4 +1,6 @@
 ﻿using System;
+using Anthropic.SDK;
+
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -121,6 +123,17 @@ namespace NOVAxis.Extensions
             collection.AddInactivityTracking();
             collection.AddInactivityTracker<IdleInactivityTracker>();
             collection.AddInactivityTracker<UsersInactivityTracker>();
+
+            return collection;
+        }
+
+        public static IServiceCollection AddAnthropic(this IServiceCollection collection, IConfiguration config)
+        {
+            var options = new AnthropicOptions();
+            config.GetSection(AnthropicOptions.Key).Bind(options);
+
+            var auth = new APIAuthentication(options.ApiKey);
+            collection.AddScoped(_ => new AnthropicClient(auth));
 
             return collection;
         }

@@ -79,4 +79,11 @@ namespace NOVAxis.Core
         public ushort Port { get; set; } = 2333;
         public string Login { get; set; } = "youshallnotpass";
     }
+
+    public class AnthropicOptions
+    {
+        public const string Key = "Anthropic";
+
+        public string ApiKey { get; set; }
+    }
 }

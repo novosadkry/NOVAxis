@@ -48,6 +48,7 @@ namespace NOVAxis.Core
                 .AddInteractions(host.Configuration)
                 .AddAudio(host.Configuration)
                 .AddPolls(host.Configuration)
+                .AddAnthropic(host.Configuration)
                 .BuildServiceProvider(true);
         }
 
