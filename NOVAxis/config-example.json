@@ -46,5 +46,8 @@
   "Cache": {
     "AbsoluteExpiration": "24:00:00",
     "RelativeExpiration": "12:00:00"
+  },
+  "Anthropic": {
+    "ApiKey": "INSERT_API_KEY_HERE"
   }
 }
