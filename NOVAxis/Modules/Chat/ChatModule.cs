@@ -29,7 +29,7 @@ namespace NOVAxis.Modules.Chat
         public InteractionCache InteractionCache { get; set; }
 
         private static readonly ImmutableArray<string> AllowedContentTypes
-            = ["image/png", "image/jpeg", "image/webp", "image/tiff"];
+            = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 
         private const string SystemPrompt =
             """
