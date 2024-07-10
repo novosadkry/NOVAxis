@@ -51,6 +51,12 @@ namespace NOVAxis.Modules.Chat
 
             var reply = await RequestAiReply(message);
 
+            if (reply is null)
+            {
+                await FollowupAsync("Pro tuhle zprávu nelze vytvořit odpověď.", ephemeral: true);
+                return;
+            }
+
             var id = InteractionCache.Store(message);
             var components = AiReplyComponents(id).Build();
 
@@ -88,6 +94,19 @@ namespace NOVAxis.Modules.Chat
                 });
 
                 var reply = await RequestAiReply(message);
+
+                if (reply is null)
+                {
+                    InteractionCache.Remove(id);
+
+                    await interaction.ModifyOriginalResponseAsync(x =>
+                    {
+                        x.Content = "Pro tuhle zprávu nelze vytvořit odpověď.";
+                        x.Components = AiReplyComponents(id, disabled: true).Build();
+                    });
+
+                    return;
+                }
 
                 await interaction.ModifyOriginalResponseAsync(x =>
                 {
@@ -136,6 +155,9 @@ namespace NOVAxis.Modules.Chat
                     Text = message.Content
                 });
             }
+
+            if (promptMessage.Content.Count == 0)
+                return null;
 
             var request = new MessageParameters
             {
