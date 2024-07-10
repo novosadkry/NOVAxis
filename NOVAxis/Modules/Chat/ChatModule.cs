@@ -18,12 +18,22 @@ using Anthropic.SDK;
 using Anthropic.SDK.Constants;
 using Anthropic.SDK.Messaging;
 
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+using Image = SixLabors.ImageSharp.Image;
+
 namespace NOVAxis.Modules.Chat
 {
     [RequireContext(ContextType.Guild)]
     [Group("chat", "Chat related commands")]
     public class ChatModule : InteractionModuleBase<ShardedInteractionContext>
     {
+        private class AiReplyContext
+        {
+            public IUserMessage UserMessage { get; set; }
+            public List<ImageContent> PromptImages { get; set; }
+        }
+
         public ILogger<ChatModule> Logger { get; set; }
         public AnthropicClient AnthropicClient { get; set; }
         public InteractionCache InteractionCache { get; set; }
@@ -41,7 +51,8 @@ namespace NOVAxis.Modules.Chat
 
         private static ComponentBuilder AiReplyComponents(ulong id, bool disabled = false) => new ComponentBuilder()
             .WithButton(customId: $"ReplyAI_Accept,{id}", emote: new Emoji("\u2714\ufe0f"), style: ButtonStyle.Success, disabled: disabled)
-            .WithButton(customId: $"ReplyAI_Retry,{id}", emote: new Emoji("\u2716"), style: ButtonStyle.Danger, disabled: disabled);
+            .WithButton(customId: $"ReplyAI_Retry,{id}", emote: new Emoji("\u2716"), style: ButtonStyle.Danger, disabled: disabled)
+            .WithButton(customId: $"ReplyAI_Cancel,{id}", emote: new Emoji("\ud83d\uddd1\ufe0f"), style: ButtonStyle.Secondary, disabled: disabled);
 
         [RequireOwner]
         [MessageCommand("Reply with AI")]
@@ -49,7 +60,13 @@ namespace NOVAxis.Modules.Chat
         {
             await DeferAsync(ephemeral: true);
 
-            var reply = await RequestAiReply(message);
+            var context = new AiReplyContext
+            {
+                UserMessage = message,
+                PromptImages = await GetPromptImages(message)
+            };
+
+            var reply = await RequestAiReply(context);
 
             if (reply is null)
             {
@@ -57,7 +74,7 @@ namespace NOVAxis.Modules.Chat
                 return;
             }
 
-            var id = InteractionCache.Store(message);
+            var id = InteractionCache.Store(context);
             var components = AiReplyComponents(id).Build();
 
             await FollowupAsync(reply, ephemeral: true, components: components);
@@ -68,7 +85,7 @@ namespace NOVAxis.Modules.Chat
         {
             var interaction = (IComponentInteraction)Context.Interaction;
 
-            if (InteractionCache[id] is IUserMessage message)
+            if (InteractionCache[id] is AiReplyContext context)
             {
                 InteractionCache.Remove(id);
 
@@ -77,7 +94,7 @@ namespace NOVAxis.Modules.Chat
                 await interaction.DeferAsync(ephemeral: true);
                 await interaction.DeleteOriginalResponseAsync();
 
-                await message.ReplyAsync(reply);
+                await context.UserMessage.ReplyAsync(reply);
             }
         }
 
@@ -86,14 +103,14 @@ namespace NOVAxis.Modules.Chat
         {
             var interaction = (IComponentInteraction)Context.Interaction;
 
-            if (InteractionCache[id] is IUserMessage message)
+            if (InteractionCache[id] is AiReplyContext context)
             {
                 await interaction.UpdateAsync(x =>
                 {
                     x.Components = AiReplyComponents(id, disabled: true).Build();
                 });
 
-                var reply = await RequestAiReply(message);
+                var reply = await RequestAiReply(context);
 
                 if (reply is null)
                 {
@@ -116,7 +133,21 @@ namespace NOVAxis.Modules.Chat
             }
         }
 
-        private async Task<string> RequestAiReply(IUserMessage message)
+        [ComponentInteraction("ReplyAI_Cancel,*", true)]
+        public async Task ReplyAI_Cancel(ulong id)
+        {
+            var interaction = (IComponentInteraction)Context.Interaction;
+
+            if (InteractionCache[id] is AiReplyContext)
+            {
+                InteractionCache.Remove(id);
+
+                await interaction.DeferAsync(ephemeral: true);
+                await interaction.DeleteOriginalResponseAsync();
+            }
+        }
+
+        private async Task<List<ImageContent>> GetPromptImages(IMessage message)
         {
             var images = from attachment in message.Attachments
                 where AllowedContentTypes.Contains(attachment.ContentType)
@@ -126,12 +157,6 @@ namespace NOVAxis.Modules.Chat
 
             foreach (var image in images)
             {
-                if (image.Width * image.Height > 1_000_000)
-                {
-                    Logger.Warning($"Message attachment exceeds allowed size, skipping. ({image.Url})");
-                    continue;
-                }
-
                 promptImages.Add(new ImageContent
                 {
                     Source = new ImageSource
@@ -142,17 +167,22 @@ namespace NOVAxis.Modules.Chat
                 });
             }
 
+            return promptImages;
+        }
+
+        private async Task<string> RequestAiReply(AiReplyContext context)
+        {
             var promptMessage = new Message
             {
                 Role = RoleType.User,
-                Content = [..promptImages]
+                Content = [..context.PromptImages]
             };
 
-            if (!string.IsNullOrEmpty(message.Content))
+            if (!string.IsNullOrEmpty(context.UserMessage.Content))
             {
                 promptMessage.Content.Add(new TextContent
                 {
-                    Text = message.Content
+                    Text = context.UserMessage.Content
                 });
             }
 
@@ -174,16 +204,33 @@ namespace NOVAxis.Modules.Chat
             return result.Message;
         }
 
-        private async Task<string> DownloadImage(string url)
+        private async Task<string> DownloadImage(string url, int maxImageSize = 1_000_000)
         {
-            using var client = new HttpClient();
+            using var image = await LoadImage();
+            var imageSize = image.Width * image.Height;
+
+            if (imageSize > maxImageSize)
+            {
+                var reduction = maxImageSize / (float) imageSize;
+                var newWidth = (int)(reduction * image.Width);
+                var newHeight = (int)(reduction * image.Height);
+
+                Logger.Debug($"Resizing image from w:{image.Width} h:{image.Height} to w:{newWidth} h:{newHeight}");
+
+                image.Mutate(x => x.Resize(newWidth, newHeight));
+            }
 
             await using var memoryStream = new MemoryStream();
-            await using var imageStream = await client.GetStreamAsync(url);
-            await imageStream.CopyToAsync(memoryStream);
+            await image.SaveAsync(memoryStream, image.Metadata.DecodedImageFormat!);
 
-            var imageBytes = memoryStream.ToArray();
-            return Convert.ToBase64String(imageBytes);
+            return Convert.ToBase64String(memoryStream.ToArray());
+
+            async Task<Image> LoadImage()
+            {
+                using var client = new HttpClient();
+                await using var imageStream = await client.GetStreamAsync(url);
+                return await Image.LoadAsync(imageStream);
+            }
         }
     }
 }
