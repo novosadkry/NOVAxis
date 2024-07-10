@@ -8,8 +8,8 @@ using System.Collections.Immutable;
 
 using Microsoft.Extensions.Logging;
 
+using NOVAxis.Utilities;
 using NOVAxis.Extensions;
-using NOVAxis.Preconditions;
 
 using Discord;
 using Discord.Interactions;
@@ -20,13 +20,13 @@ using Anthropic.SDK.Messaging;
 
 namespace NOVAxis.Modules.Chat
 {
-    [Cooldown(5)]
     [RequireContext(ContextType.Guild)]
     [Group("chat", "Chat related commands")]
     public class ChatModule : InteractionModuleBase<ShardedInteractionContext>
     {
         public ILogger<ChatModule> Logger { get; set; }
         public AnthropicClient AnthropicClient { get; set; }
+        public InteractionCache InteractionCache { get; set; }
 
         private static readonly ImmutableArray<string> AllowedContentTypes
             = ["image/png", "image/jpeg", "image/webp", "image/tiff"];
@@ -36,8 +36,12 @@ namespace NOVAxis.Modules.Chat
             Jsi Discord bot, který komentuje každou zprávu satirickou a útočnou poznámkou.
             Don't mention.
             Don't write messages longer than 50 words.
-            Odpovídej pouze v češtině.
+            Odpovídej pouze v češtině a v české abecedě.
             """;
+
+        private static ComponentBuilder AiReplyComponents(ulong id, bool disabled = false) => new ComponentBuilder()
+            .WithButton(customId: $"ReplyAI_Accept,{id}", emote: new Emoji("\u2714\ufe0f"), style: ButtonStyle.Success, disabled: disabled)
+            .WithButton(customId: $"ReplyAI_Retry,{id}", emote: new Emoji("\u2716"), style: ButtonStyle.Danger, disabled: disabled);
 
         [RequireOwner]
         [MessageCommand("Reply with AI")]
@@ -45,6 +49,56 @@ namespace NOVAxis.Modules.Chat
         {
             await DeferAsync(ephemeral: true);
 
+            var reply = await RequestAiReply(message);
+
+            var id = InteractionCache.Store(message);
+            var components = AiReplyComponents(id).Build();
+
+            await FollowupAsync(reply, ephemeral: true, components: components);
+        }
+
+        [ComponentInteraction("ReplyAI_Accept,*", true)]
+        public async Task ReplyAI_Accept(ulong id)
+        {
+            var interaction = (IComponentInteraction)Context.Interaction;
+
+            if (InteractionCache[id] is IUserMessage message)
+            {
+                InteractionCache.Remove(id);
+
+                var reply = interaction.Message.Content;
+
+                await interaction.DeferAsync(ephemeral: true);
+                await interaction.DeleteOriginalResponseAsync();
+
+                await message.ReplyAsync(reply);
+            }
+        }
+
+        [ComponentInteraction("ReplyAI_Retry,*", true)]
+        public async Task ReplyAI_Retry(ulong id)
+        {
+            var interaction = (IComponentInteraction)Context.Interaction;
+
+            if (InteractionCache[id] is IUserMessage message)
+            {
+                await interaction.UpdateAsync(x =>
+                {
+                    x.Components = AiReplyComponents(id, disabled: true).Build();
+                });
+
+                var reply = await RequestAiReply(message);
+
+                await interaction.ModifyOriginalResponseAsync(x =>
+                {
+                    x.Content = reply;
+                    x.Components = AiReplyComponents(id).Build();
+                });
+            }
+        }
+
+        private async Task<string> RequestAiReply(IUserMessage message)
+        {
             var images = from attachment in message.Attachments
                 where AllowedContentTypes.Contains(attachment.ContentType)
                 select attachment;
@@ -94,9 +148,8 @@ namespace NOVAxis.Modules.Chat
             };
 
             var result = await AnthropicClient.Messages.GetClaudeMessageAsync(request);
-            await message.ReplyAsync(result.Message);
 
-            await Context.Interaction.DeleteOriginalResponseAsync();
+            return result.Message;
         }
 
         private async Task<string> DownloadImage(string url)
