@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 
 using NOVAxis.Utilities;
 using NOVAxis.Extensions;
+using NOVAxis.Preconditions;
 
 using Discord;
 using Discord.Interactions;
@@ -54,7 +55,7 @@ namespace NOVAxis.Modules.Chat
             .WithButton(customId: $"ReplyAI_Retry,{id}", emote: new Emoji("\u2716"), style: ButtonStyle.Danger, disabled: disabled)
             .WithButton(customId: $"ReplyAI_Cancel,{id}", emote: new Emoji("\ud83d\uddd1\ufe0f"), style: ButtonStyle.Secondary, disabled: disabled);
 
-        [RequireOwner]
+        [RequireOwnerId]
         [MessageCommand("Reply with AI")]
         public async Task CmdAiReply(IUserMessage message)
         {
@@ -196,7 +197,7 @@ namespace NOVAxis.Modules.Chat
                 Stream = false,
                 Temperature = 1.0m,
                 Messages = [promptMessage],
-                SystemMessage = SystemPrompt
+                System = [new SystemMessage(SystemPrompt)]
             };
 
             var result = await AnthropicClient.Messages.GetClaudeMessageAsync(request);
