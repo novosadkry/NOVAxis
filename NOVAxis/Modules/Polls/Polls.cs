@@ -27,7 +27,7 @@ namespace NOVAxis.Modules.Polls
         }
     }
 
-    public class VotePoll : Poll
+    public class VotePoll : PollBase
     {
         public VotePoll(IGuildUser owner, string subject)
             : base(owner, subject, ["Ano", "Ne"]) { }

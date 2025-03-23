@@ -44,9 +44,9 @@ namespace NOVAxis.Modules.Polls
             new ComponentBuilder()
                 .WithButton("Hlasování skončilo", "poll_expired", ButtonStyle.Secondary, disabled: true);
 
-        private Poll Poll { get; }
+        private PollBase Poll { get; }
 
-        public PollEmbedBuilder(Poll poll)
+        public PollEmbedBuilder(PollBase poll)
         {
             Poll = poll;
         }

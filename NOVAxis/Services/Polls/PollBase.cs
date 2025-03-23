@@ -12,7 +12,7 @@ namespace NOVAxis.Services.Polls
         Expired
     }
 
-    public class Poll
+    public class PollBase
     {
         public ulong Id { get; }
         public string Subject { get; }
@@ -24,7 +24,7 @@ namespace NOVAxis.Services.Polls
 
         public Dictionary<IGuildUser, int> Votes { get; }
 
-        public Poll(IGuildUser owner, string subject, string[] options)
+        public PollBase(IGuildUser owner, string subject, string[] options)
         {
             Owner = owner;
             Subject = subject;

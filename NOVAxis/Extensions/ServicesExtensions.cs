@@ -12,6 +12,7 @@ using NOVAxis.Services.Polls;
 using NOVAxis.Services.Discord;
 
 using Discord;
+using Discord.Rest;
 using Discord.WebSocket;
 using Discord.Interactions;
 
@@ -72,8 +73,9 @@ namespace NOVAxis.Extensions
             };
 
             collection.AddSingleton(clientConfig);
-            collection.AddSingleton<IDiscordClient, DiscordShardedClient>();
-            collection.AddSingleton(p => (DiscordShardedClient) p.GetService<IDiscordClient>());
+            collection.AddSingleton<DiscordShardedClient>();
+            collection.AddSingleton(p => p.GetService<DiscordShardedClient>() as IDiscordClient);
+            collection.AddSingleton(p => p.GetService<DiscordShardedClient>().Rest as DiscordRestClient);
             collection.AddHostedService<DiscordHostService>();
 
             return collection;
@@ -91,32 +93,32 @@ namespace NOVAxis.Extensions
                 .AddOptions<AudioServiceOptions>()
                 .Configure<IOptions<AudioOptions>>((s, l) =>
                 {
-                    var options = l.Value.Lavalink;
-                    s.BaseAddress = new Uri($"http://{options.Host}:{options.Port}");
-                    s.Passphrase = options.Login;
+                    var lavalink = l.Value.Lavalink;
+                    s.BaseAddress = new Uri($"http://{lavalink.Host}:{lavalink.Port}");
+                    s.Passphrase = lavalink.Login;
                 });
 
             collection
                 .AddOptions<IdleInactivityTrackerOptions>()
                 .Configure<IOptions<AudioOptions>>((i, a) =>
                 {
-                    var options = a.Value.Timeout;
-                    i.Timeout = options.IdleInactivity;
+                    var timeout = a.Value.Timeout;
+                    i.Timeout = timeout.IdleInactivity;
                 });
 
             collection
                 .AddOptions<UsersInactivityTrackerOptions>()
                 .Configure<IOptions<AudioOptions>>((i, a) =>
                 {
-                    var options = a.Value.Timeout;
-                    i.Timeout = options.UsersInactivity;
+                    var timeout = a.Value.Timeout;
+                    i.Timeout = timeout.UsersInactivity;
                 });
 
             collection
-                .ConfigureInactivityTracking(options =>
+                .ConfigureInactivityTracking(inactivityOptions =>
                 {
-                    options.DefaultTimeout = TimeSpan.Zero;
-                    options.InactivityBehavior = PlayerInactivityBehavior.None;
+                    inactivityOptions.DefaultTimeout = TimeSpan.Zero;
+                    inactivityOptions.InactivityBehavior = PlayerInactivityBehavior.None;
                 });
 
             collection.AddLavalink();

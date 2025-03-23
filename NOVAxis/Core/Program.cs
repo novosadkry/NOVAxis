@@ -11,7 +11,7 @@ using NOVAxis.Extensions;
 
 namespace NOVAxis.Core
 {
-    public class Program
+    public static class Program
     {
         public static ulong OwnerId => 269182357704015873L;
 

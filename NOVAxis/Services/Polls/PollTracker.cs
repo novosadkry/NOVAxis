@@ -21,10 +21,10 @@ namespace NOVAxis.Services.Polls
 
     public class TimeoutPollTracker : IPollTracker
     {
-        public Poll Poll { get; }
+        public PollBase Poll { get; }
         public TimeSpan Timeout { get; }
 
-        public TimeoutPollTracker(Poll poll, TimeSpan timeout)
+        public TimeoutPollTracker(PollBase poll, TimeSpan timeout)
         {
             Poll = poll;
             Timeout = timeout;
@@ -46,16 +46,16 @@ namespace NOVAxis.Services.Polls
 
     public class AggregatePollTracker : IPollTracker
     {
-        public Poll Poll { get; }
+        public PollBase Poll { get; }
         public List<IPollTracker> Trackers { get; }
 
-        public AggregatePollTracker(Poll poll)
+        public AggregatePollTracker(PollBase poll)
         {
             Poll = poll;
             Trackers = [];
         }
 
-        public AggregatePollTracker(Poll poll, IEnumerable<IPollTracker> trackers)
+        public AggregatePollTracker(PollBase poll, IEnumerable<IPollTracker> trackers)
         {
             Poll = poll;
             Trackers = trackers.ToList();

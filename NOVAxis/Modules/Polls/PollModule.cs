@@ -28,7 +28,7 @@ namespace NOVAxis.Modules.Polls
             var subject = modal.Subject;
             var options = modal.GetOptionsArray();
 
-            var poll = new Poll(guildUser, subject, options);
+            var poll = new PollBase(guildUser, subject, options);
             var pollInteraction = new PollInteraction
             {
                 Poll = poll,

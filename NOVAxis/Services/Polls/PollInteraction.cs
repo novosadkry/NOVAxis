@@ -6,7 +6,7 @@ namespace NOVAxis.Services.Polls
 {
     public class PollInteraction
     {
-        public Poll Poll { get; set; }
+        public PollBase Poll { get; set; }
         public IUserMessage Message { get; set; }
         public IPollTracker Tracker { get; set; }
         public IPollEmbedBuilder Builder { get; set; }
