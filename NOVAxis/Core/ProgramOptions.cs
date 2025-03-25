@@ -80,6 +80,13 @@ namespace NOVAxis.Core
         public string Login { get; set; } = "youshallnotpass";
     }
 
+    public class WebServerOptions
+    {
+        public const string Key = "WebServer";
+
+        public string Endpoint { get; set; } = "http://localhost:5000";
+    }
+
     public class AnthropicOptions
     {
         public const string Key = "Anthropic";

@@ -7,9 +7,12 @@ using Microsoft.Extensions.DependencyInjection;
 
 using NOVAxis.Core;
 using NOVAxis.Modules;
+using NOVAxis.Database;
 using NOVAxis.Utilities;
 using NOVAxis.Services.Polls;
 using NOVAxis.Services.Discord;
+using NOVAxis.Services.Download;
+using NOVAxis.Services.WebServer;
 
 using Discord;
 using Discord.Rest;
@@ -35,6 +38,7 @@ namespace NOVAxis.Extensions
             collection.Configure<AudioOptions>(config.GetSection(AudioOptions.Key));
             collection.Configure<DatabaseOptions>(config.GetSection(DatabaseOptions.Key));
             collection.Configure<CacheOptions>(config.GetSection(CacheOptions.Key));
+            collection.Configure<WebServerOptions>(config.GetSection(WebServerOptions.Key));
 
             return collection;
         }
@@ -144,6 +148,28 @@ namespace NOVAxis.Extensions
         {
             collection.AddSingleton<PollService>();
             collection.AddHostedService<PollHostService>();
+
+            return collection;
+        }
+
+        public static IServiceCollection AddDownloads(this IServiceCollection collection, IConfiguration config)
+        {
+            collection.AddScoped<DownloadService>();
+
+            return collection;
+        }
+
+        public static IServiceCollection AddWebServer(this IServiceCollection collection, IConfiguration config)
+        {
+            collection.AddSingleton<WebServerService>();
+            collection.AddHostedService<WebServerHostService>();
+
+            return collection;
+        }
+
+        public static IServiceCollection AddDatabase(this IServiceCollection collection, IConfiguration config)
+        {
+            collection.AddDbContext<ProgramDbContext>();
 
             return collection;
         }

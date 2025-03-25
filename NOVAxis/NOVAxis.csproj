@@ -22,6 +22,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Anthropic.SDK" Version="5.0.0" />
+    <PackageReference Include="EmbedIO" Version="3.5.2" />
     <PackageReference Include="Lavalink4NET" Version="4.0.27" />
     <PackageReference Include="Lavalink4NET.Discord.NET" Version="4.0.27" />
     <PackageReference Include="Lavalink4NET.InactivityTracking" Version="4.0.27" />
@@ -49,5 +50,6 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.3" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.3" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.7" />
+    <PackageReference Include="YoutubeDLSharp" Version="1.1.1" />
   </ItemGroup>
 </Project>
