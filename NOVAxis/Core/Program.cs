@@ -18,7 +18,7 @@ namespace NOVAxis.Core
         public static string Version
             => Assembly.GetExecutingAssembly().GetName().Version?.ToString()[..5];
 
-        public static Task Main(string[] args)
+        public static async Task Main(string[] args)
         {
             Console.WriteLine("NOVAxis v" + Version);
 
@@ -28,7 +28,9 @@ namespace NOVAxis.Core
                 .ConfigureLogging(SetupLogging);
 
             var host = builder.Build();
-            return host.RunAsync();
+
+            await host.EnsureDatabaseCreatedAsync();
+            await host.RunAsync();
         }
 
         private static void SetupConfig(IConfigurationBuilder config)
@@ -44,11 +46,14 @@ namespace NOVAxis.Core
             services
                 .AddMemoryCache()
                 .AddConfiguration(host.Configuration)
+                .AddDatabase(host.Configuration)
                 .AddDiscord(host.Configuration)
                 .AddInteractions(host.Configuration)
                 .AddAudio(host.Configuration)
                 .AddPolls(host.Configuration)
                 .AddAnthropic(host.Configuration)
+                .AddWebServer(host.Configuration)
+                .AddDownloads(host.Configuration)
                 .BuildServiceProvider(true);
         }
 

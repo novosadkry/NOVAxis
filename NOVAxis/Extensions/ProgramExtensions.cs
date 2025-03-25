@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Threading.Tasks;
 
 using NOVAxis.Core;
+using NOVAxis.Database;
 
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -45,6 +48,13 @@ namespace NOVAxis.Extensions
         public static void Debug(this ILogger logger, string message, Exception exception = null)
         {
             logger.Log(LogLevel.Debug, 0, message, exception, ProgramLogger.MessageFormatter);
+        }
+
+        public static async Task EnsureDatabaseCreatedAsync(this IHost host)
+        {
+            await using var scope = host.Services.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<ProgramDbContext>();
+            await dbContext.Database.EnsureCreatedAsync();
         }
     }
 }

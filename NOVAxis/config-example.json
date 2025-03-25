@@ -47,6 +47,9 @@
     "AbsoluteExpiration": "24:00:00",
     "RelativeExpiration": "12:00:00"
   },
+  "WebServer": {
+    "Endpoint": "http://localhost:5000"
+  },
   "Anthropic": {
     "ApiKey": "INSERT_API_KEY_HERE"
   }

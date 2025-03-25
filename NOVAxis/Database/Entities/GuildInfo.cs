@@ -1,11 +1,12 @@
 ﻿using System.Collections.Generic;
 
-namespace NOVAxis.Database.Guild
+namespace NOVAxis.Database.Entities
 {
     public class GuildInfo
     {
         public ulong Id { get; set; }
         public string Prefix { get; set; }
-        public List<GuildRole> Roles { get; set; } = new();
+
+        public virtual List<GuildRole> Roles { get; set; }
     }
 }

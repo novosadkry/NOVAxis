@@ -1,19 +1,22 @@
 ﻿using System;
-using Microsoft.Extensions.Options;
+
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 using NOVAxis.Core;
+using NOVAxis.Database.Entities;
 
-namespace NOVAxis.Database.Guild
+namespace NOVAxis.Database
 {
-    public class GuildDbContext : DbContext
+    public class ProgramDbContext : DbContext
     {
         public virtual DbSet<GuildInfo> Guilds { get; set; }
         public virtual DbSet<GuildRole> GuildRoles { get; set; }
+        public virtual DbSet<DownloadInfo> Downloads { get; set; }
 
         private DatabaseOptions Options { get; }
 
-        public GuildDbContext(IOptions<DatabaseOptions> options)
+        public ProgramDbContext(IOptions<DatabaseOptions> options)
         {
             Options = options.Value;
         }
@@ -65,6 +68,9 @@ namespace NOVAxis.Database.Guild
             modelBuilder.Entity<GuildRole>()
                 .Property(x => x.Id)
                 .ValueGeneratedNever();
+
+            modelBuilder.Entity<DownloadInfo>()
+                .HasKey(x => x.Uuid);
         }
     }
 }
