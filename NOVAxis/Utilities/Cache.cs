@@ -22,7 +22,7 @@ namespace NOVAxis.Utilities
         }
     }
 
-    public class CooldownCache : Cache<IUser, CooldownInfo>
+    public class CooldownCache : Cache<CooldownKey, CooldownInfo>
     {
         public CooldownCache(IMemoryCache cache, IOptions<CacheOptions> options)
             : base(nameof(CooldownCache), cache, options) { }

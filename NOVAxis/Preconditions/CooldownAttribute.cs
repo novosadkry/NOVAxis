@@ -9,9 +9,12 @@ using Discord.Interactions;
 
 namespace NOVAxis.Preconditions
 {
+    public record CooldownKey(ulong UserId, string CommandName);
+
     public struct CooldownInfo
     {
-        public IDiscordInteraction Interaction { get; set; }
+        public ICommandInfo CommandInfo { get; set; }
+        public DateTimeOffset LastExecution { get; set; }
         public bool WarningTriggered { get; set; }
     }
 
@@ -28,14 +31,12 @@ namespace NOVAxis.Preconditions
         public override Task<PreconditionResult> CheckRequirementsAsync(IInteractionContext context, ICommandInfo commandInfo, IServiceProvider services)
         {
             var cooldownCache = services.GetRequiredService<CooldownCache>();
-            var cooldownInfo = cooldownCache[context.User];
+            var cooldownKey = new CooldownKey(context.User.Id, commandInfo.Name);
+            var cooldownInfo = cooldownCache[cooldownKey];
 
-            if (cooldownInfo.Interaction == context.Interaction)
-                return Task.FromResult(PreconditionResult.FromSuccess());
-
-            if (cooldownInfo.Interaction != null)
+            if (cooldownInfo.CommandInfo != null)
             {
-                var previous = cooldownInfo.Interaction.CreatedAt;
+                var previous = cooldownInfo.LastExecution;
                 var current = context.Interaction.CreatedAt;
 
                 if (current - previous < _cooldown)
@@ -44,13 +45,18 @@ namespace NOVAxis.Preconditions
                         return Task.FromResult(PreconditionResult.FromError("User has command on cooldown (no warning)"));
 
                     cooldownInfo.WarningTriggered = true;
-                    cooldownCache[context.User] = cooldownInfo;
+                    cooldownCache[cooldownKey] = cooldownInfo;
 
                     return Task.FromResult(PreconditionResult.FromError("User has command on cooldown"));
                 }
             }
 
-            cooldownCache[context.User] = new CooldownInfo { Interaction = context.Interaction };
+            cooldownCache[cooldownKey] = new CooldownInfo
+            {
+                CommandInfo = commandInfo,
+                LastExecution = DateTimeOffset.UtcNow
+            };
+
             return Task.FromResult(PreconditionResult.FromSuccess());
         }
     }
