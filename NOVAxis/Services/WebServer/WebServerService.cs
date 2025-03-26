@@ -15,7 +15,7 @@ namespace NOVAxis.Services.WebServer
             Options = options;
         }
 
-        public ValueTask<string> ServeVideoDownload(Guid uuid)
+        public ValueTask<string> ServeDownload(Guid uuid)
         {
             var route = WebRoutes.Api.YoutubeDl.GetDownload.Replace("{uuid}", uuid.ToString());
             var uri = new Uri(new Uri(Options.Value.Endpoint), WebRoutes.Api.Base + route);
