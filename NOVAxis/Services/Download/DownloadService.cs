@@ -8,6 +8,7 @@ using NOVAxis.Database;
 using NOVAxis.Database.Entities;
 
 using YoutubeDLSharp;
+using YoutubeDLSharp.Options;
 using YoutubeDLSharp.Metadata;
 
 namespace NOVAxis.Services.Download
@@ -56,6 +57,25 @@ namespace NOVAxis.Services.Download
         public async Task<Guid> DownloadVideo(IUser user, string url, string format)
         {
             var result = await _youtubeDl.RunVideoDownload(url, format);
+            if (!result.Success) throw new DownloadException(result.ErrorOutput);
+
+            var downloadInfo = new DownloadInfo
+            {
+                SourceUrl = url,
+                UserId = user.Id,
+                CreatedAt = DateTime.UtcNow,
+                Path = Path.Combine(OutputFolder, result.Data)
+            };
+
+            _dbContext.Downloads.Add(downloadInfo);
+            await _dbContext.SaveChangesAsync();
+
+            return downloadInfo.Uuid;
+        }
+
+        public async Task<Guid> DownloadAudio(IUser user, string url, AudioConversionFormat format)
+        {
+            var result = await _youtubeDl.RunAudioDownload(url, format);
             if (!result.Success) throw new DownloadException(result.ErrorOutput);
 
             var downloadInfo = new DownloadInfo
