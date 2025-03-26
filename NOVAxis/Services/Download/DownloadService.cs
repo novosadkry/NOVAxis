@@ -53,9 +53,9 @@ namespace NOVAxis.Services.Download
             return result.Data;
         }
 
-        public async Task<Guid> DownloadVideo(IUser user, string url)
+        public async Task<Guid> DownloadVideo(IUser user, string url, string format)
         {
-            var result = await _youtubeDl.RunVideoDownload(url);
+            var result = await _youtubeDl.RunVideoDownload(url, format);
             if (!result.Success) throw new DownloadException(result.ErrorOutput);
 
             var downloadInfo = new DownloadInfo
