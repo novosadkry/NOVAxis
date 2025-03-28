@@ -93,4 +93,14 @@ namespace NOVAxis.Core
 
         public string ApiKey { get; set; }
     }
+
+    public class DownloadOptions
+    {
+        public const string Key = "Download";
+
+        public string OutputFolder { get; set; } = "downloads";
+        public long OutputFolderLimit { get; set; } = 3221225472;
+        public int MaxPendingDownloads { get; set; } = 5;
+        public long MaxDownloadSize { get; set; } = 104857600;
+    }
 }
