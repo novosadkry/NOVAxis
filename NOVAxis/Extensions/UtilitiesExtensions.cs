@@ -1,5 +1,7 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 
@@ -70,6 +72,22 @@ namespace NOVAxis.Extensions
                 .Select(e => e.Invoke(sender, eventArgs));
 
             return Task.WhenAll(tasks);
+        }
+
+        public static async Task<long> GetDirectorySizeAsync(this DirectoryInfo directoryInfo, CancellationToken cancellationToken = default)
+        {
+            var startDirectorySize = 0L;
+
+            if (directoryInfo is not { Exists: true })
+                return startDirectorySize;
+
+            foreach (var fileInfo in directoryInfo.GetFiles())
+                Interlocked.Add(ref startDirectorySize, fileInfo.Length);
+
+            await Parallel.ForEachAsync(directoryInfo.GetDirectories(), cancellationToken, async (subDirectory, token) =>
+                Interlocked.Add(ref startDirectorySize, await GetDirectorySizeAsync(subDirectory, token)));
+
+            return startDirectorySize;
         }
     }
 }

@@ -1,11 +1,16 @@
 ﻿using System;
 using System.IO;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Collections.Concurrent;
 
+using Microsoft.Extensions.Options;
 using Discord;
 
+using NOVAxis.Core;
 using NOVAxis.Database;
 using NOVAxis.Database.Entities;
+using NOVAxis.Extensions;
 
 using YoutubeDLSharp;
 using YoutubeDLSharp.Options;
@@ -26,19 +31,23 @@ namespace NOVAxis.Services.Download
 
     public class DownloadService
     {
-        private const string OutputFolder = "downloads";
+        private readonly IOptions<DownloadOptions> _options;
         private readonly ProgramDbContext _dbContext;
         private readonly YoutubeDL _youtubeDl;
 
-        public DownloadService(ProgramDbContext dbContext)
+        private readonly IDictionary<IUser, byte> _pendingDownloads;
+
+        public DownloadService(IOptions<DownloadOptions> options, ProgramDbContext dbContext)
         {
+            _options = options;
             _dbContext = dbContext;
             _youtubeDl = new YoutubeDL
             {
                 RestrictFilenames = true,
-                OutputFolder = OutputFolder,
+                OutputFolder = options.Value.OutputFolder,
                 OutputFileTemplate = "%(title)s-%(epoch)s.%(ext)s"
             };
+            _pendingDownloads = new ConcurrentDictionary<IUser, byte>();
         }
 
         public async Task<DownloadInfo> GetDownloadInfo(Guid uuid)
@@ -56,40 +65,82 @@ namespace NOVAxis.Services.Download
 
         public async Task<Guid> DownloadVideo(IUser user, string url, string format)
         {
-            var result = await _youtubeDl.RunVideoDownload(url, format);
-            if (!result.Success) throw new DownloadException(result.ErrorOutput);
+            await ValidateDownloadRequest(user);
 
-            var downloadInfo = new DownloadInfo
+            _pendingDownloads.Add(user, 1);
+
+            try
             {
-                SourceUrl = url,
-                UserId = user.Id,
-                CreatedAt = DateTime.UtcNow,
-                Path = Path.Combine(OutputFolder, result.Data)
-            };
+                var result = await _youtubeDl.RunVideoDownload(url, format);
+                if (!result.Success) throw new DownloadException(result.ErrorOutput);
 
-            _dbContext.Downloads.Add(downloadInfo);
-            await _dbContext.SaveChangesAsync();
+                var downloadInfo = new DownloadInfo
+                {
+                    SourceUrl = url,
+                    UserId = user.Id,
+                    CreatedAt = DateTime.UtcNow,
+                    Path = Path.Combine(_options.Value.OutputFolder, result.Data)
+                };
 
-            return downloadInfo.Uuid;
+                _dbContext.Downloads.Add(downloadInfo);
+                await _dbContext.SaveChangesAsync();
+
+                return downloadInfo.Uuid;
+            }
+            finally
+            {
+                _pendingDownloads.Remove(user);
+            }
         }
 
         public async Task<Guid> DownloadAudio(IUser user, string url, AudioConversionFormat format)
         {
-            var result = await _youtubeDl.RunAudioDownload(url, format);
-            if (!result.Success) throw new DownloadException(result.ErrorOutput);
+            await ValidateDownloadRequest(user);
 
-            var downloadInfo = new DownloadInfo
+            _pendingDownloads.Add(user, 1);
+
+            try
             {
-                SourceUrl = url,
-                UserId = user.Id,
-                CreatedAt = DateTime.UtcNow,
-                Path = Path.Combine(OutputFolder, result.Data)
-            };
+                var result = await _youtubeDl.RunAudioDownload(url, format);
+                if (!result.Success) throw new DownloadException(result.ErrorOutput);
 
-            _dbContext.Downloads.Add(downloadInfo);
-            await _dbContext.SaveChangesAsync();
+                var downloadInfo = new DownloadInfo
+                {
+                    SourceUrl = url,
+                    UserId = user.Id,
+                    CreatedAt = DateTime.UtcNow,
+                    Path = Path.Combine(_options.Value.OutputFolder, result.Data)
+                };
 
-            return downloadInfo.Uuid;
+                _dbContext.Downloads.Add(downloadInfo);
+                await _dbContext.SaveChangesAsync();
+
+                return downloadInfo.Uuid;
+            }
+            finally
+            {
+                _pendingDownloads.Remove(user);
+            }
+        }
+
+        private async Task ValidateDownloadRequest(IUser user)
+        {
+            if (!await CheckAvailableSpace())
+                throw new DownloadException(["Maximum output folder size reached"]);
+
+            if (_pendingDownloads.ContainsKey(user))
+                throw new DownloadException(["You already have a pending download"]);
+
+            if (_pendingDownloads.Count > _options.Value.MaxPendingDownloads)
+                throw new DownloadException(["Maximum pending downloads reached"]);
+        }
+
+        private async Task<bool> CheckAvailableSpace()
+        {
+            var folder = new DirectoryInfo(_options.Value.OutputFolder);
+            if (!folder.Exists) folder.Create();
+
+            return await folder.GetDirectorySizeAsync() < _options.Value.OutputFolderLimit;
         }
     }
 }
