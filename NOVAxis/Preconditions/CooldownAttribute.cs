@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.DependencyInjection;
 
 using NOVAxis.Utilities;
@@ -22,16 +23,19 @@ namespace NOVAxis.Preconditions
     public class CooldownAttribute : PreconditionAttribute
     {
         private readonly TimeSpan _cooldown;
+        private readonly string _commandName;
 
-        public CooldownAttribute(int seconds)
+        public CooldownAttribute(int seconds, [CallerMemberName] string commandName = null)
         {
             _cooldown = TimeSpan.FromSeconds(seconds);
+            _commandName = commandName;
         }
 
         public override Task<PreconditionResult> CheckRequirementsAsync(IInteractionContext context, ICommandInfo commandInfo, IServiceProvider services)
         {
             var cooldownCache = services.GetRequiredService<CooldownCache>();
-            var cooldownKey = new CooldownKey(context.User.Id, commandInfo.Name);
+            var commandName = $"{_commandName ?? commandInfo.Module.Name}::{commandInfo.Name}";
+            var cooldownKey = new CooldownKey(context.User.Id, commandName);
             var cooldownInfo = cooldownCache[cooldownKey];
 
             if (cooldownInfo.CommandInfo != null)
