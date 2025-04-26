@@ -57,6 +57,8 @@ namespace NOVAxis.Services.Download
 
         public async Task<VideoData> DownloadVideoMetadata(string url)
         {
+            url = SanitizeUrl(url);
+
             var result = await _youtubeDl.RunVideoDataFetch(url);
             if (!result.Success) throw new DownloadException(result.ErrorOutput);
 
@@ -65,8 +67,9 @@ namespace NOVAxis.Services.Download
 
         public async Task<Guid> DownloadVideo(IUser user, string url, string format)
         {
-            await ValidateDownloadRequest(user);
+            url = SanitizeUrl(url);
 
+            await ValidateDownloadRequest(user);
             _pendingDownloads.Add(user, 1);
 
             try
@@ -95,8 +98,9 @@ namespace NOVAxis.Services.Download
 
         public async Task<Guid> DownloadAudio(IUser user, string url, AudioConversionFormat format)
         {
-            await ValidateDownloadRequest(user);
+            url = SanitizeUrl(url);
 
+            await ValidateDownloadRequest(user);
             _pendingDownloads.Add(user, 1);
 
             try
@@ -141,6 +145,14 @@ namespace NOVAxis.Services.Download
             if (!folder.Exists) folder.Create();
 
             return await folder.GetDirectorySizeAsync() < _options.Value.OutputFolderLimit;
+        }
+
+        private static string SanitizeUrl(string url)
+        {
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+                return uri.AbsoluteUri;
+
+            throw new DownloadException(["Invalid or malformed URL"]);
         }
     }
 }
