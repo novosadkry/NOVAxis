@@ -65,12 +65,8 @@ namespace NOVAxis.Services.Audio
 
         public void Dispose()
         {
-            _ytDlp.Kill();
             _ytDlp.Dispose();
-
-            _ffmpeg.Kill();
             _ffmpeg.Dispose();
-
             _stream?.Dispose();
         }
     }

@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 
 using Discord;
+using Discord.Audio;
 using Discord.Interactions;
 
 using NOVAxis.Utilities;
@@ -12,6 +13,8 @@ using NOVAxis.Services.WebServer;
 
 using YoutubeDLSharp.Options;
 using YoutubeDLSharp.Metadata;
+
+using AudioStream = NOVAxis.Services.Audio.AudioStream;
 
 namespace NOVAxis.Modules.Download
 {
@@ -31,13 +34,13 @@ namespace NOVAxis.Modules.Download
         public InteractionCache InteractionCache { get; set; }
 
         [SlashCommand("video", "Downloads a given video")]
-        public async Task Video(string url)
+        public async Task CmdVideo(string url)
         {
             await HandleDownloadRequest(url, DownloadType.Video);
         }
 
         [SlashCommand("audio", "Downloads a given audio")]
-        public async Task Audio(string url)
+        public async Task CmdAudio(string url)
         {
             await HandleDownloadRequest(url, DownloadType.Audio);
         }
@@ -179,6 +182,24 @@ namespace NOVAxis.Modules.Download
                         .WithThumbnailUrl(metadata.Thumbnail)
                         .Build());
             }
+        }
+
+        [SlashCommand("play", "Streams a given audio or video in voice channel")]
+        public async Task CmdPlay(string url)
+        {
+            var voiceChannel = ((IGuildUser)Context.User).VoiceChannel;
+            var audioClient = await voiceChannel.ConnectAsync();
+
+            var stream = new AudioStream(url);
+            stream.Start();
+            stream.PipeTo(audioClient.CreatePCMStream(AudioApplication.Mixed));
+
+            audioClient.Disconnected += _ =>
+            {
+                stream.Dispose();
+                audioClient.Dispose();
+                return Task.CompletedTask;
+            };
         }
     }
 }
