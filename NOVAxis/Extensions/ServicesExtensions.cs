@@ -9,6 +9,7 @@ using NOVAxis.Core;
 using NOVAxis.Modules;
 using NOVAxis.Database;
 using NOVAxis.Utilities;
+using NOVAxis.Services.Music;
 using NOVAxis.Services.Polls;
 using NOVAxis.Services.Discord;
 using NOVAxis.Services.Download;
@@ -129,6 +130,13 @@ namespace NOVAxis.Extensions
             collection.AddInactivityTracking();
             collection.AddInactivityTracker<IdleInactivityTracker>();
             collection.AddInactivityTracker<UsersInactivityTracker>();
+
+            return collection;
+        }
+
+        public static IServiceCollection AddMusic(this IServiceCollection collection, IConfiguration config)
+        {
+            collection.AddSingleton<MusicService>();
 
             return collection;
         }

@@ -50,6 +50,7 @@ namespace NOVAxis.Core
                 .AddDiscord(host.Configuration)
                 .AddInteractions(host.Configuration)
                 .AddAudio(host.Configuration)
+                .AddMusic(host.Configuration)
                 .AddPolls(host.Configuration)
                 .AddAnthropic(host.Configuration)
                 .AddWebServer(host.Configuration)

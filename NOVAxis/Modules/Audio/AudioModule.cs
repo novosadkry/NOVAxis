@@ -13,7 +13,6 @@ using NOVAxis.Preconditions;
 using NOVAxis.Services.Audio;
 
 using Discord;
-using Discord.Audio;
 using Discord.Interactions;
 
 using Lavalink4NET;
@@ -24,7 +23,6 @@ using Lavalink4NET.Players.Queued;
 using Lavalink4NET.Players.Preconditions;
 using Lavalink4NET.Rest.Entities.Tracks;
 using Lavalink4NET.Integrations.Lavasrc;
-using AudioStream = NOVAxis.Services.Audio.AudioStream;
 
 namespace NOVAxis.Modules.Audio
 {

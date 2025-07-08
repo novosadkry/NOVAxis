@@ -1,17 +1,18 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
-namespace NOVAxis.Services.Audio
+namespace NOVAxis.Services.Music
 {
-    public sealed class AudioStream : IDisposable
+    public sealed class MusicStream : IDisposable, IAsyncDisposable
     {
         private Task _stream;
         private readonly Process _ytDlp;
         private readonly Process _ffmpeg;
 
-        public AudioStream(string url)
+        public MusicStream(string url)
         {
             _ytDlp = new Process();
             _ffmpeg = new Process();
@@ -36,31 +37,21 @@ namespace NOVAxis.Services.Audio
             };
         }
 
-        public void Start()
+        public void Start(CancellationToken token = default)
         {
             _ytDlp.Start();
             _ffmpeg.Start();
 
             _stream = _ytDlp.StandardOutput.BaseStream
-                .CopyToAsync(_ffmpeg.StandardInput.BaseStream)
-                .ContinueWith(_ => _ffmpeg.StandardInput.Close());
+                .CopyToAsync(_ffmpeg.StandardInput.BaseStream, token)
+                .ContinueWith(_ => _ffmpeg.StandardInput.Close(), token);
         }
 
-        public void PipeTo(Stream stream)
+        public async Task PipeToAsync(Stream stream, CancellationToken token = default)
         {
-            _ = Task.Run(async () =>
-            {
-                var output = _ffmpeg.StandardOutput.BaseStream;
-
-                try
-                {
-                    await output.CopyToAsync(stream);
-                }
-                finally
-                {
-                    await stream.FlushAsync();
-                }
-            });
+            var output = _ffmpeg.StandardOutput.BaseStream;
+            try { await output.CopyToAsync(stream, token); }
+            finally { await stream.FlushAsync(token); }
         }
 
         public void Dispose()
@@ -68,6 +59,23 @@ namespace NOVAxis.Services.Audio
             _ytDlp.Dispose();
             _ffmpeg.Dispose();
             _stream?.Dispose();
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (_stream != null) await CastAndDispose(_stream);
+            if (_ytDlp != null) await CastAndDispose(_ytDlp);
+            if (_ffmpeg != null) await CastAndDispose(_ffmpeg);
+
+            return;
+
+            static async ValueTask CastAndDispose(IDisposable resource)
+            {
+                if (resource is IAsyncDisposable resourceAsyncDisposable)
+                    await resourceAsyncDisposable.DisposeAsync();
+                else
+                    resource.Dispose();
+            }
         }
     }
 }
