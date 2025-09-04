@@ -1,0 +1,28 @@
+﻿services:
+  novaxis:
+    image: novosadkry/novaxis
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: novaxis-discord
+    tty: true
+    stdin_open: true
+    volumes:
+      - ./NOVAxis/config.json:/app/config.json
+    restart: unless-stopped
+    logging:
+      options:
+        max-size: 50m
+
+  lavalink:
+    image: ghcr.io/lavalink-devs/lavalink
+    container_name: novaxis-lavalink
+    volumes:
+      - ./NOVAxis/Lavalink/application.yml:/opt/Lavalink/application.yml
+      - ./NOVAxis/Lavalink/plugins:/opt/Lavalink/plugins
+    expose:
+      - 2333
+    restart: unless-stopped
+    logging:
+      options:
+        max-size: 50m
