@@ -12,12 +12,12 @@ namespace NOVAxis.Services.Music
     public class MusicService
     {
         private readonly ConcurrentQueue<Song> _queue = new();
+        private readonly ILogger<MusicService> _logger;
         private CancellationTokenSource _playbackCts;
         private Task _playbackTask;
         private IAudioClient _audioClient;
         private MusicStream _musicStream;
         private AudioOutStream _audioOutStream;
-        private ILogger<MusicService> _logger;
 
         public MusicService(ILogger<MusicService> logger)
         {
