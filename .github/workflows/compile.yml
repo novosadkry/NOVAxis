@@ -18,6 +18,8 @@ jobs:
     steps:
     - name: Check out the repo
       uses: actions/checkout@v4
+      with:
+        submodules: recursive
 
     # Fetch NuGet packages from cache
     - name: Restore package cache
