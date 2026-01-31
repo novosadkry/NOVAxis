@@ -9,6 +9,7 @@ using NOVAxis.Core;
 using NOVAxis.Modules;
 using NOVAxis.Database;
 using NOVAxis.Utilities;
+using NOVAxis.Services.CS2;
 using NOVAxis.Services.Polls;
 using NOVAxis.Services.Discord;
 using NOVAxis.Services.Download;
@@ -170,6 +171,16 @@ namespace NOVAxis.Extensions
         public static IServiceCollection AddDatabase(this IServiceCollection collection, IConfiguration config)
         {
             collection.AddDbContext<ProgramDbContext>();
+
+            return collection;
+        }
+
+        public static IServiceCollection AddCS2(this IServiceCollection collection, IConfiguration config)
+        {
+            collection.AddScoped<CS2DemoService>();
+            collection.AddScoped<CS2DemoQueueService>();
+            collection.AddScoped<CS2DemoProcessorService>();
+            collection.AddHostedService<CS2HostedService>();
 
             return collection;
         }

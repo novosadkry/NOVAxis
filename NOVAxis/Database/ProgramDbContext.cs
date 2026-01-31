@@ -13,6 +13,10 @@ namespace NOVAxis.Database
         public virtual DbSet<GuildInfo> Guilds { get; set; }
         public virtual DbSet<GuildRole> GuildRoles { get; set; }
         public virtual DbSet<DownloadInfo> Downloads { get; set; }
+        public virtual DbSet<CS2Player> CS2Players { get; set; }
+        public virtual DbSet<CS2Match> CS2Matches { get; set; }
+        public virtual DbSet<CS2DemoQueue> CS2DemoQueue { get; set; }
+        public virtual DbSet<CS2PlayerMatchStats> CS2PlayerMatchStats { get; set; }
 
         private DatabaseOptions Options { get; }
 
@@ -57,13 +61,14 @@ namespace NOVAxis.Database
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<GuildInfo>()
-                .HasMany(x => x.Roles)
-                .WithOne(x => x.Guild);
+            modelBuilder.Entity<GuildInfo>(entity =>
+            {
+                entity.Property(x => x.Id)
+                    .ValueGeneratedNever();
 
-            modelBuilder.Entity<GuildInfo>()
-                .Property(x => x.Id)
-                .ValueGeneratedNever();
+                entity.HasMany(x => x.Roles)
+                    .WithOne(x => x.Guild);
+            });
 
             modelBuilder.Entity<GuildRole>()
                 .Property(x => x.Id)
@@ -71,6 +76,45 @@ namespace NOVAxis.Database
 
             modelBuilder.Entity<DownloadInfo>()
                 .HasKey(x => x.Uuid);
+
+            modelBuilder.Entity<CS2DemoQueue>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.DemoUrl).IsRequired();
+            });
+
+            modelBuilder.Entity<CS2Player>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.SteamId).IsUnique();
+                entity.Property(e => e.SteamId).IsRequired();
+                entity.Property(e => e.Name).IsRequired();
+            });
+
+            modelBuilder.Entity<CS2Match>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.DemoUrl).IsUnique();
+                entity.Property(e => e.DemoUrl).IsRequired();
+                entity.Property(e => e.MapName).IsRequired();
+            });
+
+            modelBuilder.Entity<CS2PlayerMatchStats>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(e => e.Player)
+                    .WithMany(p => p.GameStats)
+                    .HasForeignKey(e => e.PlayerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Match)
+                    .WithMany(g => g.PlayerStats)
+                    .HasForeignKey(e => e.MatchId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.Property(e => e.Team).IsRequired();
+            });
         }
     }
 }

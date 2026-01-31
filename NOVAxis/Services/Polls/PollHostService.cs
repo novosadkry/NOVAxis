@@ -50,6 +50,7 @@ namespace NOVAxis.Services.Polls
                 catch (Exception e) when (e is not TaskCanceledException)
                 {
                     Logger.Error("The flow of execution has been halted due to an exception", e);
+                    return;
                 }
             }
         }

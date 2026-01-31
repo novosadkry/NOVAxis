@@ -44,6 +44,7 @@ namespace NOVAxis.Core
         private static void SetupServices(HostBuilderContext host, IServiceCollection services)
         {
             services
+                .AddHttpClient()
                 .AddMemoryCache()
                 .AddConfiguration(host.Configuration)
                 .AddDatabase(host.Configuration)
@@ -54,6 +55,7 @@ namespace NOVAxis.Core
                 .AddAnthropic(host.Configuration)
                 .AddWebServer(host.Configuration)
                 .AddDownloads(host.Configuration)
+                .AddCS2(host.Configuration)
                 .BuildServiceProvider(true);
         }
 
