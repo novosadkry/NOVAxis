@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -53,7 +54,10 @@ namespace NOVAxis.Services.Audio.YtDlp
             if (string.IsNullOrWhiteSpace(json))
                 return AudioLoadResult.Failed;
 
-            return YtDlpJson.ReadLoadResult(json, YtDlp.MaxPlaylistSize);
+            var result = YtDlpJson.ReadLoadResult(json, YtDlp.MaxPlaylistSize);
+            Logger.Debug($"Loaded {result.Tracks.Length} track(s) for '{input}'");
+
+            return result;
         }
 
         /// <summary>
@@ -86,6 +90,8 @@ namespace NOVAxis.Services.Audio.YtDlp
             if (streamInfo == null)
                 throw new InvalidOperationException($"yt-dlp returned no playable format for '{track.Title}'");
 
+            Logger.Debug($"Resolved '{track.Title}' to a stream on {HostOf(streamInfo.Url)}");
+
             return streamInfo;
         }
 
@@ -113,8 +119,13 @@ namespace NOVAxis.Services.Audio.YtDlp
         {
             Logger.Trace(ProcessRunner.Describe(YtDlp.ExecutablePath, arguments));
 
+            var started = Stopwatch.GetTimestamp();
+
             var result = await ProcessRunner.RunAsync(
                 YtDlp.ExecutablePath, arguments, YtDlp.ResolveTimeout, cancellationToken);
+
+            Logger.Debug($"yt-dlp finished in {Stopwatch.GetElapsedTime(started).TotalSeconds:0.#}s " +
+                         $"with code {result.ExitCode}");
 
             // With --ignore-errors yt-dlp reports a failure whenever a single entry of a
             // playlist could not be extracted, while still writing a usable document
@@ -130,6 +141,17 @@ namespace NOVAxis.Services.Audio.YtDlp
             }
 
             return result.StandardOutput;
+        }
+
+        /// <summary>
+        /// Names the host serving a resolved address. The address itself is signed and
+        /// bound to this machine, so it is kept out of the log.
+        /// </summary>
+        private static string HostOf(string url)
+        {
+            return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                ? uri.Host
+                : "an unknown host";
         }
     }
 }

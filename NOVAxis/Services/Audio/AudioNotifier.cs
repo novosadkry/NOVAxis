@@ -35,12 +35,12 @@ namespace NOVAxis.Services.Audio
                 AudioEmbeds.TrackControls(id, item.Track));
         }
 
-        public Task TrackStartedAsync(ITextChannel channel, AudioTrackQueueItem item, bool isPaused, float volume)
+        public Task TrackStartedAsync(ITextChannel channel, AudioTrackQueueItem item, bool isPaused, float volume, int queueCount)
         {
             var id = InteractionCache.Store(item);
 
             return SendAsync(channel,
-                AudioEmbeds.NowPlaying(item, isPaused, volume),
+                AudioEmbeds.NowPlaying(item, isPaused, volume, queueCount),
                 AudioEmbeds.TrackControls(id, item.Track));
         }
 

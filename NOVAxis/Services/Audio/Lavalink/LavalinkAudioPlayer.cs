@@ -92,7 +92,7 @@ namespace NOVAxis.Services.Audio.Lavalink
             await base.NotifyTrackStartedAsync(queueItem, cancellationToken);
 
             var item = LavalinkTrackQueueItem.Unwrap(queueItem);
-            await Notifier.TrackStartedAsync(TextChannel, item, IsPaused, Volume);
+            await Notifier.TrackStartedAsync(TextChannel, item, IsPaused, Volume, base.Queue.Count);
         }
 
         protected override async ValueTask NotifyTrackEnqueuedAsync(

@@ -594,7 +594,7 @@ namespace NOVAxis.Modules.Audio
             var item = player.CurrentItem!;
 
             await RespondAsync(
-                embed: AudioEmbeds.NowPlaying(item, player.IsPaused, player.Volume, player.Position),
+                embed: AudioEmbeds.NowPlaying(item, player.IsPaused, player.Volume, player.Queue.Count, player.Position),
                 components: AudioEmbeds.PlayerControls());
         }
 

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,7 +23,11 @@ namespace NOVAxis.Services.Audio.YtDlp
     /// </summary>
     public class AudioInactivityTracker : BackgroundService
     {
-        private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(5);
+        /// <summary>
+        /// How closely a disconnect can follow the timeout which caused it. A sweep is
+        /// only reading cached state, so this is kept short enough not to be noticed.
+        /// </summary>
+        private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(1);
 
         private readonly ConcurrentDictionary<ulong, DateTimeOffset> _aloneSince = new();
 
@@ -73,7 +78,10 @@ namespace NOVAxis.Services.Audio.YtDlp
                 var reason = GetInactivityReason(player, timeout, now);
 
                 if (reason == null)
+                {
+                    LogPendingTimeout(player, timeout, now);
                     continue;
+                }
 
                 Logger.Info($"Disconnecting from guild {player.GuildId}: {reason}");
 
@@ -99,6 +107,33 @@ namespace NOVAxis.Services.Audio.YtDlp
             }
         }
 
+        /// <summary>
+        /// Reports what a player is still waiting on, so a disconnect which felt early
+        /// or late can be read back from the log.
+        /// </summary>
+        private void LogPendingTimeout(YtDlpAudioPlayer player, AudioTimeoutOptions timeout, DateTimeOffset now)
+        {
+            if (now < player.ReservedUntil)
+            {
+                Logger.Debug($"Guild {player.GuildId} is reserved by a command " +
+                             $"for another {Seconds(player.ReservedUntil - now)}s");
+
+                return;
+            }
+
+            if (player.InactiveSince is { } inactiveSince && player.Queue.Count == 0)
+            {
+                Logger.Debug($"Guild {player.GuildId} has had nothing to play for " +
+                             $"{Seconds(now - inactiveSince)}s of {Seconds(timeout.IdleInactivity)}s");
+            }
+
+            if (_aloneSince.TryGetValue(player.GuildId, out var aloneSince))
+            {
+                Logger.Debug($"Guild {player.GuildId} has been alone for " +
+                             $"{Seconds(now - aloneSince)}s of {Seconds(timeout.UsersInactivity)}s");
+            }
+        }
+
         private string GetInactivityReason(YtDlpAudioPlayer player, AudioTimeoutOptions timeout, DateTimeOffset now)
         {
             // A command is still working with it, and has yet to enqueue anything
@@ -110,14 +145,14 @@ namespace NOVAxis.Services.Audio.YtDlp
                 player.Queue.Count == 0 &&
                 player.InactiveSince is { } inactiveSince &&
                 now - inactiveSince >= timeout.IdleInactivity)
-                return "nothing left to play";
+                return $"nothing left to play for {Seconds(now - inactiveSince)}s";
 
             if (timeout.UsersInactivity > TimeSpan.Zero && IsAlone(player))
             {
                 var aloneSince = _aloneSince.GetOrAdd(player.GuildId, now);
 
                 if (now - aloneSince >= timeout.UsersInactivity)
-                    return "no listeners left";
+                    return $"no listeners left for {Seconds(now - aloneSince)}s";
             }
 
             else
@@ -126,6 +161,11 @@ namespace NOVAxis.Services.Audio.YtDlp
             }
 
             return null;
+        }
+
+        private static string Seconds(TimeSpan value)
+        {
+            return value.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture);
         }
 
         /// <summary>

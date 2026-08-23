@@ -82,7 +82,7 @@ namespace NOVAxis.Services.Audio
                 .Build();
         }
 
-        public static Embed NowPlaying(AudioTrackQueueItem item, bool isPaused, float volume, TimeSpan? position = null)
+        public static Embed NowPlaying(AudioTrackQueueItem item, bool isPaused, float volume, int queueCount, TimeSpan? position = null)
         {
             var track = item.Track;
             var statusEmoji = isPaused ? PausedEmoji : PlayingEmoji;
@@ -91,7 +91,7 @@ namespace NOVAxis.Services.Audio
                 ? $"`{position:hh\\:mm\\:ss}/{FormatDuration(track)}`"
                 : $"`{FormatDuration(track)}`";
 
-            return new EmbedBuilder()
+            var builder = new EmbedBuilder()
                 .WithColor(AccentR, AccentG, AccentB)
                 .WithAuthor("Právě přehrávám:")
                 .WithTitle($"{track.Title}")
@@ -100,8 +100,13 @@ namespace NOVAxis.Services.Audio
                 .AddField("Vyžádal:", Mention(item.RequestedBy))
                 .AddField("Stav:", $"{statusEmoji}", true)
                 .AddField("Hlasitost:", $"{volume * 100.0f}%", true)
-                .AddField("Délka:", duration, true)
-                .Build();
+                .AddField("Délka:", duration, true);
+
+            // Only worth a field once something is waiting behind the track
+            if (queueCount > 0)
+                builder.AddField("Ve frontě:", $"`{queueCount}`", true);
+
+            return builder.Build();
         }
 
         public static MessageComponent TrackControls(ulong interactionId, AudioTrack track)

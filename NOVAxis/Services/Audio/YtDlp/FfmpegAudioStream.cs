@@ -162,6 +162,9 @@ namespace NOVAxis.Services.Audio.YtDlp
 
                 if (!string.IsNullOrWhiteSpace(error))
                     _logger.Debug($"ffmpeg: {error.Trim()}");
+
+                _logger.Debug($"ffmpeg exited with code {_process.ExitCode} after producing " +
+                              $"{BytesRead / (double)BytesPerSecond:0.#}s of audio");
             }
             catch (OperationCanceledException)
             {

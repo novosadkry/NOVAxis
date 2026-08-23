@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -306,6 +307,8 @@ namespace NOVAxis.Services.Audio.YtDlp
                     _state = (int)AudioPlayerState.NotPlaying;
                     InactiveSince ??= DateTimeOffset.UtcNow;
 
+                    _logger.Debug($"Queue of guild {GuildId} ran dry, waiting for more");
+
                     try { await _wakeup.WaitAsync(lifetimeToken); }
                     catch (OperationCanceledException) { break; }
 
@@ -329,6 +332,8 @@ namespace NOVAxis.Services.Audio.YtDlp
                     outcome = PlaybackOutcome.Failed;
                     await _notifier.TrackExceptionAsync(_textChannel, item, e);
                 }
+
+                _logger.Debug($"Track '{item.Track.Title}' of guild {GuildId} ended: {outcome}");
 
                 await ApplyRepeatAsync(item, outcome);
             }
@@ -420,6 +425,7 @@ namespace NOVAxis.Services.Audio.YtDlp
             _interrupt = PlaybackInterrupt.None;
 
             YtDlpStreamInfo streamInfo;
+            var resolveStarted = Stopwatch.GetTimestamp();
 
             try
             {
@@ -432,6 +438,9 @@ namespace NOVAxis.Services.Audio.YtDlp
                 return OutcomeOf(_interrupt);
             }
 
+            _logger.Debug($"Stream of '{item.Track.Title}' was ready for guild {GuildId} after " +
+                          $"{Stopwatch.GetElapsedTime(resolveStarted).TotalSeconds:0.#}s");
+
             await using var stream = FfmpegAudioStream.Start(
                 _options.YtDlp, streamInfo, position, _logger, trackCts.Token);
 
@@ -439,8 +448,11 @@ namespace NOVAxis.Services.Audio.YtDlp
             Interlocked.Exchange(ref _segmentBytes, 0);
             _state = (int)(_paused ? AudioPlayerState.Paused : AudioPlayerState.Playing);
 
+            _logger.Debug($"Playing '{item.Track.Title}' of guild {GuildId} from " +
+                          $"{position:hh\\:mm\\:ss}, {_queue.Count} left in queue");
+
             if (announce)
-                await _notifier.TrackStartedAsync(_textChannel, item, _paused, _volume);
+                await _notifier.TrackStartedAsync(_textChannel, item, _paused, _volume, _queue.Count);
 
             StartPrefetch(lifetimeToken);
 
@@ -599,6 +611,8 @@ namespace NOVAxis.Services.Audio.YtDlp
 
         private void Interrupt(PlaybackInterrupt interrupt)
         {
+            _logger.Debug($"Playback of guild {GuildId} interrupted: {interrupt}");
+
             _interrupt = interrupt;
 
             try { _trackCts?.Cancel(); }
