@@ -28,7 +28,7 @@ namespace NOVAxis.Preconditions
         public override Task<PreconditionResult> CheckRequirementsAsync(IInteractionContext context, ICommandInfo commandInfo, IServiceProvider services)
         {
             var cooldownCache = services.GetRequiredService<CooldownCache>();
-            var cooldownInfo = cooldownCache[context.User];
+            var cooldownInfo = cooldownCache[context.User.Id];
 
             if (cooldownInfo.Interaction == context.Interaction)
                 return Task.FromResult(PreconditionResult.FromSuccess());
@@ -44,13 +44,13 @@ namespace NOVAxis.Preconditions
                         return Task.FromResult(PreconditionResult.FromError("User has command on cooldown (no warning)"));
 
                     cooldownInfo.WarningTriggered = true;
-                    cooldownCache[context.User] = cooldownInfo;
+                    cooldownCache[context.User.Id] = cooldownInfo;
 
                     return Task.FromResult(PreconditionResult.FromError("User has command on cooldown"));
                 }
             }
 
-            cooldownCache[context.User] = new CooldownInfo { Interaction = context.Interaction };
+            cooldownCache[context.User.Id] = new CooldownInfo { Interaction = context.Interaction };
             return Task.FromResult(PreconditionResult.FromSuccess());
         }
     }

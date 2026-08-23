@@ -22,7 +22,11 @@ namespace NOVAxis.Utilities
         }
     }
 
-    public class CooldownCache : Cache<IUser, CooldownInfo>
+    /// <summary>
+    /// Keyed by the id of a user, as Discord.Net hands out more than one object
+    /// for the same person.
+    /// </summary>
+    public class CooldownCache : Cache<ulong, CooldownInfo>
     {
         public CooldownCache(IMemoryCache cache, IOptions<CacheOptions> options)
             : base(nameof(CooldownCache), cache, options) { }
@@ -97,9 +101,13 @@ namespace NOVAxis.Utilities
             _cache.Set(GetIndex(key), value, entryOptions);
         }
 
+        /// <summary>
+        /// Builds the index out of the key itself. A hash code would let two keys which
+        /// happen to share one read each other's entry.
+        /// </summary>
         private string GetIndex(TKey key)
         {
-            return _prefix + key.GetHashCode();
+            return $"{_prefix}:{key}";
         }
     }
 }
