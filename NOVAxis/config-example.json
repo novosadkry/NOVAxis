@@ -17,6 +17,7 @@
   "Logging": {
     "LogLevel": {
       "Default": "Information",
+      "Discord.LibDave": "Warning",
       "System.Net.Http.HttpClient": "Warning",
       "Lavalink4NET.InactivityTracking": "Warning"
     }

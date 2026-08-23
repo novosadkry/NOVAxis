@@ -11,6 +11,7 @@ using NOVAxis.Modules;
 using NOVAxis.Extensions;
 
 using Discord;
+using Discord.LibDave;
 using Discord.WebSocket;
 
 namespace NOVAxis.Services.Discord
@@ -21,6 +22,7 @@ namespace NOVAxis.Services.Discord
 
         private DiscordShardedClient Client { get; set; }
         private ModuleHandler ModuleHandler { get; set; }
+        private ILoggerFactory LoggerFactory { get; set; }
         private IOptions<DiscordOptions> Options { get; set; }
         private ILogger<DiscordHostService> Logger { get; set; }
 
@@ -28,12 +30,14 @@ namespace NOVAxis.Services.Discord
             DiscordShardedClient client,
             ModuleHandler moduleHandler,
             IOptions<DiscordOptions> options,
-            ILogger<DiscordHostService> logger)
+            ILogger<DiscordHostService> logger,
+            ILoggerFactory loggerFactory)
         {
             Logger = logger;
             Client = client;
             Options = options;
             ModuleHandler = moduleHandler;
+            LoggerFactory = loggerFactory;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -42,6 +46,9 @@ namespace NOVAxis.Services.Discord
 
             Client.Log += Logger.Log;
             Client.ShardReady += Client_Ready;
+
+            if (Dave.CheckAvailability())
+                Dave.SetLogSink(LoggerFactory.CreateLogger("Discord.LibDave").Log);
 
             Logger.Debug("Discord starting");
 
