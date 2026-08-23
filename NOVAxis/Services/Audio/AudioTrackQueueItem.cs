@@ -1,21 +1,17 @@
 ﻿using Discord;
-using Lavalink4NET.Tracks;
-using Lavalink4NET.Players;
 
 namespace NOVAxis.Services.Audio
 {
-    public class AudioTrackQueueItem : ITrackQueueItem
+    /// <summary>
+    /// A queue entry pairing a track with the user who asked for it.
+    /// <see cref="RequestId"/> gives every entry a stable identity, so that duplicates
+    /// of the same track stay distinguishable inside the queue and inside interactions.
+    /// </summary>
+    public class AudioTrackQueueItem
     {
-        public TrackReference Reference { get; }
+        public AudioTrack Track { get; init; }
         public ulong RequestId { get; init; }
         public IUser RequestedBy { get; init; }
-
-        public LavalinkTrack Track => Reference.Track;
-
-        public AudioTrackQueueItem(TrackReference reference)
-        {
-            Reference = reference;
-        }
 
         public override bool Equals(object obj)
         {

@@ -8,6 +8,9 @@ using Microsoft.Extensions.DependencyInjection;
 using NOVAxis.Core;
 using NOVAxis.Modules;
 using NOVAxis.Utilities;
+using NOVAxis.Services.Audio;
+using NOVAxis.Services.Audio.Lavalink;
+using NOVAxis.Services.Audio.YtDlp;
 using NOVAxis.Services.Polls;
 using NOVAxis.Services.Discord;
 
@@ -81,6 +84,10 @@ namespace NOVAxis.Extensions
             return collection;
         }
 
+        /// <summary>
+        /// Wires up the audio backend selected by configuration. Both backends expose the same
+        /// abstractions, so nothing above this layer needs to know which one is running.
+        /// </summary>
         public static IServiceCollection AddAudio(this IServiceCollection collection, IConfiguration config)
         {
             var options = new AudioOptions();
@@ -89,6 +96,33 @@ namespace NOVAxis.Extensions
             if (!options.Active)
                 return collection;
 
+            collection.AddSingleton<AudioNotifier>();
+
+            return options.Backend == AudioBackend.Lavalink
+                ? collection.AddLavalinkAudio()
+                : collection.AddYtDlpAudio();
+        }
+
+        /// <summary>
+        /// Streams audio in-process: yt-dlp resolves the media, ffmpeg decodes it and the
+        /// bot itself pushes the samples into Discord.
+        /// </summary>
+        private static IServiceCollection AddYtDlpAudio(this IServiceCollection collection)
+        {
+            collection.AddSingleton<YtDlpClient>();
+            collection.AddSingleton<IAudioSearchService, YtDlpAudioSearchService>();
+            collection.AddSingleton<YtDlpAudioPlayerManager>();
+            collection.AddSingleton<IAudioPlayerManager>(p => p.GetRequiredService<YtDlpAudioPlayerManager>());
+            collection.AddHostedService<AudioInactivityTracker>();
+
+            return collection;
+        }
+
+        /// <summary>
+        /// Delegates playback to a Lavalink node.
+        /// </summary>
+        private static IServiceCollection AddLavalinkAudio(this IServiceCollection collection)
+        {
             collection
                 .AddOptions<AudioServiceOptions>()
                 .Configure<IOptions<AudioOptions>>((s, l) =>
@@ -125,6 +159,9 @@ namespace NOVAxis.Extensions
             collection.AddInactivityTracking();
             collection.AddInactivityTracker<IdleInactivityTracker>();
             collection.AddInactivityTracker<UsersInactivityTracker>();
+
+            collection.AddSingleton<IAudioSearchService, LavalinkAudioSearchService>();
+            collection.AddSingleton<IAudioPlayerManager, LavalinkAudioPlayerManager>();
 
             return collection;
         }

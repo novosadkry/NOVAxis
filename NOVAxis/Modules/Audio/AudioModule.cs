@@ -1,28 +1,16 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Collections.Immutable;
 
-using Microsoft.Extensions.Options;
-
-using NOVAxis.Core;
-using NOVAxis.Utilities;
 using NOVAxis.Preconditions;
 using NOVAxis.Services.Audio;
+using NOVAxis.Services.Audio.YtDlp;
+using NOVAxis.Utilities;
 
 using Discord;
 using Discord.Interactions;
-
-using Lavalink4NET;
-using Lavalink4NET.Clients;
-using Lavalink4NET.Players;
-using Lavalink4NET.DiscordNet;
-using Lavalink4NET.Players.Queued;
-using Lavalink4NET.Players.Preconditions;
-using Lavalink4NET.Rest.Entities.Tracks;
-using Lavalink4NET.Integrations.Lavasrc;
 
 namespace NOVAxis.Modules.Audio
 {
@@ -31,118 +19,179 @@ namespace NOVAxis.Modules.Audio
     [RequireContext(ContextType.Guild)]
     public class AudioModule : InteractionModuleBase<ShardedInteractionContext>
     {
-        public IAudioService AudioService { get; set; }
-        public IOptions<AudioOptions> Options { get; set; }
+        public IAudioPlayerManager PlayerManager { get; set; }
+        public IAudioSearchService SearchService { get; set; }
         public InteractionCache InteractionCache { get; set; }
 
         #region Functions
 
-        private Task<TrackLoadResult> SearchAsync(string input)
-        {
-            var searchMode = TrackSearchMode.YouTube;
-            return SearchAsync(input, searchMode);
-        }
-
-        private async Task<TrackLoadResult> SearchAsync(
-            string input,
-            TrackSearchMode searchMode)
-        {
-            var options = new TrackLoadOptions(
-                searchMode,
-                StrictSearchBehavior.Resolve);
-
-            return await AudioService.Tracks
-                .LoadTracksAsync(input, options);
-        }
-
-        private async ValueTask<AudioPlayer> GetPlayerAsync(
+        private async ValueTask<IAudioPlayer> GetPlayerAsync(
             bool joinChannel = true,
             bool sameChannel = false,
-            params IPlayerPrecondition[] preconditions)
+            params AudioPrecondition[] preconditions)
         {
-            var textChannel = Context.Channel as ITextChannel;
-
-            var playerOptions = new AudioPlayerOptions
+            var options = new AudioPlayerRetrieveOptions
             {
-                TextChannel = textChannel,
-                // SelfDeaf = Options.Value.SelfDeaf,
-                InitialVolume = 1.0f,
-                DisconnectOnDestroy = true
+                JoinChannel = joinChannel,
+                RequireSameChannel = sameChannel,
+                Preconditions = preconditions
             };
 
-            var retrieveOptions = new PlayerRetrieveOptions(
-                joinChannel ? PlayerChannelBehavior.Join : PlayerChannelBehavior.None,
-                sameChannel ? MemberVoiceStateBehavior.RequireSame : MemberVoiceStateBehavior.Ignore,
-                Preconditions: ImmutableArray.Create(preconditions));
-
-            var result = await AudioService.Players.RetrieveAsync<AudioPlayer, AudioPlayerOptions>(
-                Context, AudioPlayer.CreatePlayerAsync, playerOptions, retrieveOptions);
+            var result = await PlayerManager.RetrieveAsync(Context, options);
 
             switch (result.Status)
             {
-                case PlayerRetrieveStatus.Success:
+                case AudioPlayerRetrieveStatus.Success:
                     return result.Player;
 
-                case PlayerRetrieveStatus.UserNotInVoiceChannel:
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(220, 20, 60)
-                        .WithDescription("(Neplatný kanál)")
-                        .WithTitle("Mému jádru se nepodařilo naladit na stejnou zvukovou frekvenci")
-                        .Build());
+                case AudioPlayerRetrieveStatus.UserNotInVoiceChannel:
+                    await RespondAsync(ephemeral: true, embed: AudioEmbeds.Error(
+                        "Mému jádru se nepodařilo naladit na stejnou zvukovou frekvenci",
+                        "(Neplatný kanál)"));
                     break;
 
-                case PlayerRetrieveStatus.VoiceChannelMismatch:
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(220, 20, 60)
-                        .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Pro komunikaci s jádrem musíš být naladěn na stejnou frekvenci")
-                        .Build());
+                case AudioPlayerRetrieveStatus.VoiceChannelMismatch:
+                    await RespondAsync(ephemeral: true, embed: AudioEmbeds.Error(
+                        "Pro komunikaci s jádrem musíš být naladěn na stejnou frekvenci",
+                        "(Neplatný příkaz)"));
                     break;
 
-                case PlayerRetrieveStatus.PreconditionFailed when result.Precondition == PlayerPrecondition.Paused:
-                case PlayerRetrieveStatus.PreconditionFailed when result.Precondition == PlayerPrecondition.NotPlaying:
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(255, 150, 0)
-                        .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Stream audia již běží")
-                        .Build());
+                case AudioPlayerRetrieveStatus.PreconditionFailed when result.Precondition is AudioPrecondition.Paused or AudioPrecondition.NotPlaying:
+                    await RespondAsync(ephemeral: true, embed: AudioEmbeds.Warning(
+                        "Stream audia již běží",
+                        "(Neplatný příkaz)"));
                     break;
 
-                case PlayerRetrieveStatus.BotNotConnected:
-                case PlayerRetrieveStatus.PreconditionFailed when result.Precondition == PlayerPrecondition.Playing:
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(255, 150, 0)
-                        .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď není streamováno na serveru žádné audio")
-                        .Build());
+                case AudioPlayerRetrieveStatus.BotNotConnected:
+                case AudioPlayerRetrieveStatus.PreconditionFailed when result.Precondition is AudioPrecondition.Playing:
+                    await RespondAsync(ephemeral: true, embed: AudioEmbeds.Warning(
+                        "Právě teď není streamováno na serveru žádné audio",
+                        "(Neplatný příkaz)"));
                     break;
 
-                case PlayerRetrieveStatus.PreconditionFailed when result.Precondition == PlayerPrecondition.NotPaused:
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(255, 150, 0)
-                        .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Stream audia již byl pozastaven")
-                        .Build());
+                case AudioPlayerRetrieveStatus.PreconditionFailed when result.Precondition is AudioPrecondition.NotPaused:
+                    await RespondAsync(ephemeral: true, embed: AudioEmbeds.Warning(
+                        "Stream audia již byl pozastaven",
+                        "(Neplatný příkaz)"));
                     break;
 
-                case PlayerRetrieveStatus.PreconditionFailed when result.Precondition == PlayerPrecondition.QueueNotEmpty:
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(255, 150, 0)
-                        .WithDescription("(Neplatný příkaz)")
-                        .WithTitle("Právě teď se ve frontě nenachází žádná zvuková stopa")
-                        .Build());
+                case AudioPlayerRetrieveStatus.PreconditionFailed when result.Precondition is AudioPrecondition.QueueNotEmpty:
+                    await RespondAsync(ephemeral: true, embed: AudioEmbeds.Warning(
+                        "Právě teď se ve frontě nenachází žádná zvuková stopa",
+                        "(Neplatný příkaz)"));
                     break;
 
                 default:
-                    await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                        .WithColor(220, 20, 60)
-                        .WithDescription("(Neznámá chyba)")
-                        .WithTitle("Při komunikaci s jádrem nastala neznámá chyba")
-                        .Build());
+                    await RespondAsync(ephemeral: true, embed: AudioEmbeds.Error(
+                        "Při komunikaci s jádrem nastala neznámá chyba",
+                        "(Neznámá chyba)"));
                     break;
             }
 
             return null;
+        }
+
+        private AudioTrackQueueItem CreateItem(AudioTrack track)
+        {
+            return new AudioTrackQueueItem
+            {
+                Track = track,
+                RequestedBy = Context.User,
+                RequestId = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now)
+            };
+        }
+
+        /// <summary>
+        /// Runs a search and hands the outcome over to <see cref="PlayAudio"/>, mapping every
+        /// way the lookup can go wrong onto a message the user can act on.
+        /// </summary>
+        private async Task SearchAndPlay(IAudioPlayer player, string input)
+        {
+            await DeferAsync();
+
+            try
+            {
+                var result = await SearchService.LoadAsync(input);
+
+                if (result.IsFailed)
+                {
+                    await FollowupAsync(ephemeral: true, embed: AudioEmbeds.Error(
+                        "Mému jádru se nepodařilo v databázi nalézt požadovanou stopu",
+                        "(Neplatný argument)"));
+
+                    return;
+                }
+
+                await PlayAudio(player, result);
+            }
+
+            // yt-dlp reports unavailable or geo blocked media through its exit code,
+            // which is an everyday outcome rather than a fault worth rethrowing
+            catch (ProcessException)
+            {
+                await FollowupAsync(ephemeral: true, embed: AudioEmbeds.Warning(
+                    "Mé jádro pravě nemůže poskytnout stabilní stream audia",
+                    "(Služba není dostupná)"));
+            }
+
+            catch (HttpRequestException)
+            {
+                await FollowupAsync(ephemeral: true, embed: AudioEmbeds.Warning(
+                    "Mé jádro pravě nemůže poskytnout stabilní stream audia",
+                    "(Služba není dostupná)"));
+            }
+
+            catch (Exception)
+            {
+                await FollowupAsync(ephemeral: true, embed: AudioEmbeds.Error(
+                    "Při komunikaci s jádrem nastala neznámá chyba",
+                    "(Neznámá chyba)"));
+
+                throw;
+            }
+        }
+
+        private async Task PlayAudio(IAudioPlayer player, AudioLoadResult result)
+        {
+            var wasIdle = player.State == AudioPlayerState.NotPlaying;
+
+            if (result.IsPlaylist)
+            {
+                var items = result.Tracks.Select(CreateItem).ToList();
+                await player.Queue.AddRangeAsync(items);
+
+                var totalDuration = result.Tracks.Aggregate(
+                    TimeSpan.Zero, (total, track) => total + track.Duration);
+
+                await FollowupAsync(embed: AudioEmbeds.PlaylistEnqueued(
+                    result.Playlist, items[0], result.Playlist?.TotalTracks ?? items.Count, totalDuration));
+            }
+
+            else
+            {
+                var item = CreateItem(result.Track);
+                await player.Queue.AddAsync(item);
+
+                var position = player.Queue.Count;
+
+                if (wasIdle)
+                {
+                    // The track is about to start, so it gets announced instead of queued
+                    await FollowupAsync(embed: AudioEmbeds.TrackEnqueued(item, position));
+                }
+
+                else
+                {
+                    var id = InteractionCache.Store(item);
+
+                    await FollowupAsync(
+                        embed: AudioEmbeds.TrackEnqueued(item, position),
+                        components: AudioEmbeds.TrackControls(id, item.Track));
+                }
+            }
+
+            if (wasIdle)
+                await player.SkipAsync();
         }
 
         #endregion
@@ -157,10 +206,7 @@ namespace NOVAxis.Modules.Audio
 
             var voiceChannel = await player.GetVoiceChannel(Context.Client);
 
-            await RespondAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle($"Připojuji se ke kanálu `{voiceChannel.Name}`")
-                .Build());
+            await RespondAsync(embed: AudioEmbeds.Info($"Připojuji se ke kanálu `{voiceChannel.Name}`"));
         }
 
         [SlashCommand("leave", "Leaves a voice channel")]
@@ -173,10 +219,7 @@ namespace NOVAxis.Modules.Audio
 
             await player.DisconnectAsync();
 
-            await RespondAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle($"Odpojuji se od kanálu `{voiceChannel.Name}`")
-                .Build());
+            await RespondAsync(embed: AudioEmbeds.Info($"Odpojuji se od kanálu `{voiceChannel.Name}`"));
         }
 
         [Cooldown(5)]
@@ -186,139 +229,7 @@ namespace NOVAxis.Modules.Audio
             var player = await GetPlayerAsync(joinChannel: true);
             if (player == null) return;
 
-            await DeferAsync();
-
-            try
-            {
-                var result = await SearchAsync(input);
-                await PlayAudio(player, result);
-            }
-
-            catch (HttpRequestException)
-            {
-                await FollowupAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Služba není dostupná)")
-                    .WithTitle("Mé jádro pravě nemůže poskytnout stabilní stream audia")
-                    .Build());
-            }
-
-            catch (ArgumentNullException)
-            {
-                await FollowupAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný argument)")
-                    .WithTitle("Mému jádru se nepodařilo v databázi nalézt požadovanou stopu")
-                    .Build());
-            }
-
-            catch (Exception)
-            {
-                await FollowupAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neznámá chyba)")
-                    .WithTitle("Při komunikaci s jádrem nastala neznámá chyba")
-                    .Build());
-
-                throw;
-            }
-        }
-
-        private async Task PlayAudio(AudioPlayer player, TrackLoadResult result)
-        {
-            if (result.IsFailed)
-                throw new ArgumentNullException();
-
-            if (result.IsPlaylist)
-            {
-                var items = result.Tracks
-                    .Select(t => new AudioTrackQueueItem(new TrackReference(t))
-                    {
-                        RequestedBy = Context.User,
-                        RequestId = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now)
-                    })
-                    .ToList();
-
-                var firstItem = items.First();
-                var firstTrack = firstItem.Track!;
-                await player.Queue.AddRangeAsync(items);
-
-                var totalDuration = new TimeSpan();
-                foreach (var track in result.Tracks)
-                    totalDuration += track.Duration;
-
-                var playlist = new ExtendedPlaylistInformation(result.Playlist!);
-
-                // TODO: LavaSrc doesn't return playlist information for YouTube playlists
-                var total = playlist.TotalTracks ?? result.Tracks.Length;
-                var uri = playlist.Uri?.AbsoluteUri ?? firstTrack.Uri?.AbsoluteUri;
-                var artworkUri = playlist.ArtworkUri?.AbsoluteUri ?? firstTrack.ArtworkUri?.AbsoluteUri;
-
-                await FollowupAsync(embed: new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithAuthor($"Přidáno do fronty ({total}):")
-                    .WithTitle($"{playlist.Name}")
-                    .WithUrl(uri)
-                    .WithThumbnailUrl(artworkUri)
-                    .AddField("Vyžádal:", firstItem.RequestedBy.Mention, true)
-                    .AddField("Délka:", $"`{totalDuration:hh\\:mm\\:ss}`", true)
-                    .Build());
-            }
-
-            else
-            {
-                var track = result.Track;
-                ArgumentNullException.ThrowIfNull(track);
-
-                var item = new AudioTrackQueueItem(new TrackReference(track))
-                {
-                    RequestedBy = Context.User,
-                    RequestId = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now)
-                };
-
-                await player.Queue.AddAsync(item);
-
-                if (player.State == PlayerState.NotPlaying)
-                {
-                    await FollowupAsync(embed: new EmbedBuilder()
-                        .WithColor(52, 231, 231)
-                        .WithAuthor("Přidáno do fronty:")
-                        .WithTitle($"{track.Title}")
-                        .WithUrl(track.Uri?.AbsoluteUri)
-                        .WithThumbnailUrl(track.ArtworkUri?.AbsoluteUri)
-                        .AddField("Vyžádal:", item.RequestedBy.Mention)
-                        .AddField("Délka:", $"`{track.Duration:hh\\:mm\\:ss}`", true)
-                        .AddField("Pořadí ve frontě:", $"`{player.Queue.Count}.`", true)
-                        .Build());
-                }
-
-                else
-                {
-                    var id = InteractionCache.Store(item);
-
-                    var embed = new EmbedBuilder()
-                        .WithColor(52, 231, 231)
-                        .WithAuthor("Přidáno do fronty:")
-                        .WithTitle($"{track.Title}")
-                        .WithUrl(track.Uri?.AbsoluteUri)
-                        .WithThumbnailUrl(track.ArtworkUri?.AbsoluteUri)
-                        .AddField("Vyžádal:", item.RequestedBy.Mention)
-                        .AddField("Délka:", $"`{track.Duration:hh\\:mm\\:ss}`", true)
-                        .AddField("Pořadí ve frontě:", $"`{player.Queue.Count}.`", true)
-                        .Build();
-
-                    var components = new ComponentBuilder()
-                        .WithButton(customId: $"TrackControls_Remove,{id}", emote: new Emoji("\u2716"), style: ButtonStyle.Danger)
-                        .WithButton(customId: $"TrackControls_Add,{track.Uri?.AbsoluteUri}", emote: new Emoji("\u2764"), style: ButtonStyle.Secondary)
-                        .WithButton(customId: "TrackControls_Add", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
-                        .Build();
-
-                    await FollowupAsync(embed: embed, components: components);
-                }
-            }
-
-            if (player.State == PlayerState.NotPlaying)
-                await player.SkipAsync();
+            await SearchAndPlay(player, input);
         }
 
         [ComponentInteraction("AudioControls_*", true)]
@@ -336,17 +247,17 @@ namespace NOVAxis.Modules.Audio
                     await CmdStopAudio();
                     break;
                 case "Repeat":
-                    await (player.RepeatMode != TrackRepeatMode.None
-                        ? CmdRepeatAudio(TrackRepeatMode.None)
-                        : CmdRepeatAudio(TrackRepeatMode.Queue));
+                    await (player.RepeatMode != AudioRepeatMode.None
+                        ? CmdRepeatAudio(AudioRepeatMode.None)
+                        : CmdRepeatAudio(AudioRepeatMode.Queue));
                     break;
                 case "RepeatOnce":
-                    await (player.RepeatMode != TrackRepeatMode.None
-                        ? CmdRepeatAudio(TrackRepeatMode.None)
-                        : CmdRepeatAudio(TrackRepeatMode.Track));
+                    await (player.RepeatMode != AudioRepeatMode.None
+                        ? CmdRepeatAudio(AudioRepeatMode.None)
+                        : CmdRepeatAudio(AudioRepeatMode.Track));
                     break;
                 case "PlayPause":
-                    await (player.State == PlayerState.Playing
+                    await (player.State == AudioPlayerState.Playing
                         ? CmdPauseAudio()
                         : CmdResumeAudio());
                     break;
@@ -365,42 +276,7 @@ namespace NOVAxis.Modules.Audio
             var player = await GetPlayerAsync(joinChannel: true);
             if (player == null) return;
 
-            await DeferAsync();
-
-            try
-            {
-                var result = await SearchAsync(trackUrl);
-                await PlayAudio(player, result);
-            }
-
-            catch (HttpRequestException)
-            {
-                await FollowupAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Služba není dostupná)")
-                    .WithTitle("Mé jádro pravě nemůže poskytnout stabilní stream audia")
-                    .Build());
-            }
-
-            catch (ArgumentNullException)
-            {
-                await FollowupAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný argument)")
-                    .WithTitle("Mému jádru se nepodařilo v databázi nalézt požadovanou stopu")
-                    .Build());
-            }
-
-            catch (Exception)
-            {
-                await FollowupAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neznámá chyba)")
-                    .WithTitle("Při komunikaci s jádrem nastala neznámá chyba")
-                    .Build());
-
-                throw;
-            }
+            await SearchAndPlay(player, trackUrl);
         }
 
         [ComponentInteraction("TrackControls_Remove,*", true)]
@@ -409,18 +285,16 @@ namespace NOVAxis.Modules.Audio
             var player = await GetPlayerAsync(joinChannel: false, sameChannel: true);
             if (player == null) return;
 
-            var currentItem = (AudioTrackQueueItem) player.CurrentItem;
-
             if (InteractionCache[interactionId] is not AudioTrackQueueItem cachedItem)
             {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Vypršel časový limit)")
-                    .WithTitle("Mé jádro přerušilo čekání na lidský vstup")
-                    .Build());
+                await RespondAsync(ephemeral: true, embed: AudioEmbeds.Error(
+                    "Mé jádro přerušilo čekání na lidský vstup",
+                    "(Vypršel časový limit)"));
 
                 return;
             }
+
+            var currentItem = player.CurrentItem;
 
             if (currentItem != null && currentItem.RequestId == cachedItem.RequestId)
             {
@@ -430,21 +304,17 @@ namespace NOVAxis.Modules.Audio
 
             if (!player.Queue.Contains(cachedItem))
             {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný příkaz)")
-                    .WithTitle("Požadovaná stopa se ve frontě nenachází").Build());
+                await RespondAsync(ephemeral: true, embed: AudioEmbeds.Error(
+                    "Požadovaná stopa se ve frontě nenachází",
+                    "(Neplatný příkaz)"));
 
                 return;
             }
 
             await player.Queue.RemoveAsync(cachedItem);
 
-            await RespondAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle("Požadovaná stopa byla úspěšně odebrána z fronty")
-                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                .Build());
+            await RespondAsync(embed: AudioEmbeds.Info(
+                "Požadovaná stopa byla úspěšně odebrána z fronty", Context.User));
         }
 
         public class TrackControlsAddModal : IModal
@@ -469,21 +339,15 @@ namespace NOVAxis.Modules.Audio
         public async Task CmdSkipAudio(int count = 1)
         {
             var player = await GetPlayerAsync(
-                joinChannel: false, sameChannel: true, 
-                PlayerPrecondition.Playing);
+                joinChannel: false, sameChannel: true,
+                AudioPrecondition.Playing);
 
             if (player == null) return;
 
-            await RespondAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle("Stream audia byl úspěšně přeskočen")
-                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                .Build());
+            await RespondAsync(embed: AudioEmbeds.Info(
+                "Stream audia byl úspěšně přeskočen", Context.User));
 
-            if (count > 1)
-                await player.Queue.RemoveRangeAsync(0, count - 1);
-
-            await player.SkipAsync();
+            await player.SkipAsync(count);
         }
 
         [SlashCommand("stop", "Stops the audio transmission")]
@@ -491,15 +355,12 @@ namespace NOVAxis.Modules.Audio
         {
             var player = await GetPlayerAsync(
                 joinChannel: false, sameChannel: true,
-                PlayerPrecondition.Playing);
+                AudioPrecondition.Playing);
 
             if (player == null) return;
 
-            await RespondAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle("Stream audia byl úspěšně zastaven")
-                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                .Build());
+            await RespondAsync(embed: AudioEmbeds.Info(
+                "Stream audia byl úspěšně zastaven", Context.User));
 
             await player.StopAsync();
         }
@@ -509,15 +370,12 @@ namespace NOVAxis.Modules.Audio
         {
             var player = await GetPlayerAsync(
                 joinChannel: false, sameChannel: true,
-                PlayerPrecondition.QueueNotEmpty);
+                AudioPrecondition.QueueNotEmpty);
 
             if (player == null) return;
 
-            await RespondAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle("Fronta audia byla úspěšně promazána")
-                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                .Build());
+            await RespondAsync(embed: AudioEmbeds.Info(
+                "Fronta audia byla úspěšně promazána", Context.User));
 
             await player.Queue.ClearAsync();
         }
@@ -526,76 +384,72 @@ namespace NOVAxis.Modules.Audio
         public async Task CmdPauseAudio()
         {
             var player = await GetPlayerAsync(
-                joinChannel: false, sameChannel: true, 
-                PlayerPrecondition.NotPaused);
+                joinChannel: false, sameChannel: true,
+                AudioPrecondition.NotPaused);
 
             if (player == null) return;
 
             await player.PauseAsync();
 
-            await RespondAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle("Stream audia byl úspěšně pozastaven")
-                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                .Build());
+            await RespondAsync(embed: AudioEmbeds.Info(
+                "Stream audia byl úspěšně pozastaven", Context.User));
         }
 
         [SlashCommand("resume", "Resumes the audio transmission")]
         public async Task CmdResumeAudio()
         {
             var player = await GetPlayerAsync(
-                joinChannel: false, sameChannel: true, 
-                PlayerPrecondition.Paused);
+                joinChannel: false, sameChannel: true,
+                AudioPrecondition.Paused);
 
             if (player == null) return;
 
             await player.ResumeAsync();
 
-            await RespondAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle("Stream audia byl úspěšně obnoven")
-                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                .Build());
+            await RespondAsync(embed: AudioEmbeds.Info(
+                "Stream audia byl úspěšně obnoven", Context.User));
         }
 
         [SlashCommand("seek", "Seeks a position in the audio transmissions")]
         public async Task CmdSeekAudio(TimeSpan time)
         {
             var player = await GetPlayerAsync(
-                joinChannel: false, sameChannel: true, 
-                PlayerPrecondition.Playing);
+                joinChannel: false, sameChannel: true,
+                AudioPrecondition.Playing);
 
             if (player == null) return;
 
             var currentTrack = player.CurrentTrack!;
 
+            if (!IsSeekable(currentTrack))
+            {
+                await RespondAsync(ephemeral: true, embed: AudioEmbeds.Warning(
+                    "V živém přenosu nelze měnit pozici",
+                    "(Neplatný příkaz)"));
+
+                return;
+            }
+
             if (time > currentTrack.Duration)
             {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný argument)")
-                    .WithTitle("Nelze nastavit hodnotu přesahující maximální délku stopy")
-                    .Build());
+                await RespondAsync(ephemeral: true, embed: AudioEmbeds.Error(
+                    "Nelze nastavit hodnotu přesahující maximální délku stopy",
+                    "(Neplatný argument)"));
 
                 return;
             }
 
             if (time < TimeSpan.Zero)
             {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný argument)")
-                    .WithTitle("Nelze nastavit zápornou hodnotu")
-                    .Build());
+                await RespondAsync(ephemeral: true, embed: AudioEmbeds.Error(
+                    "Nelze nastavit zápornou hodnotu",
+                    "(Neplatný argument)"));
 
                 return;
             }
 
-            await RespondAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle($"Pozice audia byla úspěšně nastavena na `{time:hh\\:mm\\:ss}`")
-                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                .Build());
+            await RespondAsync(embed: AudioEmbeds.Info(
+                $"Pozice audia byla úspěšně nastavena na `{time:hh\\:mm\\:ss}`", Context.User));
 
             await player.SeekAsync(time);
         }
@@ -604,35 +458,38 @@ namespace NOVAxis.Modules.Audio
         public async Task CmdForwardAudio(TimeSpan time)
         {
             var player = await GetPlayerAsync(
-                joinChannel: false, sameChannel: true, 
-                PlayerPrecondition.Playing);
+                joinChannel: false, sameChannel: true,
+                AudioPrecondition.Playing);
 
             if (player == null) return;
 
             var currentTrack = player.CurrentTrack!;
-            var trackPosition = player.Position!.Value.Position;
-            
-            if (time <= TimeSpan.Zero)
+
+            if (!IsSeekable(currentTrack))
             {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný argument)")
-                    .WithTitle("Nelze posunout o zápornou nebo nulovou hodnotu")
-                    .Build());
+                await RespondAsync(ephemeral: true, embed: AudioEmbeds.Warning(
+                    "V živém přenosu nelze měnit pozici",
+                    "(Neplatný příkaz)"));
 
                 return;
             }
 
-            var newTime = trackPosition + time;
+            if (time <= TimeSpan.Zero)
+            {
+                await RespondAsync(ephemeral: true, embed: AudioEmbeds.Error(
+                    "Nelze posunout o zápornou nebo nulovou hodnotu",
+                    "(Neplatný argument)"));
+
+                return;
+            }
+
+            var newTime = player.Position + time;
 
             if (newTime > currentTrack.Duration)
                 newTime = currentTrack.Duration;
 
-            await RespondAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime:hh\\:mm\\:ss}`")
-                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                .Build());
+            await RespondAsync(embed: AudioEmbeds.Info(
+                $"Pozice audia byla úspěšně nastavena na `{newTime:hh\\:mm\\:ss}`", Context.User));
 
             await player.SeekAsync(newTime);
         }
@@ -641,34 +498,36 @@ namespace NOVAxis.Modules.Audio
         public async Task CmdBackwardAudio(TimeSpan time)
         {
             var player = await GetPlayerAsync(
-                joinChannel: false, sameChannel: true, 
-                PlayerPrecondition.Playing);
+                joinChannel: false, sameChannel: true,
+                AudioPrecondition.Playing);
 
             if (player == null) return;
 
-            var trackPosition = player.Position!.Value.Position;
-            
-            if (time <= TimeSpan.Zero)
+            if (!IsSeekable(player.CurrentTrack))
             {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný argument)")
-                    .WithTitle("Nelze posunout o zápornou nebo nulovou hodnotu")
-                    .Build());
+                await RespondAsync(ephemeral: true, embed: AudioEmbeds.Warning(
+                    "V živém přenosu nelze měnit pozici",
+                    "(Neplatný příkaz)"));
 
                 return;
             }
 
-            var newTime = trackPosition - time;
+            if (time <= TimeSpan.Zero)
+            {
+                await RespondAsync(ephemeral: true, embed: AudioEmbeds.Error(
+                    "Nelze posunout o zápornou nebo nulovou hodnotu",
+                    "(Neplatný argument)"));
+
+                return;
+            }
+
+            var newTime = player.Position - time;
 
             if (newTime < TimeSpan.Zero)
                 newTime = TimeSpan.Zero;
 
-            await RespondAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle($"Pozice audia byla úspěšně nastavena na `{newTime:hh\\:mm\\:ss}`")
-                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                .Build());
+            await RespondAsync(embed: AudioEmbeds.Info(
+                $"Pozice audia byla úspěšně nastavena na `{newTime:hh\\:mm\\:ss}`", Context.User));
 
             await player.SeekAsync(newTime);
         }
@@ -677,27 +536,22 @@ namespace NOVAxis.Modules.Audio
         public async Task CmdAudioVolume(ushort percentage)
         {
             var player = await GetPlayerAsync(
-                joinChannel: false, sameChannel: true, 
-                PlayerPrecondition.Playing);
+                joinChannel: false, sameChannel: true,
+                AudioPrecondition.Playing);
 
             if (player == null) return;
 
             if (percentage > 150)
             {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(255, 150, 0)
-                    .WithDescription("(Neplatný argument)")
-                    .WithTitle("Mé jádro nepodporuje hlasitost vyšší než 150%")
-                    .Build());
+                await RespondAsync(ephemeral: true, embed: AudioEmbeds.Warning(
+                    "Mé jádro nepodporuje hlasitost vyšší než 150%",
+                    "(Neplatný argument)"));
 
                 return;
             }
 
-            await RespondAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle($"Hlasitost audia byla úspěšně nastavena na {percentage}%")
-                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                .Build());
+            await RespondAsync(embed: AudioEmbeds.Info(
+                $"Hlasitost audia byla úspěšně nastavena na {percentage}%", Context.User));
 
             await player.SetVolumeAsync(percentage * 0.01f);
         }
@@ -706,110 +560,51 @@ namespace NOVAxis.Modules.Audio
         public async Task CmdAudioStatus()
         {
             var player = await GetPlayerAsync(
-                joinChannel: false, sameChannel: false, 
-                PlayerPrecondition.Playing);
+                joinChannel: false, sameChannel: false,
+                AudioPrecondition.Playing);
 
             if (player == null) return;
 
-            var item = (AudioTrackQueueItem) player.CurrentItem!;
-            var track = item.Track!;
-            
-            var statusEmoji = !player.IsPaused
-                ? new Emoji("\u25B6") // Playing
-                : new Emoji("\u23F8"); // Paused
+            var item = player.CurrentItem!;
 
-            var position = player.Position.GetValueOrDefault().Position;
-
-            var embed = new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithAuthor("Právě přehrávám:")
-                .WithTitle($"{track.Title}")
-                .WithUrl(track.Uri?.AbsoluteUri)
-                .WithThumbnailUrl(track.ArtworkUri?.AbsoluteUri)
-                .AddField("Vyžádal:", item.RequestedBy.Mention)
-                .AddField("Stav:", $"{statusEmoji}", true)
-                .AddField("Hlasitost:", $"{player.Volume * 100.0f}%", true)
-                .AddField("Délka:", $"`{position:hh\\:mm\\:ss}/{track.Duration:hh\\:mm\\:ss}`", true)
-                .Build();
-
-            var components = new ComponentBuilder()
-                .WithButton(customId: "AudioControls_PlayPause", emote: new Emoji("\u23EF"))
-                .WithButton(customId: "AudioControls_Stop", emote: new Emoji("\u23F9"))
-                .WithButton(customId: "AudioControls_Skip", emote: new Emoji("\u23E9"))
-                .WithButton(customId: "AudioControls_Repeat", emote: new Emoji("\uD83D\uDD01"))
-                .WithButton(customId: "AudioControls_RepeatOnce", emote: new Emoji("\uD83D\uDD02"))
-                .Build();
-
-            await RespondAsync(embed: embed, components: components);
+            await RespondAsync(
+                embed: AudioEmbeds.NowPlaying(item, player.IsPaused, player.Volume, player.Position),
+                components: AudioEmbeds.PlayerControls());
         }
 
         [SlashCommand("queue", "Shows enqueued audio transmissions")]
         public async Task CmdAudioQueue()
         {
             var player = await GetPlayerAsync(
-                joinChannel: false, sameChannel: false, 
-                PlayerPrecondition.QueueNotEmpty);
+                joinChannel: false, sameChannel: false,
+                AudioPrecondition.QueueNotEmpty);
 
             if (player == null) return;
 
             var paginator = new AudioQueuePaginator(5);
-            var totalDuration = TimeSpan.Zero;
-            var statusEmoji = !player.IsPaused
-                ? new Emoji("\u25B6") // Playing
-                : new Emoji("\u23F8"); // Paused
+            var currentItem = player.CurrentItem;
+            var queue = player.Queue.ToList();
 
-            var header = new List<EmbedFieldBuilder>();
-            var tracks = new List<EmbedFieldBuilder>();
-            var footer = new List<EmbedFieldBuilder>();
+            var totalDuration = queue.Aggregate(
+                currentItem?.Track.Duration ?? TimeSpan.Zero,
+                (total, item) => total + item.Track.Duration);
 
-            int position = 0;
-            using var queueEnumerator = player.Queue.GetEnumerator();
-            
-            while (queueEnumerator.MoveNext())
+            var header = AudioEmbeds
+                .QueueHeader(currentItem, player.IsPaused, queue.Count)
+                .ToList();
+
+            var tracks = queue
+                .Select((item, index) => AudioEmbeds.QueueEntry(index + 1, item))
+                .ToList();
+
+            var footer = new List<EmbedFieldBuilder>
             {
-                position++;
-                
-                var current = queueEnumerator.Current;
-                
-                var item = (AudioTrackQueueItem) current!;
-                var track = item.Track!;
-
-                var mention = item.RequestedBy.Mention;
-                var duration = track.Duration;
-                var url = track.Uri?.AbsoluteUri;
-                
-                if (position == 0)
+                new()
                 {
-                    header.Add(new EmbedFieldBuilder
-                    {
-                        Name = $"{statusEmoji} **{track.Title}**",
-                        Value = $"Vyžádal: {mention} | Délka: `{duration:hh\\:mm\\:ss}` | [Odkaz]({url})\n"
-                    });
-
-                    header.Add(new EmbedFieldBuilder
-                    {
-                        Name = "\u200B",
-                        Value = $"**Stopy ve frontě ({player.Queue.Count - 1}):**"
-                    });
+                    Name = "\u200B",
+                    Value = $"Celková doba poslechu: `{totalDuration:hh\\:mm\\:ss}`"
                 }
-
-                else
-                {
-                    tracks.Add(new EmbedFieldBuilder
-                    {
-                        Name = $"`{position}.` {track.Title}",
-                        Value = $"Vyžádal: {mention} | Délka: `{duration:hh\\:mm\\:ss}` | [Odkaz]({url})\n"
-                    });
-                }
-
-                totalDuration += track.Duration;
-            }
-
-            footer.Add(new EmbedFieldBuilder
-            {
-                Name = "\u200B",
-                Value = $"Celková doba poslechu: `{totalDuration:hh\\:mm\\:ss}`"
-            });
+            };
 
             var page = paginator
                 .WithHeader(header)
@@ -870,11 +665,9 @@ namespace NOVAxis.Modules.Audio
 
             else
             {
-                var embed = new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Vypršel časový limit)")
-                    .WithTitle("Mé jádro přerušilo čekání na lidský vstup")
-                    .Build();
+                var embed = AudioEmbeds.Error(
+                    "Mé jádro přerušilo čekání na lidský vstup",
+                    "(Vypršel časový limit)");
 
                 modifyAction = m =>
                 {
@@ -899,41 +692,37 @@ namespace NOVAxis.Modules.Audio
         public async Task CmdRemoveAudio(int index)
         {
             var player = await GetPlayerAsync(
-                joinChannel: false, sameChannel: true, 
-                PlayerPrecondition.QueueNotEmpty);
+                joinChannel: false, sameChannel: true,
+                AudioPrecondition.QueueNotEmpty);
 
             if (player == null) return;
 
-            if (index <= 0 || index >= player.Queue.Count)
+            // The positions shown by /audio queue start at one
+            if (index <= 0 || index > player.Queue.Count)
             {
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatná pozice)")
-                    .WithTitle("Požadovaná stopa se ve frontě nenachází")
-                    .Build());
+                await RespondAsync(ephemeral: true, embed: AudioEmbeds.Error(
+                    "Požadovaná stopa se ve frontě nenachází",
+                    "(Neplatná pozice)"));
 
                 return;
             }
 
-            await player.Queue.RemoveAtAsync(index);
+            await player.Queue.RemoveAtAsync(index - 1);
 
-            await RespondAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle("Požadovaná stopa byla úspěšně odebrána z fronty")
-                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                .Build());
+            await RespondAsync(embed: AudioEmbeds.Info(
+                "Požadovaná stopa byla úspěšně odebrána z fronty", Context.User));
         }
 
         [SlashCommand("repeat", "Repeats enqueued audio transmission")]
-        public async Task CmdRepeatAudio(TrackRepeatMode mode)
+        public async Task CmdRepeatAudio(AudioRepeatMode mode)
         {
             var player = await GetPlayerAsync(
-                joinChannel: false, sameChannel: true, 
-                PlayerPrecondition.Playing);
+                joinChannel: false, sameChannel: true,
+                AudioPrecondition.Playing);
 
             if (player == null) return;
 
-            if (player.RepeatMode != mode && mode != TrackRepeatMode.None)
+            if (player.RepeatMode != mode && mode != AudioRepeatMode.None)
             {
                 await RespondAsync(embed: new EmbedBuilder()
                     .WithColor(52, 231, 231)
@@ -954,104 +743,14 @@ namespace NOVAxis.Modules.Audio
                     .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
                     .Build());
 
-                player.RepeatMode = TrackRepeatMode.None;
+                player.RepeatMode = AudioRepeatMode.None;
             }
         }
 
-        [SlashCommand("tts", "Plays text to speech audio transmission")]
-        public async Task CmdTextToSpeech(string text)
+        private static bool IsSeekable(AudioTrack track)
         {
-            await DeferAsync();
-
-            var player = await GetPlayerAsync(joinChannel: true);
-            if (player == null) return;
-
-            var input = Uri.EscapeDataString(text);
-            var uri = $"ftts://{input}";
-
-            var options = new TrackLoadOptions(
-                SearchMode: TrackSearchMode.None,
-                SearchBehavior: StrictSearchBehavior.Passthrough);
-
-            var track = await AudioService.Tracks
-                .LoadTrackAsync(uri, options);
-
-            if (track == null)
-            {
-                await FollowupAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(220, 20, 60)
-                    .WithDescription("(Neplatný argument)")
-                    .WithTitle("Mému jádru se nepodařilo v databázi nalézt požadovanou stopu")
-                    .Build());
-
-                return;
-            }
-
-            var item = new AudioTrackQueueItem(new TrackReference(track))
-            {
-                RequestedBy = Context.User,
-                RequestId = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now)
-            };
-
-            await player.PlayAsync(item, false);
-
-            await FollowupAsync(embed: new EmbedBuilder()
-                .WithColor(52, 231, 231)
-                .WithTitle("Přehrávám text-to-speech")
-                .WithAuthor($"{Context.User}", Context.User.GetAvatarUrl())
-                .Build());
+            return track is { IsLiveStream: false } && track.Duration > TimeSpan.Zero;
         }
-
-        /*
-        [RequireUserPermission(GuildPermission.Administrator)]
-        [SlashCommand("setdj", "Sets the guild's DJ role which is used to identify eligible users")]
-        public async Task CmdSetDjRole(IRole newRole = null)
-        {
-            var guildInfo = await GuildDbContext.Get(Context) ??
-                            await GuildDbContext.Create(Context.Guild);
-
-            var currentRole = guildInfo.Roles.Find(x => x.Name == "DJ");
-
-            if (newRole != null)
-            {
-                if (currentRole != null)
-                {
-                    GuildDbContext.GuildRoles.Remove(currentRole);
-                    await GuildDbContext.SaveChangesAsync();
-                }
-
-                GuildDbContext.GuildRoles.Add(new GuildRole
-                {
-                    Name = "DJ",
-                    Id = newRole.Id,
-                    Guild = guildInfo,
-                });
-
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithDescription($"(Nastavena role {newRole.Mention})")
-                    .WithTitle("Konfigurace mého jádra proběhla úspešně")
-                    .Build());
-            }
-
-            else
-            {
-                if (currentRole != null)
-                {
-                    GuildDbContext.GuildRoles.Remove(currentRole);
-                    await GuildDbContext.SaveChangesAsync();
-                }
-
-                await RespondAsync(ephemeral: true, embed: new EmbedBuilder()
-                    .WithColor(52, 231, 231)
-                    .WithDescription("(Nastavená role zrušena)")
-                    .WithTitle("Konfigurace mého jádra proběhla úspešně")
-                    .Build());
-            }
-
-            await GuildDbContext.SaveChangesAsync();
-        }
-        */
 
         #endregion
     }

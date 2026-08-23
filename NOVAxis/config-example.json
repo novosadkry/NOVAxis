@@ -1,4 +1,4 @@
-{
+﻿{
   "Discord": {
     "LoginToken": "INSERT_TOKEN_HERE",
     "TotalShards": 1,
@@ -33,6 +33,17 @@
   "Audio": {
     "Active": true,
     "SelfDeaf": true,
+    "Backend": "YtDlp",
+    "YtDlp": {
+      "ExecutablePath": "yt-dlp",
+      "FfmpegPath": "ffmpeg",
+      "Format": "bestaudio[abr<=?128]/bestaudio/best",
+      "CookiesFile": null,
+      "UserAgent": null,
+      "MaxPlaylistSize": 500,
+      "Prefetch": true,
+      "ResolveTimeout": "00:00:30"
+    },
     "Lavalink": {
       "Host": "localhost",
       "Port": 2333,

@@ -53,14 +53,22 @@ namespace NOVAxis.Core
         public string DbName { get; set; }
     }
 
+    public enum AudioBackend
+    {
+        YtDlp,
+        Lavalink
+    }
+
     public class AudioOptions
     {
         public const string Key = "Audio";
 
         public bool Active { get; set; } = true;
         public bool SelfDeaf { get; set; } = true;
+        public AudioBackend Backend { get; set; } = AudioBackend.YtDlp;
         public AudioTimeoutOptions Timeout { get; set; } = new();
         public AudioLavalinkOptions Lavalink { get; set; } = new();
+        public AudioYtDlpOptions YtDlp { get; set; } = new();
     }
 
     public class AudioTimeoutOptions
@@ -78,6 +86,20 @@ namespace NOVAxis.Core
         public string Host { get; set; } = "localhost";
         public ushort Port { get; set; } = 2333;
         public string Login { get; set; } = "youshallnotpass";
+    }
+
+    public class AudioYtDlpOptions
+    {
+        public const string Key = "Audio:YtDlp";
+
+        public string ExecutablePath { get; set; } = "yt-dlp";
+        public string FfmpegPath { get; set; } = "ffmpeg";
+        public string Format { get; set; } = "bestaudio[abr<=?128]/bestaudio/best";
+        public string CookiesFile { get; set; }
+        public string UserAgent { get; set; }
+        public int MaxPlaylistSize { get; set; } = 500;
+        public bool Prefetch { get; set; } = true;
+        public TimeSpan ResolveTimeout { get; set; } = TimeSpan.FromSeconds(30);
     }
 
     public class AnthropicOptions

@@ -1,0 +1,248 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Text.Json;
+
+namespace NOVAxis.Services.Audio.YtDlp
+{
+    /// <summary>
+    /// Reads the info dictionaries yt-dlp emits with <c>-J</c>. Every field yt-dlp produces is
+    /// optional and extractor dependent, so each lookup falls back to the next best key.
+    /// </summary>
+    public static class YtDlpJson
+    {
+        public static AudioLoadResult ReadLoadResult(string json, int maxPlaylistSize)
+        {
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+
+            if (!IsPlaylist(root))
+                return AudioLoadResult.FromTrack(ReadTrack(root));
+
+            var entries = ReadEntries(root, maxPlaylistSize).ToList();
+
+            if (entries.Count == 0)
+                return AudioLoadResult.Failed;
+
+            // A search is modelled as a playlist by yt-dlp, but the user asked for a track
+            if (IsSearch(root))
+                return AudioLoadResult.FromTrack(entries[0]);
+
+            return AudioLoadResult.FromPlaylist(entries, new AudioPlaylist
+            {
+                Name = GetString(root, "title") ?? GetString(root, "id"),
+                Uri = GetUri(root, "webpage_url", "original_url"),
+                ArtworkUri = ReadArtwork(root) ?? entries[0].ArtworkUri,
+                TotalTracks = GetInt(root, "playlist_count") ?? entries.Count
+            });
+        }
+
+        /// <summary>
+        /// Extracts the playable media URL and the headers yt-dlp expects it to be requested with.
+        /// </summary>
+        public static YtDlpStreamInfo ReadStreamInfo(string json)
+        {
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+
+            // yt-dlp reports the format it picked under requested_downloads
+            if (root.TryGetProperty("requested_downloads", out var downloads) &&
+                downloads.ValueKind == JsonValueKind.Array &&
+                downloads.GetArrayLength() > 0)
+            {
+                var download = downloads[0];
+                var downloadUrl = GetString(download, "url");
+
+                if (!string.IsNullOrEmpty(downloadUrl))
+                    return new YtDlpStreamInfo(downloadUrl, ReadHeaders(download));
+            }
+
+            var url = GetString(root, "url");
+
+            return string.IsNullOrEmpty(url)
+                ? null
+                : new YtDlpStreamInfo(url, ReadHeaders(root));
+        }
+
+        private static bool IsPlaylist(JsonElement element)
+        {
+            return GetString(element, "_type") == "playlist" ||
+                   element.TryGetProperty("entries", out var entries) &&
+                   entries.ValueKind == JsonValueKind.Array;
+        }
+
+        private static bool IsSearch(JsonElement element)
+        {
+            var url = GetString(element, "webpage_url") ?? GetString(element, "original_url") ?? string.Empty;
+            return url.Contains("search", StringComparison.OrdinalIgnoreCase) && !url.StartsWith("http");
+        }
+
+        private static IEnumerable<AudioTrack> ReadEntries(JsonElement root, int maxPlaylistSize)
+        {
+            if (!root.TryGetProperty("entries", out var entries) || entries.ValueKind != JsonValueKind.Array)
+                yield break;
+
+            var count = 0;
+
+            foreach (var entry in entries.EnumerateArray())
+            {
+                if (count >= maxPlaylistSize)
+                    yield break;
+
+                // Unavailable entries (private, deleted, geo blocked) come through as null
+                if (entry.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+                    continue;
+
+                // Nested playlists are flattened away
+                if (IsPlaylist(entry))
+                {
+                    foreach (var nested in ReadEntries(entry, maxPlaylistSize - count))
+                    {
+                        count++;
+                        yield return nested;
+                    }
+
+                    continue;
+                }
+
+                var track = ReadTrack(entry);
+                if (track == null) continue;
+
+                count++;
+                yield return track;
+            }
+        }
+
+        public static AudioTrack ReadTrack(JsonElement element)
+        {
+            var uri = GetUri(element, "webpage_url", "original_url", "url");
+            var title = GetString(element, "title") ?? GetString(element, "fulltitle");
+
+            if (uri == null && title == null)
+                return null;
+
+            var isLive = GetBool(element, "is_live") ??
+                         GetString(element, "live_status") == "is_live";
+
+            return new AudioTrack
+            {
+                Title = title ?? uri!.AbsoluteUri,
+                Author = GetString(element, "uploader") ??
+                         GetString(element, "channel") ??
+                         GetString(element, "artist") ??
+                         GetString(element, "uploader_id"),
+                Uri = uri,
+                ArtworkUri = ReadArtwork(element),
+                Duration = ReadDuration(element),
+                IsLiveStream = isLive,
+                Identifier = GetString(element, "id"),
+                SourceName = GetString(element, "extractor_key") ?? GetString(element, "ie_key")
+            };
+        }
+
+        private static TimeSpan ReadDuration(JsonElement element)
+        {
+            if (element.TryGetProperty("duration", out var duration))
+            {
+                switch (duration.ValueKind)
+                {
+                    case JsonValueKind.Number when duration.TryGetDouble(out var seconds):
+                        return TimeSpan.FromSeconds(seconds);
+
+                    case JsonValueKind.String when double.TryParse(duration.GetString(),
+                        NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed):
+                        return TimeSpan.FromSeconds(parsed);
+                }
+            }
+
+            return TimeSpan.Zero;
+        }
+
+        private static Uri ReadArtwork(JsonElement element)
+        {
+            var thumbnail = GetUri(element, "thumbnail");
+            if (thumbnail != null) return thumbnail;
+
+            if (!element.TryGetProperty("thumbnails", out var thumbnails) ||
+                thumbnails.ValueKind != JsonValueKind.Array)
+                return null;
+
+            // yt-dlp orders thumbnails from worst to best
+            Uri best = null;
+
+            foreach (var candidate in thumbnails.EnumerateArray())
+            {
+                var uri = GetUri(candidate, "url");
+                if (uri != null) best = uri;
+            }
+
+            return best;
+        }
+
+        private static IReadOnlyDictionary<string, string> ReadHeaders(JsonElement element)
+        {
+            var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            if (element.TryGetProperty("http_headers", out var element2) &&
+                element2.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var header in element2.EnumerateObject())
+                {
+                    if (header.Value.ValueKind == JsonValueKind.String)
+                        headers[header.Name] = header.Value.GetString();
+                }
+            }
+
+            return headers;
+        }
+
+        private static string GetString(JsonElement element, string name)
+        {
+            return element.ValueKind == JsonValueKind.Object &&
+                   element.TryGetProperty(name, out var value) &&
+                   value.ValueKind == JsonValueKind.String
+                ? value.GetString()
+                : null;
+        }
+
+        private static int? GetInt(JsonElement element, string name)
+        {
+            return element.ValueKind == JsonValueKind.Object &&
+                   element.TryGetProperty(name, out var value) &&
+                   value.ValueKind == JsonValueKind.Number &&
+                   value.TryGetInt32(out var parsed)
+                ? parsed
+                : null;
+        }
+
+        private static bool? GetBool(JsonElement element, string name)
+        {
+            if (element.ValueKind != JsonValueKind.Object ||
+                !element.TryGetProperty(name, out var value))
+                return null;
+
+            return value.ValueKind switch
+            {
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                _ => null
+            };
+        }
+
+        private static Uri GetUri(JsonElement element, params string[] names)
+        {
+            foreach (var name in names)
+            {
+                var value = GetString(element, name);
+
+                if (!string.IsNullOrEmpty(value) &&
+                    Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+                    uri.Scheme is "http" or "https")
+                    return uri;
+            }
+
+            return null;
+        }
+    }
+}

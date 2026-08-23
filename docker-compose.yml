@@ -14,9 +14,12 @@
       options:
         max-size: 50m
 
+  # Only needed when Audio:Backend is set to "Lavalink"
   lavalink:
     image: ghcr.io/lavalink-devs/lavalink
     container_name: novaxis-lavalink
+    profiles:
+      - lavalink
     volumes:
       - ./NOVAxis/Lavalink/application.yml:/opt/Lavalink/application.yml
       - ./NOVAxis/Lavalink/plugins:/opt/Lavalink/plugins
