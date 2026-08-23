@@ -164,7 +164,6 @@ namespace NOVAxis.Services.Audio.YtDlp
                 _replacementItem = item;
                 Interrupt(PlaybackInterrupt.Replace);
             }
-
             finally
             {
                 _commandLock.Release();
@@ -183,7 +182,6 @@ namespace NOVAxis.Services.Audio.YtDlp
                 _repeatItem = null;
                 Interrupt(PlaybackInterrupt.Skip);
             }
-
             finally
             {
                 _commandLock.Release();
@@ -201,7 +199,6 @@ namespace NOVAxis.Services.Audio.YtDlp
                 _repeatItem = null;
                 Interrupt(PlaybackInterrupt.Stop);
             }
-
             finally
             {
                 _commandLock.Release();
@@ -222,7 +219,6 @@ namespace NOVAxis.Services.Audio.YtDlp
                 if (State == AudioPlayerState.Playing)
                     _state = (int)AudioPlayerState.Paused;
             }
-
             finally
             {
                 _commandLock.Release();
@@ -244,7 +240,6 @@ namespace NOVAxis.Services.Audio.YtDlp
 
                 _resumeSignal?.TrySetResult();
             }
-
             finally
             {
                 _commandLock.Release();
@@ -262,7 +257,6 @@ namespace NOVAxis.Services.Audio.YtDlp
                 _seekPosition = position < TimeSpan.Zero ? TimeSpan.Zero : position;
                 Interrupt(PlaybackInterrupt.Seek);
             }
-
             finally
             {
                 _commandLock.Release();
@@ -315,12 +309,10 @@ namespace NOVAxis.Services.Audio.YtDlp
                 {
                     outcome = await PlayTrackAsync(item, lifetimeToken);
                 }
-
                 catch (OperationCanceledException) when (lifetimeToken.IsCancellationRequested)
                 {
                     break;
                 }
-
                 catch (Exception e)
                 {
                     outcome = PlaybackOutcome.Failed;
@@ -461,7 +453,6 @@ namespace NOVAxis.Services.Audio.YtDlp
 
                 return PlaybackOutcome.Completed;
             }
-
             catch (OperationCanceledException) when (!lifetimeToken.IsCancellationRequested)
             {
                 return _interrupt switch
@@ -525,7 +516,6 @@ namespace NOVAxis.Services.Audio.YtDlp
                 {
                     return await prefetched.WaitAsync(cancellationToken);
                 }
-
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
                     _logger.Debug($"Prefetched address of '{item.Track.Title}' was unusable, resolving again");
@@ -601,7 +591,6 @@ namespace NOVAxis.Services.Audio.YtDlp
                 if (_disposed) return;
                 _disposed = true;
             }
-
             finally
             {
                 _commandLock.Release();

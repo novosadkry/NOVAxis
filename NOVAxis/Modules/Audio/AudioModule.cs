@@ -133,14 +133,12 @@ namespace NOVAxis.Modules.Audio
                     "Mé jádro pravě nemůže poskytnout stabilní stream audia",
                     "(Služba není dostupná)"));
             }
-
             catch (HttpRequestException)
             {
                 await FollowupAsync(ephemeral: true, embed: AudioEmbeds.Warning(
                     "Mé jádro pravě nemůže poskytnout stabilní stream audia",
                     "(Služba není dostupná)"));
             }
-
             catch (Exception)
             {
                 await FollowupAsync(ephemeral: true, embed: AudioEmbeds.Error(

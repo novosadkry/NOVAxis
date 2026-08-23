@@ -104,7 +104,6 @@ namespace NOVAxis.Services.Audio.YtDlp
 
                 return AudioPlayerRetrieveResult.Success(player);
             }
-
             finally
             {
                 gate.Release();
@@ -129,7 +128,6 @@ namespace NOVAxis.Services.Audio.YtDlp
             {
                 await player.ConnectAsync(cancellationToken);
             }
-
             catch (Exception e)
             {
                 Logger.Error($"Unable to join voice channel '{voiceChannel.Name}' of guild {voiceChannel.GuildId}", e);

@@ -30,15 +30,15 @@ namespace NOVAxis.Services.Audio.Lavalink
             return IndexOf(item) >= 0;
         }
 
-        public ValueTask AddAsync(AudioTrackQueueItem item, CancellationToken cancellationToken = default)
+        public async ValueTask AddAsync(AudioTrackQueueItem item, CancellationToken cancellationToken = default)
         {
-            return new ValueTask(_queue.AddAsync(new LavalinkTrackQueueItem(item), cancellationToken).AsTask());
+            await _queue.AddAsync(new LavalinkTrackQueueItem(item), cancellationToken);
         }
 
-        public ValueTask AddRangeAsync(IEnumerable<AudioTrackQueueItem> items, CancellationToken cancellationToken = default)
+        public async ValueTask AddRangeAsync(IEnumerable<AudioTrackQueueItem> items, CancellationToken cancellationToken = default)
         {
             var wrapped = LavalinkTrackQueueItem.Wrap(items).ToList();
-            return new ValueTask(_queue.AddRangeAsync(wrapped, cancellationToken).AsTask());
+            await _queue.AddRangeAsync(wrapped, cancellationToken);
         }
 
         public async ValueTask<bool> RemoveAsync(AudioTrackQueueItem item, CancellationToken cancellationToken = default)
@@ -49,9 +49,9 @@ namespace NOVAxis.Services.Audio.Lavalink
             return await _queue.RemoveAtAsync(index, cancellationToken);
         }
 
-        public ValueTask RemoveAtAsync(int index, CancellationToken cancellationToken = default)
+        public async ValueTask RemoveAtAsync(int index, CancellationToken cancellationToken = default)
         {
-            return new ValueTask(_queue.RemoveAtAsync(index, cancellationToken).AsTask());
+            await _queue.RemoveAtAsync(index, cancellationToken);
         }
 
         public ValueTask RemoveRangeAsync(int index, int count, CancellationToken cancellationToken = default)
@@ -59,9 +59,9 @@ namespace NOVAxis.Services.Audio.Lavalink
             return _queue.RemoveRangeAsync(index, count, cancellationToken);
         }
 
-        public ValueTask ClearAsync(CancellationToken cancellationToken = default)
+        public async ValueTask ClearAsync(CancellationToken cancellationToken = default)
         {
-            return new ValueTask(_queue.ClearAsync(cancellationToken).AsTask());
+            await _queue.ClearAsync(cancellationToken);
         }
 
         public IEnumerator<AudioTrackQueueItem> GetEnumerator()

@@ -52,7 +52,6 @@ namespace NOVAxis.Services.Audio.YtDlp
                 {
                     await SweepAsync();
                 }
-
                 catch (Exception e)
                 {
                     Logger.Warning("Inactivity sweep failed", e);

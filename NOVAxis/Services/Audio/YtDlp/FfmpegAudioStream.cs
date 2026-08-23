@@ -95,7 +95,6 @@ namespace NOVAxis.Services.Audio.YtDlp
             {
                 process.Start();
             }
-
             catch (Exception e)
             {
                 process.Dispose();
@@ -159,17 +158,14 @@ namespace NOVAxis.Services.Audio.YtDlp
                 if (!string.IsNullOrWhiteSpace(error))
                     _logger.Debug($"ffmpeg: {error.Trim()}");
             }
-
             catch (OperationCanceledException)
             {
                 _logger.Warning("ffmpeg did not exit in time and was left to the operating system");
             }
-
             catch (Exception e)
             {
                 _logger.Warning("Failed to shut down ffmpeg cleanly", e);
             }
-
             finally
             {
                 _process.Dispose();

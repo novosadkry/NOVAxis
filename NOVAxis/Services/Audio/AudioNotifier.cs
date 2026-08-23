@@ -67,7 +67,6 @@ namespace NOVAxis.Services.Audio
             {
                 await channel.SendMessageAsync(embed: embed, components: components);
             }
-
             catch (Exception e)
             {
                 Logger.Warning("Unable to deliver an audio notification", e);

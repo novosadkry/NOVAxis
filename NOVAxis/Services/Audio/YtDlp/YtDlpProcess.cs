@@ -77,7 +77,6 @@ namespace NOVAxis.Services.Audio.YtDlp
             {
                 process.Start();
             }
-
             catch (Exception e)
             {
                 throw new ProcessException(fileName, -1, e.Message);
@@ -100,7 +99,6 @@ namespace NOVAxis.Services.Audio.YtDlp
                 await process.WaitForExitAsync(linkedSource.Token);
                 await Task.WhenAll(standardOutput, standardError);
             }
-
             catch (OperationCanceledException)
             {
                 Terminate(process);
@@ -135,7 +133,6 @@ namespace NOVAxis.Services.Audio.YtDlp
                 if (!process.HasExited)
                     process.Kill(entireProcessTree: true);
             }
-
             catch (InvalidOperationException) { /* already exited or never started */ }
             catch (NotSupportedException) { /* remote process */ }
             catch (SystemException) { /* the process is being torn down by the OS */ }

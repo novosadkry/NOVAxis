@@ -117,13 +117,11 @@ namespace NOVAxis.Services.Audio.YtDlp
             {
                 html = await Http.GetStringAsync(uri, cancellationToken);
             }
-
             catch (HttpRequestException e)
             {
                 Logger.Warning($"Unable to read metadata of '{uri}'", e);
                 return null;
             }
-
             catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
                 Logger.Warning($"Timed out while reading metadata of '{uri}'");
