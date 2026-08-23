@@ -591,8 +591,19 @@ namespace NOVAxis.Services.Audio.YtDlp
             if (exception != null)
                 _logger.Warning($"Voice connection of guild {GuildId} dropped", exception);
 
-            // Disposal awaits the playback loop, which cannot run on the gateway's callback
-            _ = Task.Run(async () => await DisposeAsync(), CancellationToken.None);
+            // Disposal awaits the playback loop, which cannot run on the gateway's callback.
+            // Nothing is left to await this, so a failure has to be reported here or nowhere.
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await DisposeAsync();
+                }
+                catch (Exception e)
+                {
+                    _logger.Warning($"Player of guild {GuildId} failed to shut down after losing its voice connection", e);
+                }
+            }, CancellationToken.None);
 
             return Task.CompletedTask;
         }

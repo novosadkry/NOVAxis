@@ -104,6 +104,10 @@ namespace NOVAxis.Services.Audio.YtDlp
             // ffmpeg blocks once the stderr pipe fills up, so it has to be drained continuously
             var standardError = process.StandardError.ReadToEndAsync(CancellationToken.None);
 
+            // Disposal gives up on this read after a few seconds, and its diagnostics are a
+            // nicety rather than something worth reporting a failure over
+            ProcessRunner.Observe(standardError);
+
             var registration = cancellationToken.UnsafeRegister(
                 static (state, _) => ProcessRunner.Terminate((Process)state), process);
 
