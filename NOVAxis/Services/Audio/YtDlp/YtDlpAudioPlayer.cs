@@ -368,48 +368,67 @@ namespace NOVAxis.Services.Audio.YtDlp
             }
         }
 
+        /// <summary>
+        /// Plays a track through to its end, an interruption, or a failure. A track is normally
+        /// a single segment - seeking is what splits it into more than one.
+        /// </summary>
         private async Task<PlaybackOutcome> PlayTrackAsync(AudioTrackQueueItem item, CancellationToken lifetimeToken)
         {
             _currentItem = item;
 
             var position = TimeSpan.Zero;
-            var announced = false;
+            var announce = true;
 
             while (true)
             {
-                using var trackCts = CancellationTokenSource.CreateLinkedTokenSource(lifetimeToken);
-
-                _trackCts = trackCts;
-                _interrupt = PlaybackInterrupt.None;
-
-                var streamInfo = await ResolveAsync(item, trackCts.Token);
-
-                await using var stream = FfmpegAudioStream.Start(
-                    _options.YtDlp, streamInfo, position, _logger, trackCts.Token);
-
-                _segmentStart = position;
-                Interlocked.Exchange(ref _segmentBytes, 0);
-                _state = (int)(_paused ? AudioPlayerState.Paused : AudioPlayerState.Playing);
-
-                if (!announced)
-                {
-                    announced = true;
-                    await _notifier.TrackStartedAsync(_textChannel, item, _paused, _volume);
-                }
-
-                StartPrefetch(lifetimeToken);
-
-                var outcome = await PumpAsync(stream, trackCts.Token, lifetimeToken);
-
-                // Whatever is still buffered belongs to the track we are leaving behind
-                if (outcome != PlaybackOutcome.Completed)
-                    await ClearBufferAsync();
+                var outcome = await PlaySegmentAsync(item, position, announce, lifetimeToken);
 
                 if (outcome != PlaybackOutcome.Seek)
                     return outcome;
 
+                // The track is already on screen, so a seek only continues it
                 position = _seekPosition;
+                announce = false;
             }
+        }
+
+        /// <summary>
+        /// Plays one segment: a single decoder run, from <paramref name="position"/> until the
+        /// track ends or something interrupts it. A decoder cannot be told to seek once it is
+        /// running, so a seek ends the segment and the caller starts the next one.
+        /// </summary>
+        private async Task<PlaybackOutcome> PlaySegmentAsync(
+            AudioTrackQueueItem item,
+            TimeSpan position,
+            bool announce,
+            CancellationToken lifetimeToken)
+        {
+            using var trackCts = CancellationTokenSource.CreateLinkedTokenSource(lifetimeToken);
+
+            _trackCts = trackCts;
+            _interrupt = PlaybackInterrupt.None;
+
+            var streamInfo = await ResolveAsync(item, trackCts.Token);
+
+            await using var stream = FfmpegAudioStream.Start(
+                _options.YtDlp, streamInfo, position, _logger, trackCts.Token);
+
+            _segmentStart = position;
+            Interlocked.Exchange(ref _segmentBytes, 0);
+            _state = (int)(_paused ? AudioPlayerState.Paused : AudioPlayerState.Playing);
+
+            if (announce)
+                await _notifier.TrackStartedAsync(_textChannel, item, _paused, _volume);
+
+            StartPrefetch(lifetimeToken);
+
+            var outcome = await PumpAsync(stream, trackCts.Token, lifetimeToken);
+
+            // Whatever is still buffered belongs to the track we are leaving behind
+            if (outcome != PlaybackOutcome.Completed)
+                await ClearBufferAsync();
+
+            return outcome;
         }
 
         /// <summary>
