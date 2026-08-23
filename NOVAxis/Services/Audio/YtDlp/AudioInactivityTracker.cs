@@ -147,6 +147,11 @@ namespace NOVAxis.Services.Audio.YtDlp
             {
                 var aloneSince = _aloneSince.GetOrAdd(player.GuildId, now);
 
+                // Only equal on the sweep which added it, which is where the countdown starts
+                if (aloneSince == now)
+                    Logger.Debug($"Guild {player.GuildId} was left alone, " +
+                                 $"disconnecting in {Seconds(timeout.UsersInactivity)}s");
+
                 if (now - aloneSince >= timeout.UsersInactivity)
                     return $"no listeners left for {Seconds(now - aloneSince)}s";
             }

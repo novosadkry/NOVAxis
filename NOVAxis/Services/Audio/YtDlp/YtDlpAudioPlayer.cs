@@ -313,9 +313,13 @@ namespace NOVAxis.Services.Audio.YtDlp
                     Interlocked.Exchange(ref _segmentBytes, 0);
 
                     _state = (int)AudioPlayerState.NotPlaying;
-                    InactiveSince ??= DateTimeOffset.UtcNow;
 
-                    _logger.Debug($"Queue of guild {GuildId} ran dry, waiting for more");
+                    // A wake-up left over from a command runs this a second time
+                    if (InactiveSince == null)
+                    {
+                        InactiveSince = DateTimeOffset.UtcNow;
+                        _logger.Debug($"Queue of guild {GuildId} ran dry, {DisconnectingIn()}");
+                    }
 
                     try { await _wakeup.WaitAsync(lifetimeToken); }
                     catch (OperationCanceledException) { break; }
@@ -347,6 +351,18 @@ namespace NOVAxis.Services.Audio.YtDlp
             }
 
             _state = (int)AudioPlayerState.Destroyed;
+        }
+
+        /// <summary>
+        /// Says when the inactivity tracker will step in, so a disconnect is not a surprise.
+        /// </summary>
+        private string DisconnectingIn()
+        {
+            var timeout = _options.Timeout.IdleInactivity;
+
+            return timeout > TimeSpan.Zero
+                ? $"disconnecting in {timeout.TotalSeconds:0.#}s"
+                : "staying until told otherwise";
         }
 
         /// <summary>
