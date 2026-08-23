@@ -193,8 +193,9 @@ namespace NOVAxis.Modules.Audio
 
                 if (wasIdle)
                 {
-                    // Already playing, so there is nothing left to remove from the queue
-                    await FollowupAsync(embed: AudioEmbeds.TrackEnqueued(item, position));
+                    // The player announces the track itself once it starts,
+                    // so a confirmation here would only repeat it
+                    await DeleteOriginalResponseAsync();
                 }
 
                 else
