@@ -6,11 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Net;
 
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
-using NOVAxis.Core;
 using NOVAxis.Extensions;
 using NOVAxis.Utilities;
 
@@ -54,24 +51,17 @@ namespace NOVAxis.Services.Audio.YtDlp
         private static readonly Regex DescriptionRegex = MetaRegex("og:description");
 
         private YtDlpClient Client { get; }
+        private AudioSearchCache Results { get; }
         private ILogger<YtDlpAudioSearchService> Logger { get; }
-
-        /// <summary>
-        /// Tracks already looked up. Playing one again - through the heart button, or the
-        /// same link pasted twice - would otherwise repeat the lookup, and what it returns
-        /// does not change: the address of the stream is resolved for every playback.
-        /// </summary>
-        private Cache<string, AudioLoadResult> Results { get; }
 
         public YtDlpAudioSearchService(
             YtDlpClient client,
-            IMemoryCache cache,
-            IOptions<CacheOptions> options,
+            AudioSearchCache results,
             ILogger<YtDlpAudioSearchService> logger)
         {
             Client = client;
+            Results = results;
             Logger = logger;
-            Results = new Cache<string, AudioLoadResult>(nameof(YtDlpAudioSearchService), cache, options);
         }
 
         public async ValueTask<AudioLoadResult> LoadAsync(string input, CancellationToken cancellationToken = default)

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Caching.Memory;
 
 using NOVAxis.Core;
 using NOVAxis.Preconditions;
+using NOVAxis.Services.Audio;
 
 using Discord;
 
@@ -30,6 +31,16 @@ namespace NOVAxis.Utilities
     {
         public CooldownCache(IMemoryCache cache, IOptions<CacheOptions> options)
             : base(nameof(CooldownCache), cache, options) { }
+    }
+
+    /// <summary>
+    /// Tracks already looked up, kept under the input which found them. What a lookup
+    /// returns does not change: the address of a stream is resolved for every playback.
+    /// </summary>
+    public class AudioSearchCache : Cache<string, AudioLoadResult>
+    {
+        public AudioSearchCache(IMemoryCache cache, IOptions<CacheOptions> options)
+            : base(nameof(AudioSearchCache), cache, options) { }
     }
 
     public class Cache<TKey, TValue>

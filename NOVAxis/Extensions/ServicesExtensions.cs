@@ -111,6 +111,7 @@ namespace NOVAxis.Extensions
         private static IServiceCollection AddYtDlpAudio(this IServiceCollection collection)
         {
             collection.AddSingleton<YtDlpClient>();
+            collection.AddSingleton<AudioSearchCache>();
             collection.AddSingleton<IAudioSearchService, YtDlpAudioSearchService>();
             collection.AddSingleton<YtDlpAudioPlayerManager>();
             collection.AddSingleton<IAudioPlayerManager>(p => p.GetRequiredService<YtDlpAudioPlayerManager>());
