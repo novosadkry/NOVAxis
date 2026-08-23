@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 
 using NOVAxis.Core;
 using NOVAxis.Extensions;
+using NOVAxis.TypeReaders;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -42,6 +43,8 @@ namespace NOVAxis.Modules
 
         public async Task Setup()
         {
+            InteractionService.AddTypeConverter<TimeSpan>(new TimeSpanTypeConverter());
+
             await using var scope = Services.CreateAsyncScope();
             await InteractionService.AddModulesAsync(Assembly.GetEntryAssembly(), scope.ServiceProvider);
 
