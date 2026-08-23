@@ -61,10 +61,16 @@ namespace NOVAxis.Services.Audio.YtDlp
                 return AudioLoadResult.Failed;
 
             if (!Uri.TryCreate(input, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
+            {
+                Logger.Debug($"Loading '{input}' as a YouTube search");
                 return await Client.LoadAsync($"ytsearch1:{input}", cancellationToken);
+            }
 
             if (!IsMetadataOnly(uri))
+            {
+                Logger.Debug($"Loading '{uri}' through yt-dlp");
                 return await Client.LoadAsync(uri.AbsoluteUri, cancellationToken);
+            }
 
             var query = await DescribeAsync(uri, cancellationToken);
 
