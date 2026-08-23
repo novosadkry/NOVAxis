@@ -108,7 +108,7 @@ namespace NOVAxis.Modules.Audio
             {
                 Track = track,
                 RequestedBy = Context.User,
-                RequestId = AudioTrackQueueItem.NextRequestId()
+                RequestId = Snowflake.Next()
             };
         }
 
