@@ -14,9 +14,8 @@ namespace NOVAxis.Services.Audio.YtDlp
     public sealed record YtDlpStreamInfo(string Url, IReadOnlyDictionary<string, string> Headers);
 
     /// <summary>
-    /// A thin wrapper over the yt-dlp executable. It only ever asks yt-dlp for metadata -
-    /// the media itself is fetched by ffmpeg from the URL resolved here, which keeps seeking
-    /// and reconnecting in a single process.
+    /// A thin wrapper over the yt-dlp executable. Only ever asks for metadata: the media
+    /// itself is fetched by ffmpeg from the URL resolved here.
     /// </summary>
     public class YtDlpClient
     {

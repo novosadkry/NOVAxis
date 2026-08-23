@@ -11,21 +11,20 @@ namespace NOVAxis.Services.Audio
     /// </summary>
     public class AudioTrackQueueItem
     {
-        public AudioTrack Track { get; init; }
-        public ulong RequestId { get; init; }
-
         private static ulong _lastRequestId;
 
+        public AudioTrack Track { get; init; }
+        public ulong RequestId { get; init; }
+        public IUser RequestedBy { get; init; }
+
         /// <summary>
-        /// Hands out an identity no other item shares. A timestamp is not enough - a playlist
-        /// is turned into items in a single loop, so they would all land on the same tick and
-        /// stop being distinguishable.
+        /// Hands out an id no other item shares. A timestamp is not enough, since a whole
+        /// playlist is turned into items within a single tick.
         /// </summary>
         public static ulong NextRequestId()
         {
             return Interlocked.Increment(ref _lastRequestId);
         }
-        public IUser RequestedBy { get; init; }
 
         public override bool Equals(object obj)
         {

@@ -26,8 +26,7 @@ namespace NOVAxis.Modules.Audio
         #region Functions
 
         /// <summary>
-        /// Answers an interaction that may or may not have been deferred already. Commands which
-        /// join a voice channel defer before that starts, so their error paths reach both ways.
+        /// Answers an interaction which may or may not have been deferred already.
         /// </summary>
         private async Task AnswerAsync(Embed embed)
         {
@@ -160,21 +159,12 @@ namespace NOVAxis.Modules.Audio
         }
 
         /// <summary>
-        /// Hands the loaded tracks to the player and reports what happened to them.
+        /// Hands the loaded tracks to the player. Everything goes in through
+        /// <see cref="IAudioPlayer.PlayAsync"/>, which starts a track when nothing is
+        /// playing and enqueues it otherwise, so both backends behave the same way.
         /// </summary>
-        /// <remarks>
-        /// Everything goes in through <see cref="IAudioPlayer.PlayAsync"/>, which starts a track
-        /// when nothing is playing and enqueues it otherwise. Adding to the queue directly is not
-        /// equivalent: the yt-dlp player picks the track up on its own, while a Lavalink node has
-        /// to be told to, so the two backends would need different handling here.
-        /// </remarks>
         private async Task PlayAudio(IAudioPlayer player, AudioLoadResult result)
         {
-            var wasIdle = player.State == AudioPlayerState.NotPlaying;
-
-            // Read before enqueueing - an idle player takes the track straight back out again
-            var position = player.Queue.Count + 1;
-
             if (result.IsPlaylist)
             {
                 var items = result.Tracks.Select(CreateItem).ToList();
@@ -194,11 +184,16 @@ namespace NOVAxis.Modules.Audio
             else
             {
                 var item = CreateItem(result.Track);
+
+                // Both read before enqueueing, as an idle player dequeues at once
+                var wasIdle = player.State == AudioPlayerState.NotPlaying;
+                var position = player.Queue.Count + 1;
+
                 await player.PlayAsync(item);
 
                 if (wasIdle)
                 {
-                    // The track is about to start, so it gets announced instead of queued
+                    // Already playing, so there is nothing left to remove from the queue
                     await FollowupAsync(embed: AudioEmbeds.TrackEnqueued(item, position));
                 }
 
@@ -247,8 +242,7 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("play", "Plays an audio transmission")]
         public async Task CmdPlayAudio(string input)
         {
-            // Connecting to voice can outlast the three seconds Discord allows for an
-            // acknowledgement, so the interaction is deferred before that starts
+            // Connecting to voice outlasts the acknowledgement window Discord allows
             await DeferAsync();
 
             var player = await GetPlayerAsync(joinChannel: true);

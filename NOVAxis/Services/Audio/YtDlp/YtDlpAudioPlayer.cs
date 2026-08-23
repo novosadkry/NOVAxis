@@ -15,14 +15,14 @@ using Discord.Audio;
 namespace NOVAxis.Services.Audio.YtDlp
 {
     /// <summary>
-    /// Plays audio into a single guild's voice channel. Every player owns its voice
-    /// connection, its queue and the ffmpeg process feeding it, so guilds never share state.
+    /// Plays audio into a single guild's voice channel. Owns its voice connection,
+    /// its queue and its ffmpeg process, so guilds never share state.
     /// </summary>
     public sealed class YtDlpAudioPlayer : IAudioPlayer
     {
         /// <summary>
-        /// Why the currently playing track was interrupted. Written before the track's
-        /// cancellation token is triggered and read once the pump unwinds.
+        /// Why the current track was interrupted. Written before its token is
+        /// cancelled and read once the pump unwinds.
         /// </summary>
         private enum PlaybackInterrupt
         {
@@ -130,20 +130,18 @@ namespace NOVAxis.Services.Audio.YtDlp
         public DateTimeOffset? InactiveSince { get; private set; } = DateTimeOffset.UtcNow;
 
         /// <summary>
-        /// How long a command holding this player has to enqueue something. Searching can take
-        /// longer than the idle timeout, and sweeping the player away under a command in flight
-        /// loses the track it was about to play. Expires by itself, so a command which never
-        /// gets that far cannot keep the player alive.
+        /// Holds off the inactivity tracker while a command is still working with the player.
+        /// Expires on its own, so a command which never enqueues cannot keep it alive.
         /// </summary>
         internal DateTimeOffset ReservedUntil { get; private set; }
+
+        internal ITextChannel TextChannel => _textChannel;
+        internal IVoiceChannel VoiceChannel => _voiceChannel;
 
         internal void Reserve(TimeSpan duration)
         {
             ReservedUntil = DateTimeOffset.UtcNow + duration;
         }
-
-        internal ITextChannel TextChannel => _textChannel;
-        internal IVoiceChannel VoiceChannel => _voiceChannel;
 
         public async ValueTask ConnectAsync(CancellationToken cancellationToken = default)
         {
@@ -364,8 +362,8 @@ namespace NOVAxis.Services.Audio.YtDlp
 
         private async ValueTask ApplyRepeatAsync(AudioTrackQueueItem item, PlaybackOutcome outcome)
         {
-            // Only a track which ran to its end is worth repeating. Requiring that it also
-            // produced audio keeps a source which yields nothing from looping at full speed.
+            // Repeat only a track which ran to its end and produced audio,
+            // so a source yielding nothing cannot loop at full speed
             if (outcome != PlaybackOutcome.Completed || Position <= TimeSpan.Zero)
                 return;
 
@@ -382,8 +380,8 @@ namespace NOVAxis.Services.Audio.YtDlp
         }
 
         /// <summary>
-        /// Plays a track through to its end, an interruption, or a failure. A track is normally
-        /// a single segment - seeking is what splits it into more than one.
+        /// Plays a track to its end, an interruption or a failure. Seeking is
+        /// what splits a track into more than one segment.
         /// </summary>
         private async Task<PlaybackOutcome> PlayTrackAsync(AudioTrackQueueItem item, CancellationToken lifetimeToken)
         {
@@ -406,9 +404,9 @@ namespace NOVAxis.Services.Audio.YtDlp
         }
 
         /// <summary>
-        /// Plays one segment: a single decoder run, from <paramref name="position"/> until the
-        /// track ends or something interrupts it. A decoder cannot be told to seek once it is
-        /// running, so a seek ends the segment and the caller starts the next one.
+        /// Plays one segment: a single decoder run from <paramref name="position"/> until
+        /// the track ends or something interrupts it. A running decoder cannot seek, so a
+        /// seek ends the segment and the caller starts the next one.
         /// </summary>
         private async Task<PlaybackOutcome> PlaySegmentAsync(
             AudioTrackQueueItem item,
@@ -427,8 +425,8 @@ namespace NOVAxis.Services.Audio.YtDlp
             {
                 streamInfo = await ResolveAsync(item, trackCts.Token);
             }
-            // Resolving an address takes seconds, which is long enough for a skip to land
-            // inside it. Without this the interrupt would read as a failed track.
+            // A skip can land during the seconds a resolve takes,
+            // and would otherwise read as a failed track
             catch (OperationCanceledException) when (!lifetimeToken.IsCancellationRequested)
             {
                 return OutcomeOf(_interrupt);
@@ -456,8 +454,8 @@ namespace NOVAxis.Services.Audio.YtDlp
         }
 
         /// <summary>
-        /// Moves decoded audio into the voice connection one Opus frame at a time, which keeps
-        /// the reaction time to a skip or a pause down to a single frame.
+        /// Moves decoded audio into the voice connection one Opus frame at a time,
+        /// so a skip or a pause takes effect within a single frame.
         /// </summary>
         private async Task<PlaybackOutcome> PumpAsync(
             FfmpegAudioStream stream,
@@ -503,8 +501,8 @@ namespace NOVAxis.Services.Audio.YtDlp
         }
 
         /// <summary>
-        /// Reads back the reason recorded by <see cref="Interrupt"/>. A cancelled token only
-        /// says playback stopped, and the four reasons need four different follow-ups.
+        /// Reads back the reason recorded by <see cref="Interrupt"/>, since a cancelled
+        /// token only says that playback stopped.
         /// </summary>
         private static PlaybackOutcome OutcomeOf(PlaybackInterrupt interrupt)
         {
@@ -518,8 +516,7 @@ namespace NOVAxis.Services.Audio.YtDlp
         }
 
         /// <summary>
-        /// Drops the audio Discord has not sent out yet, so that a skip is heard at once
-        /// instead of after the write buffer drains.
+        /// Drops the audio Discord has not sent out yet, so a skip is heard at once.
         /// </summary>
         private async ValueTask ClearBufferAsync()
         {
@@ -541,8 +538,8 @@ namespace NOVAxis.Services.Audio.YtDlp
         }
 
         /// <summary>
-        /// Scales the samples in place. Discord has no server side volume, so gain has to be
-        /// applied here - which also means it takes effect without restarting the decoder.
+        /// Scales the samples in place. Discord has no server side volume, so gain is
+        /// applied here and takes effect without restarting the decoder.
         /// </summary>
         private static void ApplyVolume(Span<byte> buffer, float volume)
         {
@@ -578,8 +575,8 @@ namespace NOVAxis.Services.Audio.YtDlp
         }
 
         /// <summary>
-        /// Resolving an address takes seconds, so the next one is fetched while the current
-        /// track is still playing.
+        /// Resolving takes seconds, so the next address is fetched while the
+        /// current track is still playing.
         /// </summary>
         private void StartPrefetch(CancellationToken lifetimeToken)
         {
@@ -624,8 +621,8 @@ namespace NOVAxis.Services.Audio.YtDlp
             if (exception != null)
                 _logger.Warning($"Voice connection of guild {GuildId} dropped", exception);
 
-            // Disposal awaits the playback loop, which cannot run on the gateway's callback.
-            // Nothing is left to await this, so a failure has to be reported here or nowhere.
+            // Disposal awaits the playback loop, which cannot run on the gateway's
+            // callback. Nothing else awaits this, so a failure is logged here or nowhere.
             _ = Task.Run(async () =>
             {
                 try

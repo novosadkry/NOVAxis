@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -63,18 +64,9 @@ namespace NOVAxis.Services.Audio.YtDlp
         {
             var timeout = Options.Value.Timeout;
             var now = DateTimeOffset.UtcNow;
-
             var players = Manager.ActivePlayers;
 
-            // A player can go away without the sweep noticing - /leave, a dropped connection -
-            // and a timestamp left behind would disconnect the guild's next session at once
-            var live = players.Select(x => x.GuildId).ToHashSet();
-
-            foreach (var guildId in _aloneSince.Keys)
-            {
-                if (!live.Contains(guildId))
-                    _aloneSince.TryRemove(guildId, out _);
-            }
+            ForgetDeadPlayers(players);
 
             foreach (var player in players)
             {
@@ -92,9 +84,24 @@ namespace NOVAxis.Services.Audio.YtDlp
             }
         }
 
+        /// <summary>
+        /// Drops the timestamps of players which went away between sweeps, as a stale
+        /// one would disconnect the guild's next session at once.
+        /// </summary>
+        private void ForgetDeadPlayers(IReadOnlyCollection<YtDlpAudioPlayer> players)
+        {
+            var live = players.Select(x => x.GuildId).ToHashSet();
+
+            foreach (var guildId in _aloneSince.Keys)
+            {
+                if (!live.Contains(guildId))
+                    _aloneSince.TryRemove(guildId, out _);
+            }
+        }
+
         private string GetInactivityReason(YtDlpAudioPlayer player, AudioTimeoutOptions timeout, DateTimeOffset now)
         {
-            // A command is still working with it, and its track has not reached the queue yet
+            // A command is still working with it, and has yet to enqueue anything
             if (now < player.ReservedUntil)
                 return null;
 

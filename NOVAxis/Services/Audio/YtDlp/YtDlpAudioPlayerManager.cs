@@ -102,7 +102,7 @@ namespace NOVAxis.Services.Audio.YtDlp
                         return AudioPlayerRetrieveResult.Failed(precondition);
                 }
 
-                // The caller is about to work with it, and searching outlasts the idle timeout
+                // Searching outlasts the idle timeout, so hold the sweep off
                 player.Reserve(Options.Value.YtDlp.ResolveTimeout + TimeSpan.FromSeconds(5));
 
                 return AudioPlayerRetrieveResult.Success(player);
@@ -127,8 +127,8 @@ namespace NOVAxis.Services.Audio.YtDlp
                 LoggerFactory.CreateLogger<YtDlpAudioPlayer>(),
                 Destroy);
 
-            // Published before connecting: the player subscribes to Disconnected during the
-            // handshake, so a drop in that window has to find an entry it can remove
+            // Published first, as the player subscribes to Disconnected during the
+            // handshake and a drop in that window has to find an entry to remove
             _players[voiceChannel.GuildId] = player;
 
             try
@@ -143,8 +143,7 @@ namespace NOVAxis.Services.Audio.YtDlp
                 return null;
             }
 
-            // The connection can still drop while the handshake is finishing, which disposes
-            // the player from under us
+            // A drop while the handshake finishes disposes the player from under us
             if (player.State == AudioPlayerState.Destroyed)
                 return null;
 

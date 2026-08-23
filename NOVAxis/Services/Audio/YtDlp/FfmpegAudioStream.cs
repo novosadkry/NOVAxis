@@ -19,9 +19,8 @@ namespace NOVAxis.Services.Audio.YtDlp
     /// signed 16 bit little endian.
     /// </summary>
     /// <remarks>
-    /// Reads from an anonymous pipe cannot be interrupted by a cancellation token once they
-    /// are in flight, so cancellation is wired to killing ffmpeg instead. Closing the write
-    /// end of the pipe is what actually releases a pending read.
+    /// A pipe read already in flight cannot be interrupted by a cancellation token, so
+    /// cancellation kills ffmpeg instead: closing the write end releases the read.
     /// </remarks>
     public sealed class FfmpegAudioStream : IAsyncDisposable
     {
@@ -104,8 +103,8 @@ namespace NOVAxis.Services.Audio.YtDlp
             // ffmpeg blocks once the stderr pipe fills up, so it has to be drained continuously
             var standardError = process.StandardError.ReadToEndAsync(CancellationToken.None);
 
-            // Disposal gives up on this read after a few seconds, and its diagnostics are a
-            // nicety rather than something worth reporting a failure over
+            // Disposal gives up on this read, and its diagnostics are
+            // not worth reporting a failure over
             ProcessRunner.Observe(standardError);
 
             var registration = cancellationToken.UnsafeRegister(
@@ -128,8 +127,8 @@ namespace NOVAxis.Services.Audio.YtDlp
         }
 
         /// <summary>
-        /// Waits for ffmpeg to exit and surfaces its diagnostics. Called once the stream ran dry,
-        /// to tell a finished track apart from a failed one.
+        /// Waits for ffmpeg to exit and surfaces its diagnostics, which is how a
+        /// finished track is told apart from a failed one.
         /// </summary>
         public async ValueTask<int> WaitForExitAsync(CancellationToken cancellationToken = default)
         {

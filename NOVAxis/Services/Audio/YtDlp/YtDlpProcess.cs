@@ -89,8 +89,8 @@ namespace NOVAxis.Services.Audio.YtDlp
             var standardOutput = process.StandardOutput.ReadToEndAsync(linkedSource.Token);
             var standardError = process.StandardError.ReadToEndAsync(linkedSource.Token);
 
-            // On the failure paths below those tasks are never awaited, and an unobserved
-            // cancellation would surface much later as a stray TaskScheduler event
+            // The failure paths below never await those tasks, and an
+            // unobserved cancellation surfaces later as a stray event
             Observe(standardOutput);
             Observe(standardError);
 
@@ -115,8 +115,8 @@ namespace NOVAxis.Services.Audio.YtDlp
 
         /// <summary>
         /// Marks a task's failure as seen. A faulted task nobody awaits raises
-        /// <see cref="TaskScheduler.UnobservedTaskException"/> when it is collected, long after
-        /// the code that abandoned it, so tasks which are deliberately left behind say so here.
+        /// <see cref="TaskScheduler.UnobservedTaskException"/> when it is collected, so
+        /// tasks which are deliberately left behind say so here.
         /// </summary>
         internal static void Observe(Task task)
         {
@@ -128,8 +128,8 @@ namespace NOVAxis.Services.Audio.YtDlp
         }
 
         /// <summary>
-        /// Kills a process and everything it spawned, swallowing the races which happen when
-        /// the process exits on its own in the meantime.
+        /// Kills a process and everything it spawned, ignoring the race
+        /// with a process which exits on its own in the meantime.
         /// </summary>
         public static void Terminate(Process process)
         {
