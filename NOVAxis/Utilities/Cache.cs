@@ -16,7 +16,7 @@ namespace NOVAxis.Utilities
 
         public ulong Store(object value)
         {
-            var snowflake = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now);
+            var snowflake = Snowflake.Next();
             Set(snowflake, value);
             return snowflake;
         }

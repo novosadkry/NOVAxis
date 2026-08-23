@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 
+using NOVAxis.Utilities;
+
 using Discord;
 
 namespace NOVAxis.Services.Polls
@@ -31,7 +33,7 @@ namespace NOVAxis.Services.Polls
             Options = options;
             State = PollState.Opened;
             StartTime = DateTime.Now;
-            Id = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now);
+            Id = Snowflake.Next();
             Votes = new Dictionary<IGuildUser, int>();
         }
 
