@@ -145,7 +145,9 @@ namespace NOVAxis.Services.Audio.YtDlp
             if (_disposed) return;
             _disposed = true;
 
-            _registration.Dispose();
+            // Waits for a kill already in flight, without blocking the thread doing so
+            await _registration.DisposeAsync();
+
             ProcessRunner.Terminate(_process);
 
             try
