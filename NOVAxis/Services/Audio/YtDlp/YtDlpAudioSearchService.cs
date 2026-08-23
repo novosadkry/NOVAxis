@@ -8,8 +8,11 @@ using System.Net;
 
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
+using NOVAxis.Core;
 using NOVAxis.Extensions;
+using NOVAxis.Utilities;
 
 namespace NOVAxis.Services.Audio.YtDlp
 {
@@ -50,21 +53,25 @@ namespace NOVAxis.Services.Audio.YtDlp
         private static readonly Regex TitleRegex = MetaRegex("og:title");
         private static readonly Regex DescriptionRegex = MetaRegex("og:description");
 
-        /// <summary>
-        /// How long a track stays worth reusing. Playing one again - through the heart
-        /// button, or the same link pasted twice - would otherwise repeat the lookup.
-        /// </summary>
-        private static readonly TimeSpan ResultLifetime = TimeSpan.FromMinutes(30);
-
         private YtDlpClient Client { get; }
-        private IMemoryCache Cache { get; }
         private ILogger<YtDlpAudioSearchService> Logger { get; }
 
-        public YtDlpAudioSearchService(YtDlpClient client, IMemoryCache cache, ILogger<YtDlpAudioSearchService> logger)
+        /// <summary>
+        /// Tracks already looked up. Playing one again - through the heart button, or the
+        /// same link pasted twice - would otherwise repeat the lookup, and what it returns
+        /// does not change: the address of the stream is resolved for every playback.
+        /// </summary>
+        private Cache<string, AudioLoadResult> Results { get; }
+
+        public YtDlpAudioSearchService(
+            YtDlpClient client,
+            IMemoryCache cache,
+            IOptions<CacheOptions> options,
+            ILogger<YtDlpAudioSearchService> logger)
         {
             Client = client;
-            Cache = cache;
             Logger = logger;
+            Results = new Cache<string, AudioLoadResult>(nameof(YtDlpAudioSearchService), cache, options);
         }
 
         public async ValueTask<AudioLoadResult> LoadAsync(string input, CancellationToken cancellationToken = default)
@@ -74,7 +81,7 @@ namespace NOVAxis.Services.Audio.YtDlp
             if (string.IsNullOrEmpty(input))
                 return AudioLoadResult.Failed;
 
-            if (Cache.TryGetValue(KeyOf(input), out AudioLoadResult cached))
+            if (Results.TryGetValue(input, out var cached))
             {
                 Logger.Debug($"Reusing the track already loaded for '{input}'");
                 return cached;
@@ -84,7 +91,7 @@ namespace NOVAxis.Services.Audio.YtDlp
 
             // A playlist can gain entries between two requests, a single track cannot
             if (!result.IsFailed && !result.IsPlaylist)
-                Cache.Set(KeyOf(input), result, ResultLifetime);
+                Results[input] = result;
 
             return result;
         }
@@ -114,11 +121,6 @@ namespace NOVAxis.Services.Audio.YtDlp
             Logger.Debug($"Resolved '{uri}' to a YouTube search for '{query}'");
 
             return await Client.LoadAsync($"ytsearch1:{query}", cancellationToken);
-        }
-
-        private static string KeyOf(string input)
-        {
-            return $"{nameof(YtDlpAudioSearchService)}:{input}";
         }
 
         /// <summary>
