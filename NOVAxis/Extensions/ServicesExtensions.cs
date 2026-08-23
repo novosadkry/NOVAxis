@@ -72,7 +72,8 @@ namespace NOVAxis.Extensions
                 MessageCacheSize = 100,
                 UseInteractionSnowflakeDate = false,
                 GatewayIntents = GatewayIntents.All,
-                LogGatewayIntentWarnings = false
+                LogGatewayIntentWarnings = false,
+                EnableVoiceDaveEncryption = true
             };
 
             collection.AddSingleton(clientConfig);
