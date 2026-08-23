@@ -55,7 +55,6 @@ namespace NOVAxis.Services.Discord
                 await Client.SetGameAsync(options.Activity.Online, type: options.Activity.ActivityType);
                 await Client.SetStatusAsync(options.Activity.UserStatus);
             }
-
             catch (Exception e)
             {
                 Logger.Error("The flow of execution has been halted due to an exception", e);

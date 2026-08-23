@@ -113,7 +113,12 @@ namespace NOVAxis.Services.Audio.YtDlp
             return new ProcessResult(fileName, process.ExitCode, await standardOutput, await standardError);
         }
 
-        private static void Observe(Task task)
+        /// <summary>
+        /// Marks a task's failure as seen. A faulted task nobody awaits raises
+        /// <see cref="TaskScheduler.UnobservedTaskException"/> when it is collected, long after
+        /// the code that abandoned it, so tasks which are deliberately left behind say so here.
+        /// </summary>
+        internal static void Observe(Task task)
         {
             _ = task.ContinueWith(
                 static t => _ = t.Exception,

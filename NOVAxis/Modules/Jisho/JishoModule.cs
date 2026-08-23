@@ -73,7 +73,6 @@ namespace NOVAxis.Modules.Jisho
                     .WithColor(255, 26, 117)
                     .WithFields(embedFields).Build());
             }
-
             catch (Exception e)
             {
                 await RespondAsync(embed: new EmbedBuilder()

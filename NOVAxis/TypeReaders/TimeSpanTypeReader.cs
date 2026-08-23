@@ -35,7 +35,6 @@ namespace NOVAxis.TypeReaders
 
                 throw new Exception();
             }
-
             catch (Exception)
             {
                 return Task.FromResult(TypeReaderResult.FromError(CommandError.ParseFailed, "Input could not be parsed as a TimeSpan."));

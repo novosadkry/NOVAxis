@@ -563,12 +563,8 @@ namespace NOVAxis.Services.Audio.YtDlp
                 () => _client.ResolveStreamAsync(next.Track, lifetimeToken).AsTask(),
                 CancellationToken.None);
 
-            // A prefetch nobody ends up waiting for must not surface as an unobserved failure
-            _ = _prefetched.ContinueWith(
-                static task => _ = task.Exception,
-                CancellationToken.None,
-                TaskContinuationOptions.OnlyOnFaulted,
-                TaskScheduler.Default);
+            // A skip or a queue change can leave this prefetch with nobody to await it
+            ProcessRunner.Observe(_prefetched);
         }
 
         private void Interrupt(PlaybackInterrupt interrupt)
