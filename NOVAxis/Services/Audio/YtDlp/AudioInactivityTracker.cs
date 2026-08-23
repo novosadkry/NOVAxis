@@ -108,28 +108,24 @@ namespace NOVAxis.Services.Audio.YtDlp
         }
 
         /// <summary>
-        /// Reports what a player is still waiting on, so a disconnect which felt early
-        /// or late can be read back from the log.
+        /// Follows the countdown of a player on its way out. A sweep runs every second, so
+        /// this belongs in a trace rather than in the log a running bot writes.
         /// </summary>
         private void LogPendingTimeout(YtDlpAudioPlayer player, AudioTimeoutOptions timeout, DateTimeOffset now)
         {
+            // The reservation itself is logged where it is made
             if (now < player.ReservedUntil)
-            {
-                Logger.Debug($"Guild {player.GuildId} is reserved by a command " +
-                             $"for another {Seconds(player.ReservedUntil - now)}s");
-
                 return;
-            }
 
             if (player.InactiveSince is { } inactiveSince && player.Queue.Count == 0)
             {
-                Logger.Debug($"Guild {player.GuildId} has had nothing to play for " +
+                Logger.Trace($"Guild {player.GuildId} has had nothing to play for " +
                              $"{Seconds(now - inactiveSince)}s of {Seconds(timeout.IdleInactivity)}s");
             }
 
             if (_aloneSince.TryGetValue(player.GuildId, out var aloneSince))
             {
-                Logger.Debug($"Guild {player.GuildId} has been alone for " +
+                Logger.Trace($"Guild {player.GuildId} has been alone for " +
                              $"{Seconds(now - aloneSince)}s of {Seconds(timeout.UsersInactivity)}s");
             }
         }

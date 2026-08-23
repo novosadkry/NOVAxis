@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Net;
 
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 using NOVAxis.Extensions;
@@ -44,12 +45,20 @@ namespace NOVAxis.Services.Audio.YtDlp
         private static readonly Regex TitleRegex = MetaRegex("og:title");
         private static readonly Regex DescriptionRegex = MetaRegex("og:description");
 
+        /// <summary>
+        /// How long a track stays worth reusing. Playing one again - through the heart
+        /// button, or the same link pasted twice - would otherwise repeat the lookup.
+        /// </summary>
+        private static readonly TimeSpan ResultLifetime = TimeSpan.FromMinutes(30);
+
         private YtDlpClient Client { get; }
+        private IMemoryCache Cache { get; }
         private ILogger<YtDlpAudioSearchService> Logger { get; }
 
-        public YtDlpAudioSearchService(YtDlpClient client, ILogger<YtDlpAudioSearchService> logger)
+        public YtDlpAudioSearchService(YtDlpClient client, IMemoryCache cache, ILogger<YtDlpAudioSearchService> logger)
         {
             Client = client;
+            Cache = cache;
             Logger = logger;
         }
 
@@ -60,6 +69,23 @@ namespace NOVAxis.Services.Audio.YtDlp
             if (string.IsNullOrEmpty(input))
                 return AudioLoadResult.Failed;
 
+            if (Cache.TryGetValue(KeyOf(input), out AudioLoadResult cached))
+            {
+                Logger.Debug($"Reusing the track already loaded for '{input}'");
+                return cached;
+            }
+
+            var result = await LookUpAsync(input, cancellationToken);
+
+            // A playlist can gain entries between two requests, a single track cannot
+            if (!result.IsFailed && !result.IsPlaylist)
+                Cache.Set(KeyOf(input), result, ResultLifetime);
+
+            return result;
+        }
+
+        private async ValueTask<AudioLoadResult> LookUpAsync(string input, CancellationToken cancellationToken)
+        {
             if (!Uri.TryCreate(input, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
             {
                 Logger.Debug($"Loading '{input}' as a YouTube search");
@@ -83,6 +109,11 @@ namespace NOVAxis.Services.Audio.YtDlp
             Logger.Debug($"Resolved '{uri}' to a YouTube search for '{query}'");
 
             return await Client.LoadAsync($"ytsearch1:{query}", cancellationToken);
+        }
+
+        private static string KeyOf(string input)
+        {
+            return $"{nameof(YtDlpAudioSearchService)}:{input}";
         }
 
         /// <summary>
@@ -180,7 +211,6 @@ namespace NOVAxis.Services.Audio.YtDlp
 
             return null;
         }
-
 
         private static Regex MetaRegex(string property)
         {

@@ -44,6 +44,13 @@ namespace NOVAxis.Services.Audio.YtDlp
             Failed
         }
 
+        /// <summary>
+        /// How long the voice connection may take to accept one frame. A frame is 20ms of
+        /// audio and the connection is what paces playback, so anything near this means it
+        /// stopped draining rather than that it is keeping time.
+        /// </summary>
+        private static readonly TimeSpan WriteStallTimeout = TimeSpan.FromSeconds(5);
+
         private readonly AudioTrackQueue _queue = new();
         private readonly SemaphoreSlim _wakeup = new(0, 1);
         private readonly SemaphoreSlim _commandLock = new(1, 1);
@@ -142,6 +149,7 @@ namespace NOVAxis.Services.Audio.YtDlp
         internal void Reserve(TimeSpan duration)
         {
             ReservedUntil = DateTimeOffset.UtcNow + duration;
+            _logger.Debug($"Guild {GuildId} is held by a command for up to {duration.TotalSeconds:0.#}s");
         }
 
         public async ValueTask ConnectAsync(CancellationToken cancellationToken = default)
@@ -456,13 +464,10 @@ namespace NOVAxis.Services.Audio.YtDlp
 
             StartPrefetch(lifetimeToken);
 
-            var outcome = await PumpAsync(stream, trackCts.Token, lifetimeToken);
-
-            // Whatever is still buffered belongs to the track we are leaving behind
-            if (outcome != PlaybackOutcome.Completed)
-                await ClearBufferAsync();
-
-            return outcome;
+            // Nothing drops what is still buffered on the way out: Discord.Net discards
+            // those frames without giving their slots back, and the voice connection
+            // blocks for good once it has handed out its last one
+            return await PumpAsync(stream, trackCts.Token, lifetimeToken);
         }
 
         /// <summary>
@@ -475,6 +480,7 @@ namespace NOVAxis.Services.Audio.YtDlp
             CancellationToken lifetimeToken)
         {
             var buffer = new byte[FfmpegAudioStream.FrameSize];
+            var reported = false;
 
             try
             {
@@ -493,7 +499,19 @@ namespace NOVAxis.Services.Audio.YtDlp
 
                     ApplyVolume(buffer.AsSpan(0, read), _volume);
 
+                    var started = Stopwatch.GetTimestamp();
                     await _outStream.WriteAsync(buffer.AsMemory(0, read), trackToken);
+
+                    var elapsed = Stopwatch.GetElapsedTime(started);
+
+                    // Worth saying once: a stuck connection makes every frame slow
+                    if (!reported && elapsed > WriteStallTimeout)
+                    {
+                        reported = true;
+                        _logger.Warning($"Voice connection of guild {GuildId} took " +
+                                        $"{elapsed.TotalSeconds:0.#}s to accept a frame");
+                    }
+
                     Interlocked.Exchange(ref _segmentBytes, stream.BytesRead);
                 }
 
@@ -525,15 +543,6 @@ namespace NOVAxis.Services.Audio.YtDlp
                 PlaybackInterrupt.Replace => PlaybackOutcome.Replaced,
                 _ => PlaybackOutcome.Skipped
             };
-        }
-
-        /// <summary>
-        /// Drops the audio Discord has not sent out yet, so a skip is heard at once.
-        /// </summary>
-        private async ValueTask ClearBufferAsync()
-        {
-            try { await _outStream.ClearAsync(CancellationToken.None); }
-            catch (Exception e) { _logger.Debug($"Failed to drop the buffered audio: {e.Message}"); }
         }
 
         private async Task WaitForResumeAsync(CancellationToken cancellationToken)

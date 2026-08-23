@@ -38,6 +38,22 @@ namespace NOVAxis.Services.Audio.YtDlp
         public const int BytesPerSecond = SampleRate * Channels * BytesPerSample;
 
         /// <summary>
+        /// How long a frame the player is waiting for may take to arrive. A stream ffmpeg
+        /// cannot fetch leaves it reconnecting rather than failing, which would hold the
+        /// track in place for as long as the player is up. Long enough that a connection
+        /// which does come back is not cut short.
+        /// </summary>
+        private static readonly TimeSpan ReadStallTimeout = TimeSpan.FromSeconds(20);
+
+        private static readonly TimeSpan WatchdogInterval = TimeSpan.FromSeconds(2);
+
+        /// <summary>
+        /// How much of ffmpeg's output is kept for the failure message. Every line is
+        /// logged as it arrives, so the rest is only ever a duplicate.
+        /// </summary>
+        private const int ErrorOutputLimit = 4096;
+
+        /// <summary>
         /// Headers which ffmpeg either sets itself or rejects when passed through.
         /// </summary>
         private static readonly string[] IgnoredHeaders =
@@ -49,8 +65,12 @@ namespace NOVAxis.Services.Audio.YtDlp
         private readonly Task<string> _standardError;
         private readonly CancellationTokenRegistration _registration;
         private readonly ILogger _logger;
+        private readonly Timer _watchdog;
+        private readonly long _startedAt;
 
-        private bool _disposed;
+        private long _bytesRead;
+        private long _readPendingSince;
+        private volatile bool _disposed;
 
         private FfmpegAudioStream(Process process, Task<string> standardError, CancellationTokenRegistration registration, ILogger logger)
         {
@@ -58,12 +78,17 @@ namespace NOVAxis.Services.Audio.YtDlp
             _standardError = standardError;
             _registration = registration;
             _logger = logger;
+            _startedAt = Stopwatch.GetTimestamp();
+
+            _watchdog = new Timer(
+                static state => ((FfmpegAudioStream)state).CheckForStall(),
+                this, WatchdogInterval, WatchdogInterval);
         }
 
         /// <summary>
         /// Number of bytes ffmpeg emitted so far, which is how playback position is derived.
         /// </summary>
-        public long BytesRead { get; private set; }
+        public long BytesRead => Interlocked.Read(ref _bytesRead);
 
         public static FfmpegAudioStream Start(
             AudioYtDlpOptions options,
@@ -101,7 +126,7 @@ namespace NOVAxis.Services.Audio.YtDlp
             }
 
             // ffmpeg blocks once the stderr pipe fills up, so it has to be drained continuously
-            var standardError = process.StandardError.ReadToEndAsync(CancellationToken.None);
+            var standardError = DrainErrorAsync(process, logger);
 
             // Disposal gives up on this read, and its diagnostics are
             // not worth reporting a failure over
@@ -119,11 +144,65 @@ namespace NOVAxis.Services.Audio.YtDlp
         /// </summary>
         public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
-            var read = await _process.StandardOutput.BaseStream.ReadAtLeastAsync(
-                buffer, buffer.Length, throwOnEndOfStream: false, cancellationToken);
+            // Lets the watchdog tell a decoder nobody is reading from apart from a stuck one
+            Interlocked.Exchange(ref _readPendingSince, Stopwatch.GetTimestamp());
 
-            BytesRead += read;
-            return read;
+            try
+            {
+                var read = await _process.StandardOutput.BaseStream.ReadAtLeastAsync(
+                    buffer, buffer.Length, throwOnEndOfStream: false, cancellationToken);
+
+                if (read > 0 && Interlocked.Add(ref _bytesRead, read) == read)
+                {
+                    _logger.Debug("ffmpeg delivered its first frame after " +
+                                  $"{Stopwatch.GetElapsedTime(_startedAt).TotalSeconds:0.#}s");
+                }
+
+                return read;
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _readPendingSince, 0);
+            }
+        }
+
+        /// <summary>
+        /// Reports ffmpeg's diagnostics as they arrive. Waiting for it to exit would keep
+        /// them hidden for exactly as long as a stream it cannot fetch keeps it busy.
+        /// </summary>
+        private static async Task<string> DrainErrorAsync(Process process, ILogger logger)
+        {
+            var builder = new StringBuilder();
+
+            while (await process.StandardError.ReadLineAsync() is { } line)
+            {
+                logger.Debug($"ffmpeg: {line}");
+
+                if (builder.Length < ErrorOutputLimit)
+                    builder.AppendLine(line);
+            }
+
+            return builder.ToString();
+        }
+
+        /// <summary>
+        /// Stops a decoder the player is stuck waiting on. A pipe read in flight cannot be
+        /// interrupted, so the process has to go for the track to fail and the queue to
+        /// move on.
+        /// </summary>
+        private void CheckForStall()
+        {
+            if (_disposed)
+                return;
+
+            var pendingSince = Interlocked.Read(ref _readPendingSince);
+
+            // Nothing is waiting on ffmpeg, so a paused player is not read as a stall
+            if (pendingSince == 0 || Stopwatch.GetElapsedTime(pendingSince) < ReadStallTimeout)
+                return;
+
+            _logger.Warning($"ffmpeg delivered nothing for {ReadStallTimeout.TotalSeconds:0}s and was stopped");
+            ProcessRunner.Terminate(_process);
         }
 
         /// <summary>
@@ -148,6 +227,8 @@ namespace NOVAxis.Services.Audio.YtDlp
             if (_disposed) return;
             _disposed = true;
 
+            await _watchdog.DisposeAsync();
+
             // Waits for a kill already in flight, without blocking the thread doing so
             await _registration.DisposeAsync();
 
@@ -158,10 +239,7 @@ namespace NOVAxis.Services.Audio.YtDlp
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                 await _process.WaitForExitAsync(timeout.Token);
 
-                var error = await _standardError.WaitAsync(timeout.Token);
-
-                if (!string.IsNullOrWhiteSpace(error))
-                    _logger.Debug($"ffmpeg: {error.Trim()}");
+                await _standardError.WaitAsync(timeout.Token);
 
                 _logger.Debug($"ffmpeg exited with code {_process.ExitCode} after producing " +
                               $"{BytesRead / (double)BytesPerSecond:0.#}s of audio");
