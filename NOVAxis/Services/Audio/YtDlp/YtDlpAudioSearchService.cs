@@ -20,9 +20,14 @@ namespace NOVAxis.Services.Audio.YtDlp
     /// </summary>
     public class YtDlpAudioSearchService : IAudioSearchService
     {
+        /// <summary>
+        /// How long reading a page of one of the hosts below may take.
+        /// </summary>
+        public static readonly TimeSpan MetadataTimeout = TimeSpan.FromSeconds(15);
+
         private static readonly HttpClient Http = new()
         {
-            Timeout = TimeSpan.FromSeconds(15)
+            Timeout = MetadataTimeout
         };
 
         private static readonly string[] MetadataOnlyHosts =

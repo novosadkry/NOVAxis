@@ -44,6 +44,17 @@ namespace NOVAxis.Services.Audio.YtDlp
             Logger = logger;
         }
 
+        /// <summary>
+        /// Everything a command can spend before a track reaches the queue: reading the
+        /// page of a host yt-dlp cannot stream from, the lookup itself, and room for the
+        /// work around both. A player left idle for less than this would be disconnected
+        /// while the command which just took it is still searching.
+        /// </summary>
+        private TimeSpan LookupWindow =>
+            YtDlpAudioSearchService.MetadataTimeout +
+            Options.Value.YtDlp.ResolveTimeout +
+            TimeSpan.FromSeconds(5);
+
         public IReadOnlyCollection<IAudioPlayer> Players => _players.Values.ToList();
 
         internal IReadOnlyCollection<YtDlpAudioPlayer> ActivePlayers => _players.Values.ToList();
@@ -103,7 +114,7 @@ namespace NOVAxis.Services.Audio.YtDlp
                 }
 
                 // Searching outlasts the idle timeout, so hold the sweep off
-                player.Reserve(Options.Value.YtDlp.ResolveTimeout + TimeSpan.FromSeconds(5));
+                player.Reserve(LookupWindow);
 
                 return AudioPlayerRetrieveResult.Success(player);
             }
