@@ -162,9 +162,14 @@ namespace NOVAxis.Modules.Audio
         /// Hands the loaded tracks to the player. Everything goes in through
         /// <see cref="IAudioPlayer.PlayAsync"/>, which starts a track when nothing is
         /// playing and enqueues it otherwise, so both backends behave the same way.
+        /// An idle player announces the track on its own, so the reply is dropped
+        /// there rather than repeating it.
         /// </summary>
         private async Task PlayAudio(IAudioPlayer player, AudioLoadResult result)
         {
+            // Read before enqueueing, as an idle player dequeues at once
+            var wasIdle = player.State == AudioPlayerState.NotPlaying;
+
             if (result.IsPlaylist)
             {
                 var items = result.Tracks.Select(CreateItem).ToList();
@@ -173,6 +178,12 @@ namespace NOVAxis.Modules.Audio
 
                 if (items.Count > 1)
                     await player.Queue.AddRangeAsync(items.Skip(1).ToList());
+
+                if (wasIdle)
+                {
+                    await DeleteOriginalResponseAsync();
+                    return;
+                }
 
                 var totalDuration = result.Tracks.Aggregate(
                     TimeSpan.Zero, (total, track) => total + track.Duration);
@@ -184,28 +195,21 @@ namespace NOVAxis.Modules.Audio
             else
             {
                 var item = CreateItem(result.Track);
-
-                // Both read before enqueueing, as an idle player dequeues at once
-                var wasIdle = player.State == AudioPlayerState.NotPlaying;
                 var position = player.Queue.Count + 1;
 
                 await player.PlayAsync(item);
 
                 if (wasIdle)
                 {
-                    // The player announces the track itself once it starts,
-                    // so a confirmation here would only repeat it
                     await DeleteOriginalResponseAsync();
+                    return;
                 }
 
-                else
-                {
-                    var id = InteractionCache.Store(item);
+                var id = InteractionCache.Store(item);
 
-                    await FollowupAsync(
-                        embed: AudioEmbeds.TrackEnqueued(item, position),
-                        components: AudioEmbeds.TrackControls(id, item.Track));
-                }
+                await FollowupAsync(
+                    embed: AudioEmbeds.TrackEnqueued(item, position),
+                    components: AudioEmbeds.TrackControls(id, item.Track));
             }
         }
 
