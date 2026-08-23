@@ -129,6 +129,19 @@ namespace NOVAxis.Services.Audio.YtDlp
         /// </summary>
         public DateTimeOffset? InactiveSince { get; private set; } = DateTimeOffset.UtcNow;
 
+        /// <summary>
+        /// How long a command holding this player has to enqueue something. Searching can take
+        /// longer than the idle timeout, and sweeping the player away under a command in flight
+        /// loses the track it was about to play. Expires by itself, so a command which never
+        /// gets that far cannot keep the player alive.
+        /// </summary>
+        internal DateTimeOffset ReservedUntil { get; private set; }
+
+        internal void Reserve(TimeSpan duration)
+        {
+            ReservedUntil = DateTimeOffset.UtcNow + duration;
+        }
+
         internal ITextChannel TextChannel => _textChannel;
         internal IVoiceChannel VoiceChannel => _voiceChannel;
 
@@ -408,7 +421,18 @@ namespace NOVAxis.Services.Audio.YtDlp
             _trackCts = trackCts;
             _interrupt = PlaybackInterrupt.None;
 
-            var streamInfo = await ResolveAsync(item, trackCts.Token);
+            YtDlpStreamInfo streamInfo;
+
+            try
+            {
+                streamInfo = await ResolveAsync(item, trackCts.Token);
+            }
+            // Resolving an address takes seconds, which is long enough for a skip to land
+            // inside it. Without this the interrupt would read as a failed track.
+            catch (OperationCanceledException) when (!lifetimeToken.IsCancellationRequested)
+            {
+                return OutcomeOf(_interrupt);
+            }
 
             await using var stream = FfmpegAudioStream.Start(
                 _options.YtDlp, streamInfo, position, _logger, trackCts.Token);
@@ -474,14 +498,23 @@ namespace NOVAxis.Services.Audio.YtDlp
             }
             catch (OperationCanceledException) when (!lifetimeToken.IsCancellationRequested)
             {
-                return _interrupt switch
-                {
-                    PlaybackInterrupt.Stop => PlaybackOutcome.Stopped,
-                    PlaybackInterrupt.Seek => PlaybackOutcome.Seek,
-                    PlaybackInterrupt.Replace => PlaybackOutcome.Replaced,
-                    _ => PlaybackOutcome.Skipped
-                };
+                return OutcomeOf(_interrupt);
             }
+        }
+
+        /// <summary>
+        /// Reads back the reason recorded by <see cref="Interrupt"/>. A cancelled token only
+        /// says playback stopped, and the four reasons need four different follow-ups.
+        /// </summary>
+        private static PlaybackOutcome OutcomeOf(PlaybackInterrupt interrupt)
+        {
+            return interrupt switch
+            {
+                PlaybackInterrupt.Stop => PlaybackOutcome.Stopped,
+                PlaybackInterrupt.Seek => PlaybackOutcome.Seek,
+                PlaybackInterrupt.Replace => PlaybackOutcome.Replaced,
+                _ => PlaybackOutcome.Skipped
+            };
         }
 
         /// <summary>

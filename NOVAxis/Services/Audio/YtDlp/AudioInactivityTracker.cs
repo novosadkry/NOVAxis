@@ -64,7 +64,19 @@ namespace NOVAxis.Services.Audio.YtDlp
             var timeout = Options.Value.Timeout;
             var now = DateTimeOffset.UtcNow;
 
-            foreach (var player in Manager.ActivePlayers)
+            var players = Manager.ActivePlayers;
+
+            // A player can go away without the sweep noticing - /leave, a dropped connection -
+            // and a timestamp left behind would disconnect the guild's next session at once
+            var live = players.Select(x => x.GuildId).ToHashSet();
+
+            foreach (var guildId in _aloneSince.Keys)
+            {
+                if (!live.Contains(guildId))
+                    _aloneSince.TryRemove(guildId, out _);
+            }
+
+            foreach (var player in players)
             {
                 var reason = GetInactivityReason(player, timeout, now);
 
@@ -82,6 +94,10 @@ namespace NOVAxis.Services.Audio.YtDlp
 
         private string GetInactivityReason(YtDlpAudioPlayer player, AudioTimeoutOptions timeout, DateTimeOffset now)
         {
+            // A command is still working with it, and its track has not reached the queue yet
+            if (now < player.ReservedUntil)
+                return null;
+
             if (timeout.IdleInactivity > TimeSpan.Zero &&
                 player.State == AudioPlayerState.NotPlaying &&
                 player.Queue.Count == 0 &&

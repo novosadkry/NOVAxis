@@ -25,6 +25,18 @@ namespace NOVAxis.Modules.Audio
 
         #region Functions
 
+        /// <summary>
+        /// Answers an interaction that may or may not have been deferred already. Commands which
+        /// join a voice channel defer before that starts, so their error paths reach both ways.
+        /// </summary>
+        private async Task AnswerAsync(Embed embed)
+        {
+            if (Context.Interaction.HasResponded)
+                await FollowupAsync(ephemeral: true, embed: embed);
+            else
+                await RespondAsync(ephemeral: true, embed: embed);
+        }
+
         private async ValueTask<IAudioPlayer> GetPlayerAsync(
             bool joinChannel = true,
             bool sameChannel = false,
@@ -45,44 +57,44 @@ namespace NOVAxis.Modules.Audio
                     return result.Player;
 
                 case AudioPlayerRetrieveStatus.UserNotInVoiceChannel:
-                    await RespondAsync(ephemeral: true, embed: AudioEmbeds.Error(
+                    await AnswerAsync(AudioEmbeds.Error(
                         "Mému jádru se nepodařilo naladit na stejnou zvukovou frekvenci",
                         "(Neplatný kanál)"));
                     break;
 
                 case AudioPlayerRetrieveStatus.VoiceChannelMismatch:
-                    await RespondAsync(ephemeral: true, embed: AudioEmbeds.Error(
+                    await AnswerAsync(AudioEmbeds.Error(
                         "Pro komunikaci s jádrem musíš být naladěn na stejnou frekvenci",
                         "(Neplatný příkaz)"));
                     break;
 
                 case AudioPlayerRetrieveStatus.PreconditionFailed when result.Precondition is AudioPrecondition.Paused or AudioPrecondition.NotPlaying:
-                    await RespondAsync(ephemeral: true, embed: AudioEmbeds.Warning(
+                    await AnswerAsync(AudioEmbeds.Warning(
                         "Stream audia již běží",
                         "(Neplatný příkaz)"));
                     break;
 
                 case AudioPlayerRetrieveStatus.BotNotConnected:
                 case AudioPlayerRetrieveStatus.PreconditionFailed when result.Precondition is AudioPrecondition.Playing:
-                    await RespondAsync(ephemeral: true, embed: AudioEmbeds.Warning(
+                    await AnswerAsync(AudioEmbeds.Warning(
                         "Právě teď není streamováno na serveru žádné audio",
                         "(Neplatný příkaz)"));
                     break;
 
                 case AudioPlayerRetrieveStatus.PreconditionFailed when result.Precondition is AudioPrecondition.NotPaused:
-                    await RespondAsync(ephemeral: true, embed: AudioEmbeds.Warning(
+                    await AnswerAsync(AudioEmbeds.Warning(
                         "Stream audia již byl pozastaven",
                         "(Neplatný příkaz)"));
                     break;
 
                 case AudioPlayerRetrieveStatus.PreconditionFailed when result.Precondition is AudioPrecondition.QueueNotEmpty:
-                    await RespondAsync(ephemeral: true, embed: AudioEmbeds.Warning(
+                    await AnswerAsync(AudioEmbeds.Warning(
                         "Právě teď se ve frontě nenachází žádná zvuková stopa",
                         "(Neplatný příkaz)"));
                     break;
 
                 default:
-                    await RespondAsync(ephemeral: true, embed: AudioEmbeds.Error(
+                    await AnswerAsync(AudioEmbeds.Error(
                         "Při komunikaci s jádrem nastala neznámá chyba",
                         "(Neznámá chyba)"));
                     break;
@@ -97,7 +109,7 @@ namespace NOVAxis.Modules.Audio
             {
                 Track = track,
                 RequestedBy = Context.User,
-                RequestId = SnowflakeUtils.ToSnowflake(DateTimeOffset.Now)
+                RequestId = AudioTrackQueueItem.NextRequestId()
             };
         }
 
@@ -107,8 +119,6 @@ namespace NOVAxis.Modules.Audio
         /// </summary>
         private async Task SearchAndPlay(IAudioPlayer player, string input)
         {
-            await DeferAsync();
-
             try
             {
                 var result = await SearchService.LoadAsync(input);
@@ -149,14 +159,30 @@ namespace NOVAxis.Modules.Audio
             }
         }
 
+        /// <summary>
+        /// Hands the loaded tracks to the player and reports what happened to them.
+        /// </summary>
+        /// <remarks>
+        /// Everything goes in through <see cref="IAudioPlayer.PlayAsync"/>, which starts a track
+        /// when nothing is playing and enqueues it otherwise. Adding to the queue directly is not
+        /// equivalent: the yt-dlp player picks the track up on its own, while a Lavalink node has
+        /// to be told to, so the two backends would need different handling here.
+        /// </remarks>
         private async Task PlayAudio(IAudioPlayer player, AudioLoadResult result)
         {
             var wasIdle = player.State == AudioPlayerState.NotPlaying;
 
+            // Read before enqueueing - an idle player takes the track straight back out again
+            var position = player.Queue.Count + 1;
+
             if (result.IsPlaylist)
             {
                 var items = result.Tracks.Select(CreateItem).ToList();
-                await player.Queue.AddRangeAsync(items);
+
+                await player.PlayAsync(items[0]);
+
+                if (items.Count > 1)
+                    await player.Queue.AddRangeAsync(items.Skip(1).ToList());
 
                 var totalDuration = result.Tracks.Aggregate(
                     TimeSpan.Zero, (total, track) => total + track.Duration);
@@ -168,9 +194,7 @@ namespace NOVAxis.Modules.Audio
             else
             {
                 var item = CreateItem(result.Track);
-                await player.Queue.AddAsync(item);
-
-                var position = player.Queue.Count;
+                await player.PlayAsync(item);
 
                 if (wasIdle)
                 {
@@ -187,9 +211,6 @@ namespace NOVAxis.Modules.Audio
                         components: AudioEmbeds.TrackControls(id, item.Track));
                 }
             }
-
-            if (wasIdle)
-                await player.SkipAsync();
         }
 
         #endregion
@@ -199,12 +220,14 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("join", "Joins a voice channel")]
         public async Task CmdJoinChannel()
         {
+            await DeferAsync();
+
             var player = await GetPlayerAsync(joinChannel: true);
             if (player == null) return;
 
             var voiceChannel = await player.GetVoiceChannel(Context.Client);
 
-            await RespondAsync(embed: AudioEmbeds.Info($"Připojuji se ke kanálu `{voiceChannel.Name}`"));
+            await FollowupAsync(embed: AudioEmbeds.Info($"Připojuji se ke kanálu `{voiceChannel.Name}`"));
         }
 
         [SlashCommand("leave", "Leaves a voice channel")]
@@ -224,6 +247,10 @@ namespace NOVAxis.Modules.Audio
         [SlashCommand("play", "Plays an audio transmission")]
         public async Task CmdPlayAudio(string input)
         {
+            // Connecting to voice can outlast the three seconds Discord allows for an
+            // acknowledgement, so the interaction is deferred before that starts
+            await DeferAsync();
+
             var player = await GetPlayerAsync(joinChannel: true);
             if (player == null) return;
 
@@ -271,6 +298,8 @@ namespace NOVAxis.Modules.Audio
         [ComponentInteraction("TrackControls_Add,*", true)]
         public async Task TrackControls_Add(string trackUrl)
         {
+            await DeferAsync();
+
             var player = await GetPlayerAsync(joinChannel: true);
             if (player == null) return;
 

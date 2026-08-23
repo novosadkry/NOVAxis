@@ -1,4 +1,6 @@
-﻿using Discord;
+﻿using System.Threading;
+
+using Discord;
 
 namespace NOVAxis.Services.Audio
 {
@@ -11,6 +13,18 @@ namespace NOVAxis.Services.Audio
     {
         public AudioTrack Track { get; init; }
         public ulong RequestId { get; init; }
+
+        private static ulong _lastRequestId;
+
+        /// <summary>
+        /// Hands out an identity no other item shares. A timestamp is not enough - a playlist
+        /// is turned into items in a single loop, so they would all land on the same tick and
+        /// stop being distinguishable.
+        /// </summary>
+        public static ulong NextRequestId()
+        {
+            return Interlocked.Increment(ref _lastRequestId);
+        }
         public IUser RequestedBy { get; init; }
 
         public override bool Equals(object obj)
