@@ -259,8 +259,9 @@ namespace NOVAxis.Modules.Audio
         [ComponentInteraction("AudioControls_*", true)]
         public async Task AudioControls(string action)
         {
-            var player = await GetPlayerAsync(joinChannel: false, sameChannel: true);
-            if (player == null) return;
+            // Read only to pick a branch - the command invoked below retrieves the
+            // player itself, with the preconditions and the replies belonging to it
+            PlayerManager.TryGetPlayer(Context.Guild.Id, out var player);
 
             switch (action)
             {
@@ -271,17 +272,17 @@ namespace NOVAxis.Modules.Audio
                     await CmdStopAudio();
                     break;
                 case "Repeat":
-                    await (player.RepeatMode != AudioRepeatMode.None
+                    await (player?.RepeatMode != AudioRepeatMode.None
                         ? CmdRepeatAudio(AudioRepeatMode.None)
                         : CmdRepeatAudio(AudioRepeatMode.Queue));
                     break;
                 case "RepeatOnce":
-                    await (player.RepeatMode != AudioRepeatMode.None
+                    await (player?.RepeatMode != AudioRepeatMode.None
                         ? CmdRepeatAudio(AudioRepeatMode.None)
                         : CmdRepeatAudio(AudioRepeatMode.Track));
                     break;
                 case "PlayPause":
-                    await (player.State == AudioPlayerState.Playing
+                    await (player?.State == AudioPlayerState.Playing
                         ? CmdPauseAudio()
                         : CmdResumeAudio());
                     break;
