@@ -148,13 +148,8 @@ namespace NOVAxis.Services.Audio.YtDlp
 
         internal void Reserve(TimeSpan duration)
         {
-            var now = DateTimeOffset.UtcNow;
-
-            // A command overlapping another extends the hold rather than starting one
-            if (now >= ReservedUntil)
-                _logger.Debug($"Guild {GuildId} is held by a command for up to {duration.TotalSeconds:0.#}s");
-
-            ReservedUntil = now + duration;
+            ReservedUntil = DateTimeOffset.UtcNow + duration;
+            _logger.Debug($"Guild {GuildId} is held by a command for up to {duration.TotalSeconds:0.#}s");
         }
 
         public async ValueTask ConnectAsync(CancellationToken cancellationToken = default)
