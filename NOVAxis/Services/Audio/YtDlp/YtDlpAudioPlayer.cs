@@ -86,6 +86,7 @@ namespace NOVAxis.Services.Audio.YtDlp
 
         private ulong _prefetchedId;
         private Task<YtDlpStreamInfo> _prefetched;
+        private YtDlpStreamInfo _resolved;
 
         private bool _disposed;
 
@@ -416,12 +417,35 @@ namespace NOVAxis.Services.Audio.YtDlp
         {
             _currentItem = item;
 
+            // Each playthrough looks the track up once, and every segment a seek
+            // adds to it plays from that same address
+            _resolved = null;
+
             var position = TimeSpan.Zero;
             var announce = true;
 
             while (true)
             {
-                var outcome = await PlaySegmentAsync(item, position, announce, lifetimeToken);
+                var reused = _resolved != null;
+                PlaybackOutcome outcome;
+
+                try
+                {
+                    outcome = await PlaySegmentAsync(item, position, announce, lifetimeToken);
+                }
+                // An address kept from an earlier segment can expire mid-track,
+                // which ffmpeg reports as a segment yielding nothing at all
+                catch (Exception) when (reused && !lifetimeToken.IsCancellationRequested &&
+                                        Interlocked.Read(ref _segmentBytes) == 0)
+                {
+                    _logger.Debug($"Reused address of '{item.Track.Title}' went stale " +
+                                  $"for guild {GuildId}, resolving again");
+
+                    _resolved = null;
+
+                    // The track was announced before the address failed, so the retry stays quiet
+                    outcome = await PlaySegmentAsync(item, position, false, lifetimeToken);
+                }
 
                 if (outcome != PlaybackOutcome.Seek)
                     return outcome;
@@ -589,7 +613,19 @@ namespace NOVAxis.Services.Audio.YtDlp
                 samples[i] = (short)Math.Clamp(samples[i] * volume, short.MinValue, short.MaxValue);
         }
 
+        /// <summary>
+        /// Gives a segment its stream address, reusing the one this playthrough looked
+        /// up. An address outlives the track, so the segments a seek adds cost nothing.
+        /// </summary>
         private async ValueTask<YtDlpStreamInfo> ResolveAsync(AudioTrackQueueItem item, CancellationToken cancellationToken)
+        {
+            if (_resolved != null)
+                return _resolved;
+
+            return _resolved = await LookupAsync(item, cancellationToken);
+        }
+
+        private async ValueTask<YtDlpStreamInfo> LookupAsync(AudioTrackQueueItem item, CancellationToken cancellationToken)
         {
             var prefetched = _prefetched;
 
