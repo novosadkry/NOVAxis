@@ -1,6 +1,6 @@
 # -- Build --
 
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:9.0-noble AS build
 
 ARG LIBDAVE_RELEASE=v1.1.1/cpp
 RUN apt-get update \
@@ -27,7 +27,7 @@ RUN dotnet publish -c Release -o out
 
 # -- Runtime --
 
-FROM mcr.microsoft.com/dotnet/runtime:9.0
+FROM mcr.microsoft.com/dotnet/runtime:9.0-noble
 
 # ffmpeg and yt-dlp back the in-process audio streaming
 RUN apt-get update \
