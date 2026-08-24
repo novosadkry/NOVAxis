@@ -113,6 +113,9 @@ namespace NOVAxis.Services.Audio.YtDlp
                 arguments.Add("--user-agent");
                 arguments.Add(YtDlp.UserAgent);
             }
+
+            if (YtDlp.ExtraArguments != null)
+                arguments.AddRange(YtDlp.ExtraArguments);
         }
 
         private async Task<string> RunAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
