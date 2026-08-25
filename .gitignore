@@ -266,3 +266,9 @@ __pycache__/
 
 # Lavalink
 /NOVAxis/Lavalink/**
+
+# Web player
+/NOVAxis/wwwroot/
+/NOVAxis/keys/
+/NOVAxis/Web/ClientApp/node_modules/
+/NOVAxis/Web/ClientApp/dist/

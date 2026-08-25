@@ -9,6 +9,11 @@
     stdin_open: true
     volumes:
       - ./NOVAxis/config.json:/app/config.json
+      # Data-protection key ring - web sessions survive a restart with it
+      - ./NOVAxis/keys:/app/keys
+    ports:
+      # The web player; TLS belongs to the reverse proxy in front
+      - "5000:5000"
     restart: unless-stopped
     logging:
       options:

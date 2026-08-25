@@ -34,6 +34,21 @@ jobs:
       with:
         dotnet-version: '9.0.x'
 
+    # Install Node for the web player frontend
+    - name: Install Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: npm
+        cache-dependency-path: NOVAxis/Web/ClientApp/package-lock.json
+
+    # A broken frontend should fail the pull request, not the release image
+    - name: Build web frontend
+      working-directory: NOVAxis/Web/ClientApp
+      run: |
+        npm ci
+        npm run build
+
     # Restore the application to install all dependencies
     - name: Install dependencies
       run: dotnet restore

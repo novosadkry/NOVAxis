@@ -1,3 +1,14 @@
+# -- Frontend --
+
+FROM node:22-alpine AS client
+
+WORKDIR /src
+COPY NOVAxis/Web/ClientApp/package.json NOVAxis/Web/ClientApp/package-lock.json ./
+RUN npm ci
+
+COPY NOVAxis/Web/ClientApp/ ./
+RUN npm run build
+
 # -- Build --
 
 FROM mcr.microsoft.com/dotnet/sdk:9.0-noble AS build
@@ -21,6 +32,9 @@ RUN apt-get update \
 WORKDIR /app
 COPY . .
 
+# The built frontend publishes along as static content
+COPY --from=client /src/dist /app/NOVAxis/wwwroot
+
 WORKDIR /app/NOVAxis
 RUN dotnet restore
 RUN dotnet publish -c Release -o out
@@ -43,5 +57,8 @@ RUN apt-get update \
 WORKDIR /app
 COPY --from=build /app/NOVAxis/out .
 COPY --from=build /natives/libopus /natives/libsodium /natives/libdave.so ./
+
+# The web player
+EXPOSE 5000
 
 ENTRYPOINT ["/app/NOVAxis"]

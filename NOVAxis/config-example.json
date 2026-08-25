@@ -60,6 +60,16 @@
     "AbsoluteExpiration": "24:00:00",
     "RelativeExpiration": "12:00:00"
   },
+  "Web": {
+    "Active": false,
+    "ListenAddress": "http://0.0.0.0:5000",
+    "PublicUrl": "https://novaxis.example.com",
+    "KeyPath": "keys",
+    "OAuth": {
+      "ClientId": "INSERT_CLIENT_ID_HERE",
+      "ClientSecret": "INSERT_CLIENT_SECRET_HERE"
+    }
+  },
   "Anthropic": {
     "ApiKey": "INSERT_API_KEY_HERE"
   }

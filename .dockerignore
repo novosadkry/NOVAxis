@@ -1,0 +1,12 @@
+.git
+.github
+.idea
+.claude
+**/bin
+**/obj
+NOVAxis/Web/ClientApp/node_modules
+NOVAxis/Web/ClientApp/dist
+NOVAxis/wwwroot
+NOVAxis/keys
+NOVAxis/config.json
+NOVAxis/Lavalink
