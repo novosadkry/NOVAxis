@@ -1,0 +1,1 @@
+{"root":["./src/icons.tsx","./src/toast.tsx","./src/api.ts","./src/format.ts","./src/live.ts","./src/main.tsx","./src/user.ts","./src/components/nowplaying.tsx","./src/components/playerbar.tsx","./src/components/queuelist.tsx","./src/components/searchbox.tsx","./src/pages/guildpicker.tsx","./src/pages/playerpage.tsx"],"version":"5.9.3"}

@@ -1,0 +1,134 @@
+// Typed client for the bot's api. Mirrors NOVAxis.Web.Contracts - snowflakes
+// travel as strings, positions and durations in milliseconds.
+
+export interface TrackDto {
+  title: string
+  author: string
+  uri: string | null
+  artworkUri: string | null
+  durationMs: number
+  isLiveStream: boolean
+  sourceName: string | null
+}
+
+export interface WebUserDto {
+  id: string
+  name: string
+  avatarUrl: string | null
+}
+
+export interface QueueItemDto {
+  requestId: string
+  track: TrackDto
+  requestedBy: WebUserDto | null
+}
+
+export interface VoiceChannelDto {
+  id: string
+  name: string
+}
+
+export interface PlayerStateDto {
+  guildId: string
+  connected: boolean
+  state: 'Destroyed' | 'NotPlaying' | 'Playing' | 'Paused'
+  isPaused: boolean
+  volume: number
+  repeatMode: 'None' | 'Track' | 'Queue'
+  positionMs: number
+  sampledAt: number
+  voiceChannel: VoiceChannelDto | null
+  current: QueueItemDto | null
+  queue: QueueItemDto[]
+}
+
+export interface GuildDto {
+  id: string
+  name: string
+  iconUrl: string | null
+  connected: boolean
+}
+
+export interface PlayResponse {
+  enqueued: number
+  track: TrackDto | null
+  playlistName: string | null
+}
+
+export class ApiError extends Error {
+  readonly code: string
+  readonly status: number
+
+  constructor(status: number, code: string, message: string) {
+    super(message)
+    this.status = status
+    this.code = code
+  }
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, {
+    credentials: 'same-origin',
+    headers: init?.body ? { 'Content-Type': 'application/json' } : undefined,
+    ...init,
+  })
+
+  if (response.status === 204) return undefined as T
+
+  const body = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    throw new ApiError(
+      response.status,
+      body?.code ?? 'unknown',
+      body?.message ?? 'Nastala neznámá chyba',
+    )
+  }
+
+  return body as T
+}
+
+function post<T>(path: string, body?: unknown): Promise<T> {
+  return request<T>(path, {
+    method: 'POST',
+    body: body === undefined ? '{}' : JSON.stringify(body),
+  })
+}
+
+export const api = {
+  me: () => request<WebUserDto>('/api/auth/me'),
+  logout: () => post<void>('/api/auth/logout'),
+
+  guilds: () => request<GuildDto[]>('/api/guilds'),
+  state: (guildId: string) => request<PlayerStateDto>(`/api/guilds/${guildId}/state`),
+
+  search: (guildId: string, query: string, limit = 8) =>
+    request<TrackDto[]>(`/api/guilds/${guildId}/search?q=${encodeURIComponent(query)}&limit=${limit}`),
+
+  play: (guildId: string, query: string) =>
+    post<PlayResponse>(`/api/guilds/${guildId}/play`, { query }),
+
+  pause: (guildId: string) => post<void>(`/api/guilds/${guildId}/pause`),
+  resume: (guildId: string) => post<void>(`/api/guilds/${guildId}/resume`),
+  stop: (guildId: string) => post<void>(`/api/guilds/${guildId}/stop`),
+  skip: (guildId: string) => post<void>(`/api/guilds/${guildId}/skip`, { count: 1 }),
+  disconnect: (guildId: string) => post<void>(`/api/guilds/${guildId}/disconnect`),
+
+  seek: (guildId: string, positionMs: number) =>
+    post<void>(`/api/guilds/${guildId}/seek`, { positionMs }),
+
+  volume: (guildId: string, percent: number) =>
+    post<void>(`/api/guilds/${guildId}/volume`, { percent }),
+
+  repeat: (guildId: string, mode: PlayerStateDto['repeatMode']) =>
+    post<void>(`/api/guilds/${guildId}/repeat`, { mode }),
+
+  clearQueue: (guildId: string) =>
+    request<void>(`/api/guilds/${guildId}/queue`, { method: 'DELETE' }),
+
+  removeItem: (guildId: string, requestId: string) =>
+    request<void>(`/api/guilds/${guildId}/queue/${requestId}`, { method: 'DELETE' }),
+
+  moveItem: (guildId: string, requestId: string, toIndex: number) =>
+    post<void>(`/api/guilds/${guildId}/queue/${requestId}/move`, { toIndex }),
+}
