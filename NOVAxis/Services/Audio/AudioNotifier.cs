@@ -2,7 +2,9 @@
 using System.Threading.Tasks;
 
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
+using NOVAxis.Core;
 using NOVAxis.Utilities;
 using NOVAxis.Extensions;
 
@@ -18,30 +20,34 @@ namespace NOVAxis.Services.Audio
     public class AudioNotifier
     {
         private InteractionCache InteractionCache { get; }
+        private IOptions<WebOptions> WebOptions { get; }
         private ILogger<AudioNotifier> Logger { get; }
 
-        public AudioNotifier(InteractionCache interactionCache, ILogger<AudioNotifier> logger)
+        public AudioNotifier(InteractionCache interactionCache, IOptions<WebOptions> webOptions, ILogger<AudioNotifier> logger)
         {
             InteractionCache = interactionCache;
+            WebOptions = webOptions;
             Logger = logger;
         }
 
         public Task TrackEnqueuedAsync(ITextChannel channel, AudioTrackQueueItem item, int position)
         {
             var id = InteractionCache.Store(item);
+            var webUrl = channel != null ? WebOptions.Value.GetPlayerUrl(channel.GuildId) : null;
 
             return SendAsync(channel,
                 AudioEmbeds.TrackEnqueued(item, position),
-                AudioEmbeds.TrackControls(id, item.Track));
+                AudioEmbeds.TrackControls(id, item.Track, webUrl));
         }
 
         public Task TrackStartedAsync(ITextChannel channel, AudioTrackQueueItem item, bool isPaused, float volume, int queueCount)
         {
             var id = InteractionCache.Store(item);
+            var webUrl = channel != null ? WebOptions.Value.GetPlayerUrl(channel.GuildId) : null;
 
             return SendAsync(channel,
                 AudioEmbeds.NowPlaying(item, isPaused, volume, queueCount),
-                AudioEmbeds.TrackControls(id, item.Track));
+                AudioEmbeds.TrackControls(id, item.Track, webUrl));
         }
 
         public Task TrackExceptionAsync(ITextChannel channel, AudioTrackQueueItem item, Exception exception)

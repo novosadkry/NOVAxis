@@ -4,6 +4,9 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Options;
+
+using NOVAxis.Core;
 using NOVAxis.Preconditions;
 using NOVAxis.Services.Audio;
 using NOVAxis.Services.Audio.YtDlp;
@@ -22,6 +25,7 @@ namespace NOVAxis.Modules.Audio
         public IAudioPlayerManager PlayerManager { get; set; }
         public IAudioSearchService SearchService { get; set; }
         public InteractionCache InteractionCache { get; set; }
+        public IOptions<WebOptions> WebOptions { get; set; }
 
         #region Functions
 
@@ -209,7 +213,7 @@ namespace NOVAxis.Modules.Audio
 
                 await FollowupAsync(
                     embed: AudioEmbeds.TrackEnqueued(item, position),
-                    components: AudioEmbeds.TrackControls(id, item.Track));
+                    components: AudioEmbeds.TrackControls(id, item.Track, WebOptions.Value.GetPlayerUrl(Context.Guild.Id)));
             }
         }
 
@@ -596,7 +600,29 @@ namespace NOVAxis.Modules.Audio
 
             await RespondAsync(
                 embed: AudioEmbeds.NowPlaying(item, player.IsPaused, player.Volume, player.Queue.Count, player.Position),
-                components: AudioEmbeds.PlayerControls());
+                components: AudioEmbeds.PlayerControls(WebOptions.Value.GetPlayerUrl(Context.Guild.Id)));
+        }
+
+        [SlashCommand("web", "Opens the web player")]
+        public async Task CmdAudioWeb()
+        {
+            var webUrl = WebOptions.Value.GetPlayerUrl(Context.Guild.Id);
+
+            if (webUrl == null)
+            {
+                await RespondAsync(ephemeral: true, embed: AudioEmbeds.Warning(
+                    "Webový přehrávač není na tomto jádru zapnut",
+                    "(Služba není dostupná)"));
+
+                return;
+            }
+
+            await RespondAsync(
+                ephemeral: true,
+                embed: AudioEmbeds.Info("Ovládej mé jádro přímo z prohlížeče"),
+                components: new ComponentBuilder()
+                    .WithButton(AudioEmbeds.WebPlayerButton(webUrl))
+                    .Build());
         }
 
         [SlashCommand("queue", "Shows enqueued audio transmissions")]

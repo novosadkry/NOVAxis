@@ -109,24 +109,46 @@ namespace NOVAxis.Services.Audio
             return builder.Build();
         }
 
-        public static MessageComponent TrackControls(ulong interactionId, AudioTrack track)
+        public static MessageComponent TrackControls(ulong interactionId, AudioTrack track, string webUrl = null)
         {
-            return new ComponentBuilder()
+            var builder = new ComponentBuilder()
                 .WithButton(customId: $"TrackControls_Remove,{interactionId}", emote: new Emoji("\u2716"), style: ButtonStyle.Danger)
                 .WithButton(customId: $"TrackControls_Add,{track.Uri?.AbsoluteUri}", emote: new Emoji("\u2764"), style: ButtonStyle.Secondary)
-                .WithButton(customId: "TrackControls_Add", emote: new Emoji("\u2795"), style: ButtonStyle.Success)
-                .Build();
+                .WithButton(customId: "TrackControls_Add", emote: new Emoji("\u2795"), style: ButtonStyle.Success);
+
+            if (webUrl != null)
+                builder.WithButton(WebPlayerButton(webUrl));
+
+            return builder.Build();
         }
 
-        public static MessageComponent PlayerControls()
+        public static MessageComponent PlayerControls(string webUrl = null)
         {
-            return new ComponentBuilder()
+            var builder = new ComponentBuilder()
                 .WithButton(customId: "AudioControls_PlayPause", emote: new Emoji("\u23EF"))
                 .WithButton(customId: "AudioControls_Stop", emote: new Emoji("\u23F9"))
                 .WithButton(customId: "AudioControls_Skip", emote: new Emoji("\u23E9"))
                 .WithButton(customId: "AudioControls_Repeat", emote: new Emoji("\uD83D\uDD01"))
-                .WithButton(customId: "AudioControls_RepeatOnce", emote: new Emoji("\uD83D\uDD02"))
-                .Build();
+                .WithButton(customId: "AudioControls_RepeatOnce", emote: new Emoji("\uD83D\uDD02"));
+
+            // A row holds five buttons, so the link starts a second one
+            if (webUrl != null)
+                builder.WithButton(WebPlayerButton(webUrl), row: 1);
+
+            return builder.Build();
+        }
+
+        /// <summary>
+        /// A link button opening the guild's web player - the primary way of steering
+        /// the playback, so it rides along on every control surface.
+        /// </summary>
+        public static ButtonBuilder WebPlayerButton(string webUrl)
+        {
+            return new ButtonBuilder()
+                .WithLabel("Otev\u0159\u00EDt p\u0159ehr\u00E1va\u010D")
+                .WithEmote(new Emoji("\uD83C\uDFA7"))
+                .WithStyle(ButtonStyle.Link)
+                .WithUrl(webUrl);
         }
 
         /// <summary>
