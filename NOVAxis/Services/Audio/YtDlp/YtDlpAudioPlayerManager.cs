@@ -67,17 +67,30 @@ namespace NOVAxis.Services.Audio.YtDlp
             return found;
         }
 
-        public async ValueTask<AudioPlayerRetrieveResult> RetrieveAsync(
+        public ValueTask<AudioPlayerRetrieveResult> RetrieveAsync(
             IInteractionContext context,
             AudioPlayerRetrieveOptions options,
             CancellationToken cancellationToken = default)
         {
-            var guild = context.Guild;
+            return RetrieveAsync(
+                context.User as IGuildUser,
+                context.Channel as ITextChannel,
+                options,
+                cancellationToken);
+        }
+
+        public async ValueTask<AudioPlayerRetrieveResult> RetrieveAsync(
+            IGuildUser user,
+            ITextChannel textChannel,
+            AudioPlayerRetrieveOptions options,
+            CancellationToken cancellationToken = default)
+        {
+            var guild = user?.Guild;
 
             if (guild == null)
                 return AudioPlayerRetrieveResult.Failed(AudioPlayerRetrieveStatus.UnknownError);
 
-            var userChannel = (context.User as IVoiceState)?.VoiceChannel;
+            var userChannel = user.VoiceChannel;
             var gate = _gates.GetOrAdd(guild.Id, _ => new SemaphoreSlim(1, 1));
 
             await gate.WaitAsync(cancellationToken);
@@ -92,7 +105,7 @@ namespace NOVAxis.Services.Audio.YtDlp
                     if (userChannel == null)
                         return AudioPlayerRetrieveResult.Failed(AudioPlayerRetrieveStatus.UserNotInVoiceChannel);
 
-                    player = await CreateAsync(userChannel, context.Channel as ITextChannel, cancellationToken);
+                    player = await CreateAsync(userChannel, textChannel, cancellationToken);
 
                     if (player == null)
                         return AudioPlayerRetrieveResult.Failed(AudioPlayerRetrieveStatus.UnknownError);

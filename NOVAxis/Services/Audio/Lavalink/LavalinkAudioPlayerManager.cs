@@ -52,14 +52,30 @@ namespace NOVAxis.Services.Audio.Lavalink
             return player != null;
         }
 
-        public async ValueTask<AudioPlayerRetrieveResult> RetrieveAsync(
+        public ValueTask<AudioPlayerRetrieveResult> RetrieveAsync(
             IInteractionContext context,
             AudioPlayerRetrieveOptions options,
             CancellationToken cancellationToken = default)
         {
+            return RetrieveAsync(
+                context.User as IGuildUser,
+                context.Channel as ITextChannel,
+                options,
+                cancellationToken);
+        }
+
+        public async ValueTask<AudioPlayerRetrieveResult> RetrieveAsync(
+            IGuildUser user,
+            ITextChannel textChannel,
+            AudioPlayerRetrieveOptions options,
+            CancellationToken cancellationToken = default)
+        {
+            if (user == null)
+                return AudioPlayerRetrieveResult.Failed(AudioPlayerRetrieveStatus.UnknownError);
+
             var playerOptions = new LavalinkAudioPlayerOptions
             {
-                TextChannel = context.Channel as ITextChannel,
+                TextChannel = textChannel,
                 InitialVolume = 1.0f,
                 DisconnectOnDestroy = true
             };
@@ -70,7 +86,8 @@ namespace NOVAxis.Services.Audio.Lavalink
                 Preconditions: options.Preconditions.Select(x => Preconditions[x]).ToImmutableArray());
 
             var result = await AudioService.Players.RetrieveAsync<LavalinkAudioPlayer, LavalinkAudioPlayerOptions>(
-                context, LavalinkAudioPlayer.CreatePlayerAsync, playerOptions, retrieveOptions, cancellationToken);
+                user.GuildId, user.VoiceChannel?.Id, LavalinkAudioPlayer.CreatePlayerAsync,
+                Microsoft.Extensions.Options.Options.Create(playerOptions), retrieveOptions, cancellationToken);
 
             return result.Status switch
             {

@@ -70,6 +70,18 @@ namespace NOVAxis.Services.Audio
             IInteractionContext context,
             AudioPlayerRetrieveOptions options,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Retrieves the player of <paramref name="user"/>'s guild without an interaction
+        /// behind it, e.g. for a request coming in over the web. The voice channel to join
+        /// is the one the user sits in, and <paramref name="textChannel"/> - which may be
+        /// null - is where playback announcements go.
+        /// </summary>
+        ValueTask<AudioPlayerRetrieveResult> RetrieveAsync(
+            IGuildUser user,
+            ITextChannel textChannel,
+            AudioPlayerRetrieveOptions options,
+            CancellationToken cancellationToken = default);
     }
 
     public static class AudioPreconditionExtensions
