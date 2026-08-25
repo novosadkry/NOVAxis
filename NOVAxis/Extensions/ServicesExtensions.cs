@@ -1,6 +1,10 @@
 ﻿using System;
+using System.IO;
 using Anthropic.SDK;
 
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,6 +17,9 @@ using NOVAxis.Services.Audio.Lavalink;
 using NOVAxis.Services.Audio.YtDlp;
 using NOVAxis.Services.Polls;
 using NOVAxis.Services.Discord;
+using NOVAxis.Web;
+using NOVAxis.Web.Auth;
+using NOVAxis.Web.Hubs;
 
 using Discord;
 using Discord.Rest;
@@ -38,6 +45,7 @@ namespace NOVAxis.Extensions
             collection.Configure<AudioOptions>(config.GetSection(AudioOptions.Key));
             collection.Configure<DatabaseOptions>(config.GetSection(DatabaseOptions.Key));
             collection.Configure<CacheOptions>(config.GetSection(CacheOptions.Key));
+            collection.Configure<WebOptions>(config.GetSection(WebOptions.Key));
 
             return collection;
         }
@@ -164,6 +172,53 @@ namespace NOVAxis.Extensions
 
             collection.AddSingleton<IAudioSearchService, LavalinkAudioSearchService>();
             collection.AddSingleton<IAudioPlayerManager, LavalinkAudioPlayerManager>();
+
+            return collection;
+        }
+
+        /// <summary>
+        /// Hosts the web player - the OAuth login, the REST api, the SignalR hub and the
+        /// static frontend. Runs inside the bot's own process, over the same container.
+        /// </summary>
+        public static IServiceCollection AddWebApp(this IServiceCollection collection, IConfiguration config)
+        {
+            var options = new WebOptions();
+            config.GetSection(WebOptions.Key).Bind(options);
+
+            if (!options.Active)
+                return collection;
+
+            var audio = new AudioOptions();
+            config.GetSection(AudioOptions.Key).Bind(audio);
+
+            if (!audio.Active)
+                throw new InvalidOperationException(
+                    "The web player controls the audio playback, so it cannot run with 'Audio:Active' off");
+
+            collection.Configure<ForwardedHeadersOptions>(o =>
+            {
+                // TLS ends at the reverse proxy, so scheme and caller arrive as headers
+                o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+                o.KnownNetworks.Clear();
+                o.KnownProxies.Clear();
+            });
+
+            // Cookies must outlive the process, so the key ring goes to disk
+            collection.AddDataProtection()
+                .PersistKeysToFileSystem(new DirectoryInfo(options.KeyPath))
+                .SetApplicationName("NOVAxis");
+
+            collection.AddDiscordAuthentication(options);
+            collection.AddAuthorization();
+            collection.AddWebRateLimits();
+            collection.AddSignalR();
+
+            collection.AddSingleton<GuildAccessService>();
+            collection.AddSingleton<PlayerStateService>();
+            collection.AddSingleton<PlayerHubTracker>();
+            collection.AddSingleton<PlayerBroadcaster>();
+            collection.AddSingleton<WebPlayerService>();
+            collection.AddHostedService<PlayerBroadcastService>();
 
             return collection;
         }

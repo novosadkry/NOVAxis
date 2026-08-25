@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <Version>5.2.0</Version>
@@ -6,6 +6,8 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <!-- The frontend builds through npm, so msbuild must not glob it -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);Web/ClientApp/**</DefaultItemExcludes>
   </PropertyGroup>
   <ItemGroup>
     <None Update="config.json">

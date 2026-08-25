@@ -110,4 +110,46 @@ namespace NOVAxis.Core
 
         public string ApiKey { get; set; }
     }
+
+    public class WebOptions
+    {
+        public const string Key = "Web";
+
+        public bool Active { get; set; }
+        public string ListenAddress { get; set; } = "http://0.0.0.0:5000";
+
+        /// <summary>
+        /// The address users reach the app at, e.g. "https://novaxis.example.com".
+        /// The OAuth redirect and every link handed out point here, not at the
+        /// address the server listens on.
+        /// </summary>
+        public string PublicUrl { get; set; }
+
+        /// <summary>
+        /// Where the data-protection key ring lives. Sessions survive a restart
+        /// only as long as these keys do.
+        /// </summary>
+        public string KeyPath { get; set; } = "keys";
+
+        public WebOAuthOptions OAuth { get; set; } = new();
+
+        /// <summary>
+        /// The address of a guild's web player, or null while the web app is off
+        /// or unreachable from outside - the links lead nowhere then.
+        /// </summary>
+        public string GetPlayerUrl(ulong guildId)
+        {
+            return Active && !string.IsNullOrEmpty(PublicUrl)
+                ? $"{PublicUrl.TrimEnd('/')}/g/{guildId}"
+                : null;
+        }
+    }
+
+    public class WebOAuthOptions
+    {
+        public const string Key = "Web:OAuth";
+
+        public string ClientId { get; set; }
+        public string ClientSecret { get; set; }
+    }
 }

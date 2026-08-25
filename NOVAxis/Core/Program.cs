@@ -2,12 +2,14 @@
 using System.Reflection;
 using System.Threading.Tasks;
 
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using NOVAxis.Extensions;
+using NOVAxis.Web;
 
 namespace NOVAxis.Core
 {
@@ -24,11 +26,37 @@ namespace NOVAxis.Core
 
             var builder = Host.CreateDefaultBuilder(args)
                 .ConfigureServices(SetupServices)
-                .ConfigureAppConfiguration(SetupConfig)
-                .ConfigureLogging(SetupLogging);
+                .ConfigureAppConfiguration(SetupConfig);
+
+            var webOptions = GetWebOptions();
+
+            if (webOptions.Active)
+            {
+                builder.ConfigureWebHostDefaults(web => web
+                    .UseUrls(webOptions.ListenAddress)
+                    .Configure(WebPipeline.Configure));
+            }
+
+            // Logging stays last, as it clears every provider registered before it
+            builder.ConfigureLogging(SetupLogging);
 
             var host = builder.Build();
             return host.RunAsync();
+        }
+
+        /// <summary>
+        /// Reads the web section ahead of the host being built, because hosting a web
+        /// server is decided before the host exists.
+        /// </summary>
+        private static WebOptions GetWebOptions()
+        {
+            var config = new ConfigurationBuilder();
+            SetupConfig(config);
+
+            var options = new WebOptions();
+            config.Build().GetSection(WebOptions.Key).Bind(options);
+
+            return options;
         }
 
         private static void SetupConfig(IConfigurationBuilder config)
@@ -49,6 +77,7 @@ namespace NOVAxis.Core
                 .AddAudio(host.Configuration)
                 .AddPolls(host.Configuration)
                 .AddAnthropic(host.Configuration)
+                .AddWebApp(host.Configuration)
                 .BuildServiceProvider(true);
         }
 
