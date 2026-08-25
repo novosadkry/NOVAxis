@@ -61,6 +61,29 @@ namespace NOVAxis.Services.Audio.YtDlp
             return ValueTask.CompletedTask;
         }
 
+        public ValueTask<bool> MoveAsync(AudioTrackQueueItem item, int toIndex, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(item);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            lock (_sync)
+            {
+                var index = _items.IndexOf(item);
+
+                if (index < 0)
+                    return ValueTask.FromResult(false);
+
+                // Keep the stored entry - the argument may be a mere probe with the same id
+                var found = _items[index];
+                _items.RemoveAt(index);
+
+                toIndex = Math.Clamp(toIndex, 0, _items.Count);
+                _items.Insert(toIndex, found);
+
+                return ValueTask.FromResult(true);
+            }
+        }
+
         public ValueTask<bool> RemoveAsync(AudioTrackQueueItem item, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();

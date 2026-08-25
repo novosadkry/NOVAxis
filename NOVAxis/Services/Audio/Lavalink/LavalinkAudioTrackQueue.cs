@@ -41,6 +41,22 @@ namespace NOVAxis.Services.Audio.Lavalink
             await _queue.AddRangeAsync(wrapped, cancellationToken);
         }
 
+        public async ValueTask<bool> MoveAsync(AudioTrackQueueItem item, int toIndex, CancellationToken cancellationToken = default)
+        {
+            var index = IndexOf(item);
+            if (index < 0) return false;
+
+            var found = _queue[index];
+
+            if (!await _queue.RemoveAtAsync(index, cancellationToken))
+                return false;
+
+            toIndex = System.Math.Clamp(toIndex, 0, _queue.Count);
+            await _queue.InsertAsync(toIndex, found, cancellationToken);
+
+            return true;
+        }
+
         public async ValueTask<bool> RemoveAsync(AudioTrackQueueItem item, CancellationToken cancellationToken = default)
         {
             var index = IndexOf(item);
