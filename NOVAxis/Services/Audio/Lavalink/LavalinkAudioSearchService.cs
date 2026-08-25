@@ -48,5 +48,28 @@ namespace NOVAxis.Services.Audio.Lavalink
                 ? AudioLoadResult.Failed
                 : AudioLoadResult.FromTrack(LavalinkAudioTrack.FromLavalink(result.Track));
         }
+
+        public async ValueTask<AudioLoadResult> SearchAsync(string query, int limit, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(query) || limit < 1)
+                return AudioLoadResult.Failed;
+
+            var options = new TrackLoadOptions(
+                TrackSearchMode.YouTube,
+                StrictSearchBehavior.Resolve);
+
+            var result = await AudioService.Tracks
+                .LoadTracksAsync(query, options, cancellationToken: cancellationToken);
+
+            if (result.IsFailed)
+                return AudioLoadResult.Failed;
+
+            var tracks = result.Tracks
+                .Take(limit)
+                .Select(LavalinkAudioTrack.FromLavalink);
+
+            // Search hits are a list of alternatives, not a playlist
+            return AudioLoadResult.FromPlaylist(tracks, null);
+        }
     }
 }

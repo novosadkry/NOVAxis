@@ -86,6 +86,36 @@ namespace NOVAxis.Services.Audio.YtDlp
             return result;
         }
 
+        public async ValueTask<AudioLoadResult> SearchAsync(string query, int limit, CancellationToken cancellationToken = default)
+        {
+            query = Sanitize(query);
+
+            if (string.IsNullOrEmpty(query) || limit < 1)
+                return AudioLoadResult.Failed;
+
+            // A pasted link has exactly one right answer, so let the lookup handle it
+            if (Uri.TryCreate(query, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
+                return await LoadAsync(query, cancellationToken);
+
+            // The limit is part of the key - a single hit must not stand in for ten
+            var input = $"ytsearch{limit}:{query}";
+
+            if (Results.TryGetValue(input, out var cached))
+            {
+                Logger.Debug($"Reusing the results already loaded for '{input}'");
+                return cached;
+            }
+
+            Logger.Debug($"Searching for {limit} results matching '{query}'");
+
+            var result = await Client.LoadAsync(input, cancellationToken);
+
+            if (!result.IsFailed)
+                Results[input] = result;
+
+            return result;
+        }
+
         private async ValueTask<AudioLoadResult> LookUpAsync(string input, CancellationToken cancellationToken)
         {
             if (!Uri.TryCreate(input, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
