@@ -102,6 +102,7 @@ namespace NOVAxis.Core
         public int MaxPlaylistSize { get; set; } = 500;
         public bool Prefetch { get; set; } = true;
         public TimeSpan ResolveTimeout { get; set; } = TimeSpan.FromSeconds(30);
+        public int MaxConcurrentLookups { get; set; } = 4;
     }
 
     public class AnthropicOptions

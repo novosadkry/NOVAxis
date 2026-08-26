@@ -20,6 +20,8 @@ namespace NOVAxis.Services.Audio.YtDlp
     /// </summary>
     public class YtDlpClient
     {
+        private readonly SemaphoreSlim _lookups;
+
         private IOptions<AudioOptions> Options { get; }
         private ILogger<YtDlpClient> Logger { get; }
 
@@ -29,6 +31,9 @@ namespace NOVAxis.Services.Audio.YtDlp
         {
             Options = options;
             Logger = logger;
+
+            var limit = Math.Max(1, options.Value.YtDlp.MaxConcurrentLookups);
+            _lookups = new SemaphoreSlim(limit, limit);
         }
 
         /// <summary>
@@ -49,7 +54,22 @@ namespace NOVAxis.Services.Audio.YtDlp
             AddCommonArguments(arguments);
             arguments.Add(input);
 
-            var json = await RunAsync(arguments, cancellationToken);
+            string json;
+
+            if (!await _lookups.WaitAsync(0, cancellationToken))
+            {
+                Logger.Debug($"Waiting for a free lookup slot before resolving '{input}'");
+                await _lookups.WaitAsync(cancellationToken);
+            }
+
+            try
+            {
+                json = await RunAsync(arguments, cancellationToken);
+            }
+            finally
+            {
+                _lookups.Release();
+            }
 
             if (string.IsNullOrWhiteSpace(json))
                 return AudioLoadResult.Failed;

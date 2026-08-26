@@ -54,6 +54,8 @@ namespace NOVAxis.Services.Audio.YtDlp
         private AudioSearchCache Results { get; }
         private ILogger<YtDlpAudioSearchService> Logger { get; }
 
+        private Coalescer<string, AudioLoadResult> Lookups { get; } = new();
+
         public YtDlpAudioSearchService(
             YtDlpClient client,
             AudioSearchCache results,
@@ -77,13 +79,19 @@ namespace NOVAxis.Services.Audio.YtDlp
                 return cached;
             }
 
-            var result = await LookUpAsync(input, cancellationToken);
+            return await Lookups.RunAsync(input, async token =>
+            {
+                if (Results.TryGetValue(input, out var found))
+                    return found;
 
-            // A playlist can gain entries between two requests, a single track cannot
-            if (!result.IsFailed && !result.IsPlaylist)
-                Results[input] = result;
+                var result = await LookUpAsync(input, token);
 
-            return result;
+                // A playlist can gain entries between two requests, a single track cannot
+                if (!result.IsFailed && !result.IsPlaylist)
+                    Results[input] = result;
+
+                return result;
+            }, cancellationToken);
         }
 
         public async ValueTask<AudioLoadResult> SearchAsync(string query, int limit, CancellationToken cancellationToken = default)
@@ -106,14 +114,20 @@ namespace NOVAxis.Services.Audio.YtDlp
                 return cached;
             }
 
-            Logger.Debug($"Searching for {limit} results matching '{query}'");
+            return await Lookups.RunAsync(input, async token =>
+            {
+                if (Results.TryGetValue(input, out var found))
+                    return found;
 
-            var result = await Client.LoadAsync(input, cancellationToken);
+                Logger.Debug($"Searching for {limit} results matching '{query}'");
 
-            if (!result.IsFailed)
-                Results[input] = result;
+                var result = await Client.LoadAsync(input, token);
 
-            return result;
+                if (!result.IsFailed)
+                    Results[input] = result;
+
+                return result;
+            }, cancellationToken);
         }
 
         private async ValueTask<AudioLoadResult> LookUpAsync(string input, CancellationToken cancellationToken)
