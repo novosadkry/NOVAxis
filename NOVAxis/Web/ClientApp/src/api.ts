@@ -66,6 +66,10 @@ export class ApiError extends Error {
   }
 }
 
+export function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError'
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     credentials: 'same-origin',
@@ -102,8 +106,11 @@ export const api = {
   guilds: () => request<GuildDto[]>('/api/guilds'),
   state: (guildId: string) => request<PlayerStateDto>(`/api/guilds/${guildId}/state`),
 
-  search: (guildId: string, query: string, limit = 8) =>
-    request<TrackDto[]>(`/api/guilds/${guildId}/search?q=${encodeURIComponent(query)}&limit=${limit}`),
+  search: (guildId: string, query: string, signal?: AbortSignal, limit = 8) =>
+    request<TrackDto[]>(
+      `/api/guilds/${guildId}/search?q=${encodeURIComponent(query)}&limit=${limit}`,
+      { signal },
+    ),
 
   play: (guildId: string, query: string) =>
     post<PlayResponse>(`/api/guilds/${guildId}/play`, { query }),

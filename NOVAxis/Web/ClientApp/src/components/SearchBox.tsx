@@ -1,9 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { api, TrackDto } from '../api'
+import { api, ApiError, isAbortError, TrackDto } from '../api'
 import { formatDuration } from '../format'
 import { Note, Plus, Search } from '../Icons'
 import { useToast } from '../Toast'
+
+const MinQueryLength = 4
+const DebounceMs = 500
+
+function describeFailure(error: unknown): string {
+  if (error instanceof ApiError)
+    return error.status === 429 ? 'Hledáš příliš rychle, zkus to za chvíli' : error.message
+
+  return 'Vyhledávání se nepodařilo'
+}
 
 /**
  * Search-as-you-type over the bot's own lookup. Picking a result queues it;
@@ -13,35 +23,50 @@ export function SearchBox({ guildId }: { guildId: string }) {
   const { run, toast } = useToast()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<TrackDto[] | null>(null)
+  const [failure, setFailure] = useState<string | null>(null)
   const [searching, setSearching] = useState(false)
   const [open, setOpen] = useState(false)
 
-  const debounce = useRef<number>()
   const box = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    window.clearTimeout(debounce.current)
-
     const trimmed = query.trim()
 
-    if (trimmed.length < 2) {
+    if (trimmed.length < MinQueryLength) {
       setResults(null)
+      setFailure(null)
       setSearching(false)
       return
     }
 
     setSearching(true)
 
-    debounce.current = window.setTimeout(() => {
+    const controller = new AbortController()
+
+    const timer = window.setTimeout(() => {
       api
-        .search(guildId, trimmed)
+        .search(guildId, trimmed, controller.signal)
         .then(found => {
           setResults(found)
+          setFailure(null)
           setOpen(true)
         })
-        .catch(() => setResults([]))
-        .finally(() => setSearching(false))
-    }, 350)
+        .catch(problem => {
+          if (isAbortError(problem)) return
+
+          setResults([])
+          setFailure(describeFailure(problem))
+          setOpen(true)
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setSearching(false)
+        })
+    }, DebounceMs)
+
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
   }, [query, guildId])
 
   // Clicking anywhere else puts the panel away
@@ -58,6 +83,7 @@ export function SearchBox({ guildId }: { guildId: string }) {
     setOpen(false)
     setQuery('')
     setResults(null)
+    setFailure(null)
 
     run(
       api.play(guildId, input).then(response => {
@@ -91,7 +117,11 @@ export function SearchBox({ guildId }: { guildId: string }) {
 
       {open && results && (
         <div className="search-panel">
-          {results.length === 0 && <p className="empty-note">Nepodařilo se nic najít.</p>}
+          {results.length === 0 && (
+            <p className={failure ? 'empty-note search-failure' : 'empty-note'}>
+              {failure ?? 'Nepodařilo se nic najít.'}
+            </p>
+          )}
           {results.map((track, index) => (
             <button
               type="button"
