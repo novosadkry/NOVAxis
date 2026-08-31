@@ -103,6 +103,13 @@ namespace NOVAxis.Core
         public bool Prefetch { get; set; } = true;
         public TimeSpan ResolveTimeout { get; set; } = TimeSpan.FromSeconds(30);
         public int MaxConcurrentLookups { get; set; } = 4;
+
+        /// <summary>
+        /// Routes every yt-dlp fetch through a loopback proxy which refuses addresses on the
+        /// host's own network. Turn it off only where the media genuinely lives on the LAN -
+        /// with it off, a link anyone can paste can reach anything the bot can.
+        /// </summary>
+        public bool RestrictNetwork { get; set; } = true;
     }
 
     public class AnthropicOptions

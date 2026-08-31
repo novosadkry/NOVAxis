@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 
 using NOVAxis.Core;
 using NOVAxis.Extensions;
+using NOVAxis.Services.Net;
 
 namespace NOVAxis.Services.Audio.YtDlp
 {
@@ -23,13 +24,15 @@ namespace NOVAxis.Services.Audio.YtDlp
         private readonly SemaphoreSlim _lookups;
 
         private IOptions<AudioOptions> Options { get; }
+        private GuardedProxy Guard { get; }
         private ILogger<YtDlpClient> Logger { get; }
 
         private AudioYtDlpOptions YtDlp => Options.Value.YtDlp;
 
-        public YtDlpClient(IOptions<AudioOptions> options, ILogger<YtDlpClient> logger)
+        public YtDlpClient(IOptions<AudioOptions> options, GuardedProxy guard, ILogger<YtDlpClient> logger)
         {
             Options = options;
+            Guard = guard;
             Logger = logger;
 
             var limit = Math.Max(1, options.Value.YtDlp.MaxConcurrentLookups);
@@ -51,7 +54,7 @@ namespace NOVAxis.Services.Audio.YtDlp
                 "--skip-download"
             };
 
-            AddCommonArguments(YtDlp, arguments);
+            AddCommonArguments(YtDlp, Guard?.ProxyUrl, arguments);
             arguments.Add(input);
 
             string json;
@@ -101,7 +104,7 @@ namespace NOVAxis.Services.Audio.YtDlp
                 "-f", YtDlp.Format
             };
 
-            AddCommonArguments(YtDlp, arguments);
+            AddCommonArguments(YtDlp, Guard?.ProxyUrl, arguments);
             arguments.Add(track.Uri.AbsoluteUri);
 
             var json = await RunAsync(arguments, cancellationToken);
@@ -109,6 +112,15 @@ namespace NOVAxis.Services.Audio.YtDlp
 
             if (streamInfo == null)
                 throw new InvalidOperationException($"yt-dlp returned no playable format for '{track.Title}'");
+
+            // ffmpeg fetches this address itself, and it does not go through the guard, so
+            // here is the one place it can be checked. A page is free to name whatever
+            // address it likes as the media, including one on this host's own network.
+            if (!await IsReachableAsync(streamInfo.Url, cancellationToken))
+            {
+                throw new InvalidOperationException(
+                    $"yt-dlp resolved '{track.Title}' to an address which is not allowed");
+            }
 
             Logger.Debug($"Resolved '{track.Title}' to a stream on {HostOf(streamInfo.Url)}");
 
@@ -137,7 +149,7 @@ namespace NOVAxis.Services.Audio.YtDlp
                 "--skip-download"
             };
 
-            AddCommonArguments(YtDlp, arguments);
+            AddCommonArguments(YtDlp, Guard?.ProxyUrl, arguments);
 
             // A url beginning with a dash would otherwise be read as a flag
             arguments.Add("--");
@@ -171,7 +183,25 @@ namespace NOVAxis.Services.Audio.YtDlp
             return info;
         }
 
-        internal static void AddCommonArguments(AudioYtDlpOptions ytDlp, List<string> arguments)
+        /// <summary>
+        /// Whether an address ffmpeg is about to be pointed at leads somewhere public.
+        /// </summary>
+        private static async ValueTask<bool> IsReachableAsync(string url, CancellationToken cancellationToken)
+        {
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+                return false;
+
+            // Not only http: ffmpeg is handed rtmp and the like too, and a local path would
+            // have it read this machine's disk out into a voice channel
+            if (uri.IsFile || uri.IsUnc || string.IsNullOrEmpty(uri.Host))
+                return false;
+
+            var addresses = await PrivateNetworks.ResolveAsync(uri.DnsSafeHost, cancellationToken);
+
+            return addresses.Count > 0;
+        }
+
+        internal static void AddCommonArguments(AudioYtDlpOptions ytDlp, string proxyUrl, List<string> arguments)
         {
             arguments.Add("--socket-timeout");
             arguments.Add("15");
@@ -192,6 +222,13 @@ namespace NOVAxis.Services.Audio.YtDlp
 
             if (ytDlp.ExtraArguments != null)
                 arguments.AddRange(ytDlp.ExtraArguments);
+
+            // Last, so that it is ours and not something an operator's extra arguments set
+            if (!string.IsNullOrEmpty(proxyUrl))
+            {
+                arguments.Add("--proxy");
+                arguments.Add(proxyUrl);
+            }
         }
 
         private async Task<string> RunAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)

@@ -144,16 +144,47 @@ namespace NOVAxis.Services.Audio.YtDlp
         }
 
         /// <summary>
-        /// Builds a single line description of a command, for logging only.
+        /// Options whose value is a secret, and must not reach the log alongside it.
+        /// </summary>
+        private static readonly HashSet<string> SecretOptions = new(StringComparer.Ordinal)
+        {
+            "--proxy", "--geo-verification-proxy", "--password", "--username",
+            "--video-password", "--ap-password", "--ap-username", "--client-certificate-password"
+        };
+
+        /// <summary>
+        /// Builds a single line description of a command, for logging only. Values which are
+        /// credentials are replaced rather than written out - the log is the one place the
+        /// whole command line is ever spelled out in full.
         /// </summary>
         public static string Describe(string fileName, IEnumerable<string> arguments)
         {
             var builder = new StringBuilder(fileName);
+            var secret = false;
 
             foreach (var argument in arguments)
-                builder.Append(' ').Append(argument.Contains(' ') ? $"\"{argument}\"" : argument);
+            {
+                var text = secret ? "***" : Sanitize(argument);
+                secret = SecretOptions.Contains(argument);
+
+                builder.Append(' ').Append(text.Contains(' ') ? $"\"{text}\"" : text);
+            }
 
             return builder.ToString();
+        }
+
+        /// <summary>
+        /// Strips the credentials out of anything shaped like a url, for the cases where one
+        /// is not introduced by an option of its own.
+        /// </summary>
+        private static string Sanitize(string argument)
+        {
+            if (!argument.Contains("://", StringComparison.Ordinal) ||
+                !Uri.TryCreate(argument, UriKind.Absolute, out var uri) ||
+                string.IsNullOrEmpty(uri.UserInfo))
+                return argument;
+
+            return argument.Replace(uri.UserInfo + "@", "***@", StringComparison.Ordinal);
         }
     }
 }

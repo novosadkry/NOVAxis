@@ -21,6 +21,10 @@ namespace NOVAxis.Modules.Download
     [Group("download", "Various commands for video and audio processing")]
     public class DownloadModule : InteractionModuleBase<ShardedInteractionContext>
     {
+        /// <summary>What was found, held between showing the menu and a choice being made.</summary>
+        private sealed record Pending(ulong OwnerId, YtDlpMediaInfo Info);
+
+
         public DownloadService DownloadService { get; set; }
         public InteractionCache InteractionCache { get; set; }
         public IOptions<WebOptions> WebOptions { get; set; }
@@ -96,7 +100,7 @@ namespace NOVAxis.Modules.Download
                 return;
             }
 
-            var id = InteractionCache.Store(info);
+            var id = InteractionCache.Store(new Pending(Context.User.Id, info));
 
             await FollowupAsync(
                 ephemeral: true,
@@ -117,13 +121,17 @@ namespace NOVAxis.Modules.Download
             if (!Enum.TryParse<DownloadKind>(kindName, ignoreCase: true, out var kind))
                 return;
 
-            if (InteractionCache[interactionId] is not YtDlpMediaInfo info)
+            // Scoped to whoever asked: the id travels in the component's own identifier, and
+            // a menu is only ever shown to one person
+            if (InteractionCache[interactionId] is not Pending pending || pending.OwnerId != Context.User.Id)
             {
                 await FollowupAsync(ephemeral: true, embed: DownloadEmbeds.Error(
                     "Mé jádro přerušilo čekání na lidský vstup", "(Vypršel časový limit)"));
 
                 return;
             }
+
+            var info = pending.Info;
 
             DownloadRecord record;
 

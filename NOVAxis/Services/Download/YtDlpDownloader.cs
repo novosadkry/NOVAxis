@@ -15,6 +15,7 @@ using Microsoft.Extensions.Options;
 using NOVAxis.Core;
 using NOVAxis.Extensions;
 using NOVAxis.Services.Audio.YtDlp;
+using NOVAxis.Services.Net;
 
 namespace NOVAxis.Services.Download
 {
@@ -68,15 +69,18 @@ namespace NOVAxis.Services.Download
 
         private IOptions<DownloadOptions> Options { get; }
         private IOptions<AudioOptions> Audio { get; }
+        private GuardedProxy Guard { get; }
         private ILogger<YtDlpDownloader> Logger { get; }
 
         public YtDlpDownloader(
             IOptions<DownloadOptions> options,
             IOptions<AudioOptions> audio,
+            GuardedProxy guard,
             ILogger<YtDlpDownloader> logger)
         {
             Options = options;
             Audio = audio;
+            Guard = guard;
             Logger = logger;
 
             var limit = Math.Max(1, options.Value.MaxConcurrentDownloads);
@@ -99,7 +103,7 @@ namespace NOVAxis.Services.Download
 
             Directory.CreateDirectory(record.DirectoryPath);
 
-            var arguments = BuildArguments(record, options, ytDlp);
+            var arguments = BuildArguments(record, options, ytDlp, Guard?.ProxyUrl);
 
             var startInfo = new ProcessStartInfo
             {
@@ -320,6 +324,14 @@ namespace NOVAxis.Services.Download
                 return null;
             }
 
+            // Containment is checked on the path, so a link pointing out of the directory
+            // would walk straight past it. Nothing here should ever produce one.
+            if (File.ResolveLinkTarget(full, returnFinalTarget: true) != null)
+            {
+                Logger.Warning($"Download {record.Id} produced a link rather than a file, discarding it");
+                return null;
+            }
+
             if (string.IsNullOrEmpty(printed))
                 Logger.Warning($"yt-dlp named no finished file for download {record.Id}, taking the largest one");
 
@@ -411,7 +423,7 @@ namespace NOVAxis.Services.Download
         }
 
         private static List<string> BuildArguments(
-            DownloadRecord record, DownloadOptions options, AudioYtDlpOptions ytDlp)
+            DownloadRecord record, DownloadOptions options, AudioYtDlpOptions ytDlp, string proxyUrl)
         {
             var arguments = new List<string>
             {
@@ -455,7 +467,7 @@ namespace NOVAxis.Services.Download
                 arguments.Add("0");
             }
 
-            YtDlpClient.AddCommonArguments(ytDlp, arguments);
+            YtDlpClient.AddCommonArguments(ytDlp, proxyUrl, arguments);
 
             // Ours go last on purpose: yt-dlp honours the final occurrence of an option, so
             // an operator's ExtraArguments cannot redirect the output somewhere we do not own

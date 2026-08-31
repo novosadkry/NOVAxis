@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,6 +13,7 @@ using Microsoft.Extensions.Options;
 using NOVAxis.Core;
 using NOVAxis.Extensions;
 using NOVAxis.Services.Audio.YtDlp;
+using NOVAxis.Services.Net;
 using NOVAxis.Utilities;
 
 namespace NOVAxis.Services.Download
@@ -274,7 +274,7 @@ namespace NOVAxis.Services.Download
                 OwnerId = userId,
                 Kind = kind,
                 SourceUrl = url,
-                Title = info.Title,
+                Title = Shorten(info.Title),
                 FormatId = choice?.Id ?? formatId,
                 FormatLabel = choice?.Label ?? formatId,
                 DirectoryPath = Path.Combine(Store.Root, id.ToString()),
@@ -417,39 +417,24 @@ namespace NOVAxis.Services.Download
                 throw new DownloadException(DownloadFailure.Unsupported,
                     "Podporované jsou jen adresy http a https");
 
-            if (IPAddress.TryParse(uri.DnsSafeHost, out var address) && IsBlocked(address))
+            if (IPAddress.TryParse(uri.DnsSafeHost, out var address) && PrivateNetworks.IsBlocked(address))
                 throw new DownloadException(DownloadFailure.Unsupported,
                     "Na tuhle adresu se stahovat nedá");
 
             return uri.AbsoluteUri;
         }
 
-        private static bool IsBlocked(IPAddress address)
+        /// <summary>
+        /// Keeps a title from the source within what an embed and a dto can carry.
+        /// </summary>
+        private static string Shorten(string title)
         {
-            if (address.IsIPv4MappedToIPv6)
-                address = address.MapToIPv4();
+            const int limit = 200;
 
-            if (IPAddress.IsLoopback(address) ||
-                address.Equals(IPAddress.Any) ||
-                address.Equals(IPAddress.IPv6Any))
-                return true;
+            if (string.IsNullOrEmpty(title))
+                return "?";
 
-            if (address.AddressFamily == AddressFamily.InterNetworkV6)
-                return address.IsIPv6LinkLocal || address.IsIPv6SiteLocal || address.IsIPv6UniqueLocal;
-
-            var octets = address.GetAddressBytes();
-
-            return octets[0] switch
-            {
-                0 => true,                                        // this network
-                10 => true,                                       // private
-                127 => true,                                      // loopback
-                169 when octets[1] == 254 => true,                // link local, and the cloud metadata service
-                172 when octets[1] >= 16 && octets[1] <= 31 => true,
-                192 when octets[1] == 168 => true,
-                >= 224 => true,                                   // multicast and reserved
-                _ => false
-            };
+            return title.Length <= limit ? title : title[..(limit - 1)] + "…";
         }
 
         private static long Megabytes(long bytes) => bytes / 1024 / 1024;

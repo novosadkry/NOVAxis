@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -12,6 +12,10 @@ namespace NOVAxis.Services.Download
     /// </summary>
     public static class DownloadEmbeds
     {
+        /// <summary>Discord refuses an embed past these, and a title comes from the source.</summary>
+        private const int MaxTitle = 256;
+        private const int MaxUrl = 512;
+
         private const int AccentR = 52, AccentG = 231, AccentB = 231;
         private const int ErrorR = 220, ErrorG = 20, ErrorB = 60;
         private const int WarningR = 255, WarningG = 150, WarningB = 0;
@@ -40,8 +44,8 @@ namespace NOVAxis.Services.Download
             var builder = new EmbedBuilder()
                 .WithColor(AccentR, AccentG, AccentB)
                 .WithAuthor("Nalezeno:")
-                .WithTitle(title)
-                .WithUrl(url)
+                .WithTitle(Trim(title, MaxTitle))
+                .WithUrl(Link(url))
                 .WithThumbnailUrl(thumbnail);
 
             if (duration > TimeSpan.Zero)
@@ -57,8 +61,8 @@ namespace NOVAxis.Services.Download
             return new EmbedBuilder()
                 .WithColor(AccentR, AccentG, AccentB)
                 .WithAuthor("Stahuji...")
-                .WithTitle(record.Title)
-                .WithUrl(record.SourceUrl)
+                .WithTitle(Trim(record.Title, MaxTitle))
+                .WithUrl(Link(record.SourceUrl))
                 .WithDescription("Až bude soubor připravený, upravím tuhle zprávu.")
                 .AddField("Formát:", $"`{record.FormatLabel}`", true)
                 .Build();
@@ -69,8 +73,8 @@ namespace NOVAxis.Services.Download
             return new EmbedBuilder()
                 .WithColor(AccentR, AccentG, AccentB)
                 .WithAuthor("Připraveno ke stažení:")
-                .WithTitle(record.Title)
-                .WithUrl(record.SourceUrl)
+                .WithTitle(Trim(record.Title, MaxTitle))
+                .WithUrl(Link(record.SourceUrl))
                 .AddField("Formát:", $"`{record.FormatLabel}`", true)
                 .AddField("Velikost:", $"`{FormatSize(record.Size)}`", true)
                 .AddField("Odkaz platí do:", $"<t:{record.ExpiresAt.ToUnixTimeSeconds()}:t>", true)
@@ -83,7 +87,7 @@ namespace NOVAxis.Services.Download
             return new EmbedBuilder()
                 .WithColor(ErrorR, ErrorG, ErrorB)
                 .WithAuthor("Stahování se nezdařilo.")
-                .WithTitle(title)
+                .WithTitle(Trim(title, MaxTitle))
                 .WithDescription(reason)
                 .Build();
         }
@@ -142,6 +146,12 @@ namespace NOVAxis.Services.Download
             return duration >= TimeSpan.FromHours(1)
                 ? duration.ToString(@"h\:mm\:ss")
                 : duration.ToString(@"m\:ss");
+        }
+
+        /// <summary>A url Discord will accept, or none at all rather than a rejected embed.</summary>
+        private static string Link(string url)
+        {
+            return !string.IsNullOrEmpty(url) && url.Length <= MaxUrl ? url : null;
         }
 
         private static string Trim(string value, int length)

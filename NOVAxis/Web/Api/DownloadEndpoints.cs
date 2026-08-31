@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -202,6 +202,10 @@ namespace NOVAxis.Web.Api
             // same origin as the app and its session cookie. Sniffed as html, one of them
             // would run as this site.
             context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+
+            // The address is the same whoever asks, and only the cookie tells them apart -
+            // which is not something a cache in front of this keys on by default
+            context.Response.Headers["Cache-Control"] = "private, no-store";
 
             return Results.File(
                 record.FilePath,

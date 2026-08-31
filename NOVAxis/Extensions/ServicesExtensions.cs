@@ -19,6 +19,7 @@ using NOVAxis.Services.Audio.YtDlp;
 using NOVAxis.Services.Polls;
 using NOVAxis.Services.Discord;
 using NOVAxis.Services.Download;
+using NOVAxis.Services.Net;
 using NOVAxis.Web;
 using NOVAxis.Web.Auth;
 using NOVAxis.Web.Hubs;
@@ -121,6 +122,7 @@ namespace NOVAxis.Extensions
         /// </summary>
         private static IServiceCollection AddYtDlpAudio(this IServiceCollection collection)
         {
+            collection.TryAddSingleton<GuardedProxy>();
             collection.TryAddSingleton<YtDlpClient>();
             collection.AddSingleton<AudioSearchCache>();
             collection.AddSingleton<IAudioSearchService, YtDlpAudioSearchService>();
@@ -234,8 +236,12 @@ namespace NOVAxis.Extensions
         /// </summary>
         public static IServiceCollection AddDownloads(this IServiceCollection collection, IConfiguration config)
         {
-            // Also registered by the yt-dlp audio backend, which only runs when it is chosen
+            // Both also registered by the yt-dlp audio backend, which only runs when chosen
+            collection.TryAddSingleton<GuardedProxy>();
             collection.TryAddSingleton<YtDlpClient>();
+
+            // Registered here alone, so the guard is torn down once at shutdown
+            collection.AddHostedService(p => p.GetRequiredService<GuardedProxy>());
 
             collection.AddSingleton<DownloadStore>();
             collection.AddSingleton<YtDlpDownloader>();

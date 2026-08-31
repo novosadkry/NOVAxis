@@ -17,6 +17,9 @@ namespace NOVAxis.Services.Audio.YtDlp
             using var document = JsonDocument.Parse(json);
             var root = document.RootElement;
 
+            if (root.ValueKind != JsonValueKind.Object)
+                return AudioLoadResult.Failed;
+
             if (!IsPlaylist(root))
                 return AudioLoadResult.FromTrack(ReadTrack(root));
 
@@ -50,10 +53,13 @@ namespace NOVAxis.Services.Audio.YtDlp
             using var document = JsonDocument.Parse(json);
             var root = document.RootElement;
 
+            if (root.ValueKind != JsonValueKind.Object)
+                return null;
+
             // A link resolving to a playlist is not something a download can act on,
             // so the first entry stands in for it
             if (IsPlaylist(root) &&
-                root.TryGetProperty("entries", out var entries) &&
+                TryGet(root, "entries", out var entries) &&
                 entries.ValueKind == JsonValueKind.Array &&
                 entries.GetArrayLength() > 0)
                 root = entries[0];
@@ -82,8 +88,11 @@ namespace NOVAxis.Services.Audio.YtDlp
             using var document = JsonDocument.Parse(json);
             var root = document.RootElement;
 
+            if (root.ValueKind != JsonValueKind.Object)
+                return null;
+
             // yt-dlp reports the format it picked under requested_downloads
-            if (root.TryGetProperty("requested_downloads", out var downloads) &&
+            if (TryGet(root, "requested_downloads", out var downloads) &&
                 downloads.ValueKind == JsonValueKind.Array &&
                 downloads.GetArrayLength() > 0)
             {
@@ -104,7 +113,7 @@ namespace NOVAxis.Services.Audio.YtDlp
         private static bool IsPlaylist(JsonElement element)
         {
             return GetString(element, "_type") == "playlist" ||
-                   element.TryGetProperty("entries", out var entries) &&
+                   TryGet(element, "entries", out var entries) &&
                    entries.ValueKind == JsonValueKind.Array;
         }
 
@@ -116,7 +125,7 @@ namespace NOVAxis.Services.Audio.YtDlp
 
         private static IEnumerable<AudioTrack> ReadEntries(JsonElement root, int maxPlaylistSize)
         {
-            if (!root.TryGetProperty("entries", out var entries) || entries.ValueKind != JsonValueKind.Array)
+            if (!TryGet(root, "entries", out var entries) || entries.ValueKind != JsonValueKind.Array)
                 yield break;
 
             var count = 0;
@@ -179,7 +188,7 @@ namespace NOVAxis.Services.Audio.YtDlp
 
         private static TimeSpan ReadDuration(JsonElement element)
         {
-            if (element.TryGetProperty("duration", out var duration))
+            if (TryGet(element, "duration", out var duration))
             {
                 switch (duration.ValueKind)
                 {
@@ -197,7 +206,7 @@ namespace NOVAxis.Services.Audio.YtDlp
 
         private static IReadOnlyList<YtDlpFormat> ReadFormats(JsonElement element)
         {
-            if (!element.TryGetProperty("formats", out var formats) ||
+            if (!TryGet(element, "formats", out var formats) ||
                 formats.ValueKind != JsonValueKind.Array)
                 return Array.Empty<YtDlpFormat>();
 
@@ -263,7 +272,7 @@ namespace NOVAxis.Services.Audio.YtDlp
             var thumbnail = GetUri(element, "thumbnail");
             if (thumbnail != null) return thumbnail;
 
-            if (!element.TryGetProperty("thumbnails", out var thumbnails) ||
+            if (!TryGet(element, "thumbnails", out var thumbnails) ||
                 thumbnails.ValueKind != JsonValueKind.Array)
                 return null;
 
@@ -283,7 +292,7 @@ namespace NOVAxis.Services.Audio.YtDlp
         {
             var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-            if (element.TryGetProperty("http_headers", out var element2) &&
+            if (TryGet(element, "http_headers", out var element2) &&
                 element2.ValueKind == JsonValueKind.Object)
             {
                 foreach (var header in element2.EnumerateObject())
@@ -294,6 +303,20 @@ namespace NOVAxis.Services.Audio.YtDlp
             }
 
             return headers;
+        }
+
+        /// <summary>
+        /// Reads a property off an element which may not be an object at all. yt-dlp answers
+        /// a failed extraction with a bare <c>null</c> document, and the raw TryGetProperty
+        /// throws rather than saying no.
+        /// </summary>
+        private static bool TryGet(JsonElement element, string name, out JsonElement value)
+        {
+            if (element.ValueKind == JsonValueKind.Object)
+                return element.TryGetProperty(name, out value);
+
+            value = default;
+            return false;
         }
 
         private static string GetString(JsonElement element, string name)
