@@ -8,6 +8,7 @@ import { ToastProvider } from './Toast'
 import { UserContext } from './user'
 import { GuildPicker } from './pages/GuildPicker'
 import { PlayerPage } from './pages/PlayerPage'
+import { DownloadsPage } from './pages/DownloadsPage'
 
 import './styles.css'
 
@@ -41,7 +42,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   }
 
   if (status === 'anonymous') {
-    const returnUrl = encodeURIComponent(location.pathname)
+    const returnUrl = encodeURIComponent(location.pathname + location.search)
 
     return (
       <div className="screen login">
@@ -71,6 +72,7 @@ function App() {
       <Routes>
         <Route path="/" element={<GuildPicker />} />
         <Route path="/g/:guildId" element={<PlayerPage />} />
+        <Route path="/downloads" element={<DownloadsPage />} />
         <Route path="*" element={<GuildPicker />} />
       </Routes>
     </AuthGate>

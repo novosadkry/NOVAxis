@@ -144,6 +144,19 @@ namespace NOVAxis.Core
                 ? $"{PublicUrl.TrimEnd('/')}/g/{guildId}"
                 : null;
         }
+
+        /// <summary>
+        /// The page a prepared download is picked up from, or null while the web app
+        /// is off or unreachable from outside. It points at the frontend rather than
+        /// at the file itself: fetching the file needs a session, and a bare link
+        /// would greet anyone not signed in with a 401 and no way forward.
+        /// </summary>
+        public string GetDownloadUrl(ulong downloadId)
+        {
+            return Active && !string.IsNullOrEmpty(PublicUrl)
+                ? $"{PublicUrl.TrimEnd('/')}/downloads?d={downloadId}"
+                : null;
+        }
     }
 
     public class WebOAuthOptions
@@ -152,5 +165,58 @@ namespace NOVAxis.Core
 
         public string ClientId { get; set; }
         public string ClientSecret { get; set; }
+    }
+
+    public class DownloadOptions
+    {
+        public const string Key = "Download";
+
+        public bool Active { get; set; } = true;
+
+        /// <summary>
+        /// Where prepared files are kept. Emptied on every start: the records live in
+        /// memory, so anything already on disk belongs to a process which is gone.
+        /// </summary>
+        public string OutputFolder { get; set; } = "downloads";
+
+        /// <summary>How long a prepared link stays valid.</summary>
+        public TimeSpan Ttl { get; set; } = TimeSpan.FromHours(1);
+        public TimeSpan SweepInterval { get; set; } = TimeSpan.FromMinutes(1);
+
+        /// <summary>The ceiling for a single download.</summary>
+        public long MaxFileSize { get; set; } = 104857600;
+
+        /// <summary>
+        /// How far past <see cref="MaxFileSize"/> the directory may grow before the
+        /// runtime watchdog kills yt-dlp. A merge holds the video stream, the audio
+        /// stream and the muxed result at once, so the headroom is not optional.
+        /// </summary>
+        public double SizeWatchdogFactor { get; set; } = 2.5;
+
+        /// <summary>How many downloads one user may take per <see cref="QuotaWindow"/>.</summary>
+        public int MaxPerWindow { get; set; } = 10;
+        public TimeSpan QuotaWindow { get; set; } = TimeSpan.FromHours(1);
+
+        /// <summary>The ceiling across every user. Keep it under the real disk.</summary>
+        public long OutputFolderLimit { get; set; } = 3221225472;
+        public int MaxConcurrentDownloads { get; set; } = 2;
+
+        public TimeSpan Timeout { get; set; } = TimeSpan.FromMinutes(10);
+
+        /// <summary>How long the output may stop growing before the download is given up on.</summary>
+        public TimeSpan StallTimeout { get; set; } = TimeSpan.FromSeconds(60);
+
+        /// <summary>The selector used when the caller did not name a format.</summary>
+        public string VideoFormat { get; set; } = "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b";
+        public string MergeOutputFormat { get; set; } = "mp4";
+
+        /// <summary>
+        /// Deliberately no wav or flac: --max-filesize weighs the source stream, and
+        /// extracting to PCM can turn a few megabytes into a few hundred.
+        /// </summary>
+        public List<string> AudioFormats { get; set; } = ["mp3", "m4a", "opus"];
+
+        /// <summary>Discord allows no more than 25 options in a select menu.</summary>
+        public int MaxFormatChoices { get; set; } = 25;
     }
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { api, GuildDto } from '../api'
-import { Note } from '../Icons'
+import { Download, Note } from '../Icons'
 
 /**
  * The landing view - every guild the user and the bot share, with the ones
@@ -20,6 +20,9 @@ export function GuildPicker() {
       <header className="picker-head">
         <p className="eyebrow">NOVAXIS · PŘEHRÁVAČ</p>
         <h1>Vyber server</h1>
+        <Link className="text-btn" to="/downloads">
+          <Download size={14} /> Stahování videí a hudby
+        </Link>
       </header>
 
       {guilds === null && <div className="pulse-ring" aria-label="Načítání" />}

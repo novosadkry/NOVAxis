@@ -28,6 +28,28 @@ namespace NOVAxis.Modules.Help
                 .AddField("**Move**", "*/help move*", true)
                 .AddField("**Audio**", "*/help audio*", true)
                 .AddField("**MAL**", "*/help mal*", true)
+                .AddField("**Download**", "*/help download*", true)
+                .WithFooter(new EmbedFooterBuilder
+                {
+                    IconUrl = Context.Client.GetUser(Program.OwnerId).GetAvatarUrl(),
+                    Text = $"© Kryštof Novosad | {DateTime.Now}"
+                })
+                .Build();
+
+            await RespondAsync(ephemeral: true, embed: embed);
+        }
+
+        [SlashCommand("download", "Shows command list for Download")]
+        public async Task CmdShowDownloadHelp()
+        {
+            var embed = new EmbedBuilder()
+                .WithAuthor(new EmbedAuthorBuilder { Name = "NOVAxis", IconUrl = Context.Client.CurrentUser.GetAvatarUrl() })
+                .WithColor(new Color(52, 231, 231))
+                .WithTitle("Příručka pro telekomunikaci s jádrem NOVAxis")
+                .WithDescription("(Seznam příkazů pro **download**)")
+                .AddField("**/download video** URL", "*Připraví video ke stažení*", true)
+                .AddField("**/download audio** URL", "*Připraví zvuk ke stažení*", true)
+                .AddField("\u200b", "*Naráz platí jeden odkaz - nový nahradí ten předchozí.*")
                 .WithFooter(new EmbedFooterBuilder
                 {
                     IconUrl = Context.Client.GetUser(Program.OwnerId).GetAvatarUrl(),

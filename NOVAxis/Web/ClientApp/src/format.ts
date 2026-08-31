@@ -21,3 +21,15 @@ export function formatTotal(ms: number): string {
 
   return hours > 0 ? `${hours} h ${minutes} min` : `${minutes} min`
 }
+
+export function formatBytes(bytes: number | null): string {
+  if (bytes === null || bytes <= 0) return '—'
+
+  if (bytes >= 1024 * 1024 * 1024)
+    return `${(bytes / 1024 / 1024 / 1024).toFixed(1).replace('.', ',')} GB`
+
+  if (bytes >= 1024 * 1024)
+    return `${(bytes / 1024 / 1024).toFixed(1).replace('.', ',')} MB`
+
+  return `${Math.round(bytes / 1024)} kB`
+}

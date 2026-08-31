@@ -1,7 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 using NOVAxis.Services.Audio;
+using NOVAxis.Services.Audio.YtDlp;
+using NOVAxis.Services.Download;
 
 using Discord;
 
@@ -85,4 +87,104 @@ namespace NOVAxis.Web.Contracts
     public record MoveRequest(int ToIndex);
 
     public record PlayResponse(int Enqueued, TrackDto Track, string PlaylistName);
+
+    public record DownloadFormatDto(
+        string Id,
+        string Kind,
+        string Label,
+        string Extension,
+        long? SizeBytes,
+        bool WithinLimit)
+    {
+        public static DownloadFormatDto FromChoice(DownloadChoice choice) => new(
+            choice.Id,
+            choice.Kind.ToString(),
+            choice.Label,
+            choice.Extension,
+            choice.Size,
+            choice.WithinLimit);
+    }
+
+    public record DownloadProbeDto(
+        string Url,
+        string Title,
+        string ThumbnailUrl,
+        double DurationMs,
+        bool IsLiveStream,
+        IReadOnlyList<DownloadFormatDto> Formats);
+
+    public record DownloadQuotaDto(int Limit, int Remaining, long? ResetsAt)
+    {
+        public static DownloadQuotaDto FromQuota(DownloadQuota quota) => new(
+            quota.Limit,
+            quota.Remaining,
+            quota.ResetsAt?.ToUnixTimeMilliseconds());
+    }
+
+    public record DownloadDto(
+        string Id,
+        string State,
+        string Kind,
+        string Title,
+        string SourceUrl,
+        string FormatLabel,
+        string FileName,
+        long? SizeBytes,
+        long ReceivedBytes,
+        double? Progress,
+        long CreatedAt,
+        long ExpiresAt,
+        long SampledAt,
+        string FileUrl,
+        string Error)
+    {
+        public static DownloadDto FromRecord(DownloadRecord record)
+        {
+            if (record == null)
+                return null;
+
+            var ready = record.State == DownloadState.Ready;
+            var total = record.Size > 0 ? record.Size : record.EstimatedSize;
+
+            return new DownloadDto(
+                record.Id.ToString(),
+                record.State.ToString(),
+                record.Kind.ToString(),
+                record.Title,
+                record.SourceUrl,
+                record.FormatLabel,
+                ready && record.FilePath != null ? System.IO.Path.GetFileName(record.FilePath) : null,
+                total,
+                record.Received,
+                Ratio(record.Received, total),
+                record.CreatedAt.ToUnixTimeMilliseconds(),
+                record.ExpiresAt.ToUnixTimeMilliseconds(),
+
+                // The countdown is drawn against this, never against the browser's own idea
+                // of now - the two clocks are not the same one
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+
+                ready ? $"/api/downloads/{record.Id}/file" : null,
+                record.Error);
+        }
+
+        private static double? Ratio(long received, long? total)
+        {
+            if (total is not > 0)
+                return null;
+
+            var ratio = (double)received / total.Value;
+
+            return ratio switch
+            {
+                < 0 => 0,
+                > 1 => 1,
+                _ => ratio
+            };
+        }
+    }
+
+    public record DownloadOverviewDto(DownloadDto Active, DownloadQuotaDto Quota);
+
+    public record DownloadRequest(string Url, string Kind, string FormatId);
 }

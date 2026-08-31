@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using NOVAxis.Core;
 using NOVAxis.Modules;
@@ -17,6 +18,7 @@ using NOVAxis.Services.Audio.Lavalink;
 using NOVAxis.Services.Audio.YtDlp;
 using NOVAxis.Services.Polls;
 using NOVAxis.Services.Discord;
+using NOVAxis.Services.Download;
 using NOVAxis.Web;
 using NOVAxis.Web.Auth;
 using NOVAxis.Web.Hubs;
@@ -46,6 +48,7 @@ namespace NOVAxis.Extensions
             collection.Configure<DatabaseOptions>(config.GetSection(DatabaseOptions.Key));
             collection.Configure<CacheOptions>(config.GetSection(CacheOptions.Key));
             collection.Configure<WebOptions>(config.GetSection(WebOptions.Key));
+            collection.Configure<DownloadOptions>(config.GetSection(DownloadOptions.Key));
 
             return collection;
         }
@@ -118,7 +121,7 @@ namespace NOVAxis.Extensions
         /// </summary>
         private static IServiceCollection AddYtDlpAudio(this IServiceCollection collection)
         {
-            collection.AddSingleton<YtDlpClient>();
+            collection.TryAddSingleton<YtDlpClient>();
             collection.AddSingleton<AudioSearchCache>();
             collection.AddSingleton<IAudioSearchService, YtDlpAudioSearchService>();
             collection.AddSingleton<YtDlpAudioPlayerManager>();
@@ -219,6 +222,25 @@ namespace NOVAxis.Extensions
             collection.AddSingleton<PlayerBroadcaster>();
             collection.AddSingleton<WebPlayerService>();
             collection.AddHostedService<PlayerBroadcastService>();
+
+            return collection;
+        }
+
+        /// <summary>
+        /// Prepares media files on request and hands them out over the web app. Registered
+        /// whichever audio backend is in use - downloading has nothing to do with playback -
+        /// and inert when 'Download:Active' is off, because the endpoints are mapped
+        /// unconditionally and would otherwise resolve to nothing.
+        /// </summary>
+        public static IServiceCollection AddDownloads(this IServiceCollection collection, IConfiguration config)
+        {
+            // Also registered by the yt-dlp audio backend, which only runs when it is chosen
+            collection.TryAddSingleton<YtDlpClient>();
+
+            collection.AddSingleton<DownloadStore>();
+            collection.AddSingleton<YtDlpDownloader>();
+            collection.AddSingleton<DownloadService>();
+            collection.AddHostedService<DownloadSweeper>();
 
             return collection;
         }

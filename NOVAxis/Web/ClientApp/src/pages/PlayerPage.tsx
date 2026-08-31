@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 import { api, GuildDto } from '../api'
 import { usePlayerState } from '../live'
 import { useUser } from '../user'
-import { Power } from '../Icons'
+import { Download, Power } from '../Icons'
 import { NowPlaying } from '../components/NowPlaying'
 import { PlayerBar } from '../components/PlayerBar'
 import { QueueList } from '../components/QueueList'
@@ -52,6 +52,13 @@ export function PlayerPage() {
             </Link>
           ))}
         </nav>
+        <p className="sidebar-label">Nástroje</p>
+        <Link to="/downloads" className="sidebar-guild">
+          <span className="guild-icon-fallback">
+            <Download size={16} />
+          </span>
+          <span className="sidebar-guild-name">Stahování</span>
+        </Link>
         {user && (
           <div className="sidebar-user">
             {user.avatarUrl && <img src={user.avatarUrl} alt="" />}

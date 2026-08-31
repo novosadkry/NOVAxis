@@ -41,6 +41,42 @@ namespace NOVAxis.Services.Audio.YtDlp
         /// <summary>
         /// Extracts the playable media URL and the headers yt-dlp expects it to be requested with.
         /// </summary>
+        /// <summary>
+        /// Reads what a download needs: the titling, and every rendition on offer with
+        /// whatever yt-dlp could say about its size.
+        /// </summary>
+        public static YtDlpMediaInfo ReadMediaInfo(string json)
+        {
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+
+            // A link resolving to a playlist is not something a download can act on,
+            // so the first entry stands in for it
+            if (IsPlaylist(root) &&
+                root.TryGetProperty("entries", out var entries) &&
+                entries.ValueKind == JsonValueKind.Array &&
+                entries.GetArrayLength() > 0)
+                root = entries[0];
+
+            var uri = GetUri(root, "webpage_url", "original_url", "url");
+            var title = GetString(root, "title") ?? GetString(root, "fulltitle");
+
+            if (uri == null && title == null)
+                return null;
+
+            var isLive = GetBool(root, "is_live") ??
+                         GetString(root, "live_status") == "is_live";
+
+            return new YtDlpMediaInfo(
+                title ?? uri!.AbsoluteUri,
+                uri,
+                ReadArtwork(root),
+                ReadDuration(root),
+                isLive,
+                GetString(root, "extractor_key") ?? GetString(root, "ie_key"),
+                ReadFormats(root));
+        }
+
         public static YtDlpStreamInfo ReadStreamInfo(string json)
         {
             using var document = JsonDocument.Parse(json);
@@ -159,6 +195,69 @@ namespace NOVAxis.Services.Audio.YtDlp
             return TimeSpan.Zero;
         }
 
+        private static IReadOnlyList<YtDlpFormat> ReadFormats(JsonElement element)
+        {
+            if (!element.TryGetProperty("formats", out var formats) ||
+                formats.ValueKind != JsonValueKind.Array)
+                return Array.Empty<YtDlpFormat>();
+
+            var results = new List<YtDlpFormat>(formats.GetArrayLength());
+
+            foreach (var format in formats.EnumerateArray())
+            {
+                if (format.ValueKind != JsonValueKind.Object)
+                    continue;
+
+                var id = GetString(format, "format_id");
+
+                if (string.IsNullOrEmpty(id))
+                    continue;
+
+                // Storyboards are images yt-dlp lists alongside the real renditions
+                var ext = GetString(format, "ext");
+
+                if (ext == "mhtml" || GetString(format, "format_note") == "storyboard")
+                    continue;
+
+                results.Add(new YtDlpFormat(
+                    id,
+                    ext,
+                    ReadResolution(format),
+                    GetString(format, "vcodec"),
+                    GetString(format, "acodec"),
+                    GetDouble(format, "fps"),
+                    GetDouble(format, "tbr"),
+                    ReadFormatSize(format),
+                    GetString(format, "format_note")));
+            }
+
+            return results;
+        }
+
+        private static string ReadResolution(JsonElement element)
+        {
+            var resolution = GetString(element, "resolution");
+
+            if (!string.IsNullOrEmpty(resolution) && resolution != "audio only")
+                return resolution;
+
+            var height = GetInt(element, "height");
+
+            if (height is > 0)
+                return $"{height}p";
+
+            return resolution;
+        }
+
+        /// <summary>
+        /// The exact size when yt-dlp knows it, the estimate otherwise, and null when it
+        /// knows neither - which is normal for fragmented (HLS/DASH) renditions.
+        /// </summary>
+        private static long? ReadFormatSize(JsonElement element)
+        {
+            return GetLong(element, "filesize") ?? GetLong(element, "filesize_approx");
+        }
+
         private static Uri ReadArtwork(JsonElement element)
         {
             var thumbnail = GetUri(element, "thumbnail");
@@ -212,6 +311,26 @@ namespace NOVAxis.Services.Audio.YtDlp
                    element.TryGetProperty(name, out var value) &&
                    value.ValueKind == JsonValueKind.Number &&
                    value.TryGetInt32(out var parsed)
+                ? parsed
+                : null;
+        }
+
+        private static long? GetLong(JsonElement element, string name)
+        {
+            return element.ValueKind == JsonValueKind.Object &&
+                   element.TryGetProperty(name, out var value) &&
+                   value.ValueKind == JsonValueKind.Number &&
+                   value.TryGetInt64(out var parsed)
+                ? parsed
+                : null;
+        }
+
+        private static double? GetDouble(JsonElement element, string name)
+        {
+            return element.ValueKind == JsonValueKind.Object &&
+                   element.TryGetProperty(name, out var value) &&
+                   value.ValueKind == JsonValueKind.Number &&
+                   value.TryGetDouble(out var parsed)
                 ? parsed
                 : null;
         }

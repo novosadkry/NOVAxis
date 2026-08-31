@@ -74,6 +74,24 @@
       "ClientSecret": "INSERT_CLIENT_SECRET_HERE"
     }
   },
+  "Download": {
+    "Active": true,
+    "OutputFolder": "downloads",
+    "Ttl": "01:00:00",
+    "SweepInterval": "00:01:00",
+    "MaxFileSize": 104857600,
+    "SizeWatchdogFactor": 2.5,
+    "MaxPerWindow": 10,
+    "QuotaWindow": "01:00:00",
+    "OutputFolderLimit": 3221225472,
+    "MaxConcurrentDownloads": 2,
+    "Timeout": "00:10:00",
+    "StallTimeout": "00:01:00",
+    "VideoFormat": "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b",
+    "MergeOutputFormat": "mp4",
+    "AudioFormats": ["mp3", "m4a", "opus"],
+    "MaxFormatChoices": 25
+  },
   "Anthropic": {
     "ApiKey": "INSERT_API_KEY_HERE"
   }

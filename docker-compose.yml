@@ -12,6 +12,9 @@
     volumes:
       - ./NOVAxis/config.json:/app/config.json
       - ./NOVAxis/keys:/app/keys
+      # Prepared downloads. Emptied on every start - the links do not outlive the
+      # process - so this only keeps the traffic off the container's writable layer
+      - novaxis-downloads:/app/downloads
     ports:
       - "5000:5000"
     restart: unless-stopped
@@ -44,3 +47,6 @@
     logging:
       options:
         max-size: 50m
+
+volumes:
+  novaxis-downloads:

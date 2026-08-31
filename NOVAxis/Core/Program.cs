@@ -78,6 +78,7 @@ namespace NOVAxis.Core
                 .AddPolls(host.Configuration)
                 .AddAnthropic(host.Configuration)
                 .AddWebApp(host.Configuration)
+                .AddDownloads(host.Configuration)
                 .BuildServiceProvider(true);
         }
 

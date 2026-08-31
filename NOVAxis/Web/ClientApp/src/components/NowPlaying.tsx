@@ -1,5 +1,8 @@
+import { Link } from 'react-router-dom'
+
 import { LiveState } from '../live'
-import { Note } from '../Icons'
+import { Download, Note } from '../Icons'
+import { downloadHref } from '../pages/DownloadsPage'
 
 /**
  * The hero - what the core is playing right now, with who asked for it.
@@ -61,6 +64,15 @@ export function NowPlaying({ live }: { live: LiveState }) {
             <span>
               vyžádal <strong>{item.requestedBy.name}</strong>
             </span>
+          </div>
+        )}
+
+        {/* A live stream has no end, so it would only ever hit the size ceiling */}
+        {track.uri && !track.isLiveStream && (
+          <div className="hero-actions">
+            <Link className="btn-ghost" to={downloadHref(track.uri, `/g/${state.guildId}`)}>
+              <Download size={16} /> Stáhnout
+            </Link>
           </div>
         )}
       </div>

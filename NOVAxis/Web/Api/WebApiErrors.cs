@@ -1,6 +1,9 @@
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Http;
+
+using System;
 
 using NOVAxis.Services.Audio;
+using NOVAxis.Services.Download;
 
 namespace NOVAxis.Web.Api
 {
@@ -23,6 +26,39 @@ namespace NOVAxis.Web.Api
 
         public static IResult ServiceUnavailable()
             => Error(StatusCodes.Status503ServiceUnavailable, "service_unavailable", "Služba není momentálně dostupná");
+
+        public static IResult NotFound(string message)
+            => Error(StatusCodes.Status404NotFound, "not_found", message);
+
+        /// <summary>
+        /// What a download refused, in the caller's terms. yt-dlp's own words never reach
+        /// here - they name cookie files and local paths.
+        /// </summary>
+        public static IResult From(DownloadException exception)
+        {
+            return exception.Reason switch
+            {
+                DownloadFailure.TooLarge
+                    => Error(StatusCodes.Status413RequestEntityTooLarge, "too_large", exception.Message),
+
+                DownloadFailure.QuotaExceeded
+                    => Error(StatusCodes.Status429TooManyRequests, "quota_exceeded", exception.Message),
+
+                DownloadFailure.Busy
+                    => Error(StatusCodes.Status409Conflict, "download_busy", exception.Message),
+
+                DownloadFailure.StorageFull
+                    => Error(StatusCodes.Status507InsufficientStorage, "storage_full", exception.Message),
+
+                DownloadFailure.Unsupported
+                    => Error(StatusCodes.Status400BadRequest, "bad_request", exception.Message),
+
+                DownloadFailure.Timeout or DownloadFailure.Stalled
+                    => Error(StatusCodes.Status504GatewayTimeout, "download_failed", exception.Message),
+
+                _ => Error(StatusCodes.Status502BadGateway, "download_failed", exception.Message)
+            };
+        }
 
         public static IResult From(AudioPlayerRetrieveResult result)
         {

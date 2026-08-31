@@ -55,6 +55,56 @@ export interface PlayResponse {
   playlistName: string | null
 }
 
+export interface DownloadFormatDto {
+  id: string
+  kind: 'Video' | 'Audio'
+  label: string
+  extension: string
+  sizeBytes: number | null
+  withinLimit: boolean
+}
+
+export interface DownloadProbeDto {
+  url: string
+  title: string
+  thumbnailUrl: string | null
+  durationMs: number
+  isLiveStream: boolean
+  formats: DownloadFormatDto[]
+}
+
+export interface DownloadQuotaDto {
+  limit: number
+  remaining: number
+  resetsAt: number | null
+}
+
+export type DownloadState = 'Pending' | 'Running' | 'Ready' | 'Failed' | 'Revoked' | 'Expired'
+
+export interface DownloadDto {
+  id: string
+  state: DownloadState
+  kind: 'Video' | 'Audio'
+  title: string
+  sourceUrl: string
+  formatLabel: string
+  fileName: string | null
+  sizeBytes: number | null
+  receivedBytes: number
+  progress: number | null
+  createdAt: number
+  expiresAt: number
+  /** The server's clock when this snapshot was taken - the countdown anchors to it. */
+  sampledAt: number
+  fileUrl: string | null
+  error: string | null
+}
+
+export interface DownloadOverviewDto {
+  active: DownloadDto | null
+  quota: DownloadQuotaDto
+}
+
 export class ApiError extends Error {
   readonly code: string
   readonly status: number
@@ -138,4 +188,15 @@ export const api = {
 
   moveItem: (guildId: string, requestId: string, toIndex: number) =>
     post<void>(`/api/guilds/${guildId}/queue/${requestId}/move`, { toIndex }),
+
+  downloads: () => request<DownloadOverviewDto>('/api/downloads'),
+
+  probeDownload: (url: string, signal?: AbortSignal) =>
+    request<DownloadProbeDto>(`/api/downloads/probe?url=${encodeURIComponent(url)}`, { signal }),
+
+  startDownload: (url: string, kind: DownloadDto['kind'], formatId: string) =>
+    post<DownloadDto>('/api/downloads', { url, kind, formatId }),
+
+  revokeDownload: (id: string) =>
+    request<void>(`/api/downloads/${id}`, { method: 'DELETE' }),
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 
@@ -36,6 +36,7 @@ namespace NOVAxis.Web
                 endpoints.MapGuildApi();
                 endpoints.MapPlayerApi();
                 endpoints.MapSearchApi();
+                endpoints.MapDownloadApi();
 
                 endpoints.MapHub<PlayerHub>("/hub/player");
 
@@ -54,17 +55,44 @@ namespace NOVAxis.Web
         public const string Write = "web-write";
         public const string Search = "web-search";
 
+        /// <summary>
+        /// Defence in depth, not the quota itself: the slash commands never pass through
+        /// the rate limiter, so a ceiling kept here alone could be doubled by using both
+        /// surfaces. The counter that actually decides lives in DownloadService.
+        /// </summary>
+        public const string Download = "web-download";
+
         public static IServiceCollection AddWebRateLimits(this IServiceCollection collection)
         {
             collection.AddRateLimiter(options =>
             {
                 options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
+                // Without this a throttled request answers with an empty body, and the
+                // frontend has nothing to show but its generic "something went wrong"
+                options.OnRejected = async (context, cancellationToken) =>
+                {
+                    context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+
+                    await context.HttpContext.Response.WriteAsJsonAsync(
+                        new ErrorDto("rate_limited", "Moc rychle po sobě, zkus to za chvíli"),
+                        cancellationToken);
+                };
+
                 options.AddPolicy(Write, context => RateLimitPartition.GetFixedWindowLimiter(
                     Caller(context),
                     _ => new FixedWindowRateLimiterOptions
                     {
                         Window = TimeSpan.FromSeconds(10),
+                        PermitLimit = 10,
+                        QueueLimit = 0
+                    }));
+
+                options.AddPolicy(Download, context => RateLimitPartition.GetFixedWindowLimiter(
+                    Caller(context),
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        Window = TimeSpan.FromHours(1),
                         PermitLimit = 10,
                         QueueLimit = 0
                     }));

@@ -270,5 +270,6 @@ __pycache__/
 # Web player
 /NOVAxis/wwwroot/
 /NOVAxis/keys/
+/NOVAxis/downloads/
 /NOVAxis/Web/ClientApp/node_modules/
 /NOVAxis/Web/ClientApp/dist/

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import { api, PlayerStateDto, QueueItemDto } from '../api'
 import { formatDuration, formatTotal } from '../format'
-import { Close, Grip } from '../Icons'
+import { Close, Download, Grip } from '../Icons'
 import { useToast } from '../Toast'
+import { downloadHref } from '../pages/DownloadsPage'
 
 interface QueueListProps {
   guildId: string
@@ -121,6 +123,17 @@ export function QueueList({ guildId, state }: QueueListProps) {
             <span className="queue-duration">
               {formatDuration(item.track.durationMs, item.track.isLiveStream)}
             </span>
+            {item.track.uri && !item.track.isLiveStream && (
+              <Link
+                className="icon-btn queue-download"
+                to={downloadHref(item.track.uri, `/g/${guildId}`)}
+                aria-label={`Stáhnout ${item.track.title}`}
+                title="Stáhnout"
+                onDragStart={event => event.preventDefault()}
+              >
+                <Download size={16} />
+              </Link>
+            )}
             <button
               type="button"
               className="icon-btn queue-remove"
