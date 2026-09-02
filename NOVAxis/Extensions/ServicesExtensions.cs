@@ -124,9 +124,10 @@ namespace NOVAxis.Extensions
         {
             collection.TryAddSingleton<GuardedProxy>();
             collection.TryAddSingleton<YtDlpClient>();
-            collection.TryAddSingleton<MetadataOnlyLinks>();
-            collection.AddSingleton<AudioSearchCache>();
-            collection.AddSingleton<IAudioSearchService, YtDlpAudioSearchService>();
+            collection.TryAddSingleton<AudioSearchCache>();
+            collection.TryAddSingleton<AudioMediaCache>();
+            collection.TryAddSingleton<YtDlpAudioSearchService>();
+            collection.AddSingleton<IAudioSearchService>(p => p.GetRequiredService<YtDlpAudioSearchService>());
             collection.AddSingleton<YtDlpAudioPlayerManager>();
             collection.AddSingleton<IAudioPlayerManager>(p => p.GetRequiredService<YtDlpAudioPlayerManager>());
             collection.AddHostedService<AudioInactivityTracker>();
@@ -237,15 +238,17 @@ namespace NOVAxis.Extensions
         /// </summary>
         public static IServiceCollection AddDownloads(this IServiceCollection collection, IConfiguration config)
         {
-            // All also registered by the yt-dlp audio backend, which only runs when chosen
+            // All also registered by the yt-dlp audio backend, which only runs when chosen -
+            // a download asks the very same lookup what a link is, whichever backend plays it
             collection.TryAddSingleton<GuardedProxy>();
             collection.TryAddSingleton<YtDlpClient>();
-            collection.TryAddSingleton<MetadataOnlyLinks>();
+            collection.TryAddSingleton<AudioSearchCache>();
+            collection.TryAddSingleton<AudioMediaCache>();
+            collection.TryAddSingleton<YtDlpAudioSearchService>();
 
             // Registered here alone, so the guard is torn down once at shutdown
             collection.AddHostedService(p => p.GetRequiredService<GuardedProxy>());
 
-            collection.AddSingleton<DownloadProbeCache>();
             collection.AddSingleton<DownloadStore>();
             collection.AddSingleton<YtDlpDownloader>();
             collection.AddSingleton<DownloadService>();

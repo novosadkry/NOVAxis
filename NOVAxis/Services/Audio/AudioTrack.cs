@@ -23,6 +23,13 @@ namespace NOVAxis.Services.Audio
         public string Identifier { get; init; }
 
         public string SourceName { get; init; }
+
+        /// <summary>
+        /// The renditions this media is offered in. Empty where the backend cannot say:
+        /// Lavalink resolves a track without ever enumerating them, and an entry of a
+        /// flat playlist is a stub.
+        /// </summary>
+        public IReadOnlyList<MediaFormat> Formats { get; init; } = [];
     }
 
     public record AudioPlaylist

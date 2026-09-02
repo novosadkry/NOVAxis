@@ -128,15 +128,11 @@ namespace NOVAxis.Services.Audio.YtDlp
         }
 
         /// <summary>
-        /// The arguments every invocation carries. Static so the downloader inherits the
-        /// same cookies, user agent and retry policy without a second copy of the config.
-        /// </summary>
-        /// <summary>
         /// Reads everything a download needs to decide: the titling and every rendition on
         /// offer. Shares the lookup gate with <see cref="LoadAsync"/> - it is the same
         /// kind of work, and the same extractor cost.
         /// </summary>
-        public virtual async ValueTask<YtDlpMediaInfo> ProbeAsync(string url, CancellationToken cancellationToken = default)
+        public virtual async ValueTask<AudioTrack> ProbeAsync(string url, CancellationToken cancellationToken = default)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(url);
 
@@ -175,12 +171,12 @@ namespace NOVAxis.Services.Audio.YtDlp
             if (string.IsNullOrWhiteSpace(json))
                 return null;
 
-            var info = YtDlpJson.ReadMediaInfo(json);
+            var media = YtDlpJson.ReadMedia(json);
 
-            if (info != null)
-                Logger.Debug($"Probed '{info.Title}' with {info.Formats.Count} format(s)");
+            if (media != null)
+                Logger.Debug($"Probed '{media.Title}' with {media.Formats.Count} format(s)");
 
-            return info;
+            return media;
         }
 
         /// <summary>
@@ -201,6 +197,10 @@ namespace NOVAxis.Services.Audio.YtDlp
             return addresses.Count > 0;
         }
 
+        /// <summary>
+        /// The arguments every invocation carries. Static so the downloader inherits the
+        /// same cookies, user agent and retry policy without a second copy of the config.
+        /// </summary>
         internal static void AddCommonArguments(AudioYtDlpOptions ytDlp, string proxyUrl, List<string> arguments)
         {
             arguments.Add("--socket-timeout");

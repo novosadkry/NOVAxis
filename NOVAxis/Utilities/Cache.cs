@@ -45,19 +45,19 @@ namespace NOVAxis.Utilities
     }
 
     /// <summary>
-    /// What a link turned out to be, kept under its address. Two requests for one download -
-    /// the format list, then the download itself - would otherwise each pay for an
-    /// extraction, and what a link resolves to does not change between them.
+    /// What a link turned out to be, formats and all, kept under its address. Two requests
+    /// for one download - the format list, then the download itself - would otherwise each
+    /// pay for an extraction, and what a link resolves to does not change between them.
     ///
     /// Holding this does not let anything past the network guard: what is kept here is the
     /// titling and the formats on offer, and every byte is still fetched through the guard
     /// when the download runs. A name which resolved publicly when it was looked up and
     /// privately by the time it is fetched is refused at the fetch, cache or no cache.
     /// </summary>
-    public class DownloadProbeCache : Cache<string, YtDlpMediaInfo>
+    public class AudioMediaCache : Cache<string, AudioTrack>
     {
-        public DownloadProbeCache(IMemoryCache cache, IOptions<CacheOptions> options)
-            : base(nameof(DownloadProbeCache), cache, options) { }
+        public AudioMediaCache(IMemoryCache cache, IOptions<CacheOptions> options)
+            : base(nameof(AudioMediaCache), cache, options) { }
     }
 
     public class Cache<TKey, TValue>

@@ -10,6 +10,7 @@ using Discord.Interactions;
 
 using NOVAxis.Core;
 using NOVAxis.Preconditions;
+using NOVAxis.Services.Audio;
 using NOVAxis.Services.Audio.YtDlp;
 using NOVAxis.Services.Download;
 using NOVAxis.Utilities;
@@ -22,8 +23,7 @@ namespace NOVAxis.Modules.Download
     public class DownloadModule : InteractionModuleBase<ShardedInteractionContext>
     {
         /// <summary>What was found, held between showing the menu and a choice being made.</summary>
-        private sealed record Pending(ulong OwnerId, YtDlpMediaInfo Info);
-
+        private sealed record Pending(ulong OwnerId, AudioTrack Media);
 
         public DownloadService DownloadService { get; set; }
         public InteractionCache InteractionCache { get; set; }
@@ -67,11 +67,11 @@ namespace NOVAxis.Modules.Download
                 return;
             }
 
-            YtDlpMediaInfo info;
+            AudioTrack media;
 
             try
             {
-                info = await DownloadService.ProbeAsync(url);
+                media = await DownloadService.ProbeAsync(url);
             }
             catch (DownloadException e)
             {
@@ -88,7 +88,7 @@ namespace NOVAxis.Modules.Download
                 return;
             }
 
-            var choices = DownloadService.ChoicesFor(info, kind);
+            var choices = DownloadService.ChoicesFor(media, kind);
             var settings = DownloadService.Settings;
 
             if (!choices.Any(c => c.WithinLimit))
@@ -100,15 +100,15 @@ namespace NOVAxis.Modules.Download
                 return;
             }
 
-            var id = InteractionCache.Store(new Pending(Context.User.Id, info));
+            var id = InteractionCache.Store(new Pending(Context.User.Id, media));
 
             await FollowupAsync(
                 ephemeral: true,
                 embed: DownloadEmbeds.Found(
-                    info.Title,
-                    info.Url?.AbsoluteUri,
-                    info.Thumbnail?.AbsoluteUri,
-                    info.Duration,
+                    media.Title,
+                    media.Uri?.AbsoluteUri,
+                    media.ArtworkUri?.AbsoluteUri,
+                    media.Duration,
                     quota),
                 components: DownloadEmbeds.FormatMenu(id, kind, choices, settings.MaxFormatChoices));
         }
@@ -131,14 +131,14 @@ namespace NOVAxis.Modules.Download
                 return;
             }
 
-            var info = pending.Info;
+            var media = pending.Media;
 
             DownloadRecord record;
 
             try
             {
                 record = await DownloadService.RequestAsync(
-                    Context.User.Id, info.Url?.AbsoluteUri ?? info.Title, kind, formatId, info);
+                    Context.User.Id, media.Uri?.AbsoluteUri ?? media.Title, kind, formatId, media);
             }
             catch (DownloadException e)
             {

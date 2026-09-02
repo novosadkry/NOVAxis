@@ -42,13 +42,11 @@ namespace NOVAxis.Services.Audio.YtDlp
         }
 
         /// <summary>
-        /// Extracts the playable media URL and the headers yt-dlp expects it to be requested with.
+        /// Reads a single piece of media out of a document which was asked about exactly
+        /// one thing. The formats come along with it, which is what a download needs and
+        /// a flat playlist entry never carries.
         /// </summary>
-        /// <summary>
-        /// Reads what a download needs: the titling, and every rendition on offer with
-        /// whatever yt-dlp could say about its size.
-        /// </summary>
-        public static YtDlpMediaInfo ReadMediaInfo(string json)
+        public static AudioTrack ReadMedia(string json)
         {
             using var document = JsonDocument.Parse(json);
             var root = document.RootElement;
@@ -64,25 +62,12 @@ namespace NOVAxis.Services.Audio.YtDlp
                 entries.GetArrayLength() > 0)
                 root = entries[0];
 
-            var uri = GetUri(root, "webpage_url", "original_url", "url");
-            var title = GetString(root, "title") ?? GetString(root, "fulltitle");
-
-            if (uri == null && title == null)
-                return null;
-
-            var isLive = GetBool(root, "is_live") ??
-                         GetString(root, "live_status") == "is_live";
-
-            return new YtDlpMediaInfo(
-                title ?? uri!.AbsoluteUri,
-                uri,
-                ReadArtwork(root),
-                ReadDuration(root),
-                isLive,
-                GetString(root, "extractor_key") ?? GetString(root, "ie_key"),
-                ReadFormats(root));
+            return ReadTrack(root);
         }
 
+        /// <summary>
+        /// Extracts the playable media URL and the headers yt-dlp expects it to be requested with.
+        /// </summary>
         public static YtDlpStreamInfo ReadStreamInfo(string json)
         {
             using var document = JsonDocument.Parse(json);
@@ -182,7 +167,8 @@ namespace NOVAxis.Services.Audio.YtDlp
                 Duration = ReadDuration(element),
                 IsLiveStream = isLive,
                 Identifier = GetString(element, "id"),
-                SourceName = GetString(element, "extractor_key") ?? GetString(element, "ie_key")
+                SourceName = GetString(element, "extractor_key") ?? GetString(element, "ie_key"),
+                Formats = ReadFormats(element)
             };
         }
 
@@ -204,13 +190,13 @@ namespace NOVAxis.Services.Audio.YtDlp
             return TimeSpan.Zero;
         }
 
-        private static IReadOnlyList<YtDlpFormat> ReadFormats(JsonElement element)
+        private static IReadOnlyList<MediaFormat> ReadFormats(JsonElement element)
         {
             if (!TryGet(element, "formats", out var formats) ||
                 formats.ValueKind != JsonValueKind.Array)
-                return Array.Empty<YtDlpFormat>();
+                return Array.Empty<MediaFormat>();
 
-            var results = new List<YtDlpFormat>(formats.GetArrayLength());
+            var results = new List<MediaFormat>(formats.GetArrayLength());
 
             foreach (var format in formats.EnumerateArray())
             {
@@ -228,7 +214,7 @@ namespace NOVAxis.Services.Audio.YtDlp
                 if (ext == "mhtml" || GetString(format, "format_note") == "storyboard")
                     continue;
 
-                results.Add(new YtDlpFormat(
+                results.Add(new MediaFormat(
                     id,
                     ext,
                     ReadResolution(format),

@@ -81,19 +81,19 @@ namespace NOVAxis.Web.Api
 
             try
             {
-                var info = await downloads.ProbeAsync(url, cancellationToken);
+                var media = await downloads.ProbeAsync(url, cancellationToken);
 
-                var formats = downloads.ChoicesFor(info, DownloadKind.Video)
-                    .Concat(downloads.ChoicesFor(info, DownloadKind.Audio))
+                var formats = downloads.ChoicesFor(media, DownloadKind.Video)
+                    .Concat(downloads.ChoicesFor(media, DownloadKind.Audio))
                     .Select(DownloadFormatDto.FromChoice)
                     .ToList();
 
                 return Results.Ok(new DownloadProbeDto(
-                    info.Url?.AbsoluteUri ?? url,
-                    info.Title,
-                    info.Thumbnail?.AbsoluteUri,
-                    info.Duration.TotalMilliseconds,
-                    info.IsLive,
+                    media.Uri?.AbsoluteUri ?? url,
+                    media.Title,
+                    media.ArtworkUri?.AbsoluteUri,
+                    media.Duration.TotalMilliseconds,
+                    media.IsLiveStream,
                     formats));
             }
             catch (DownloadException e)

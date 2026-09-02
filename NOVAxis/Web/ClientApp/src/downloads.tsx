@@ -17,13 +17,6 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
 
 export const useDownloads = () => useContext(DownloadContext)
 
-/** Where a track's download button points when the format is worth choosing. */
-export function downloadHref(uri: string, from?: string): string {
-  const params = new URLSearchParams({ url: uri })
-  if (from) params.set('from', from)
-  return `${from ? `${from}/downloads` : '/downloads'}?${params}`
-}
-
 /** What the file endpoint redirects back with when a link no longer works. */
 const FileErrors: Record<string, string> = {
   expired: 'Odkaz vypršel — spusť stahování znovu',

@@ -12,6 +12,7 @@ using Microsoft.Extensions.Options;
 
 using NOVAxis.Core;
 using NOVAxis.Extensions;
+using NOVAxis.Services.Audio;
 using NOVAxis.Services.Audio.YtDlp;
 using NOVAxis.Services.Net;
 using NOVAxis.Utilities;
@@ -38,33 +39,25 @@ namespace NOVAxis.Services.Download
     /// </summary>
     public class DownloadService
     {
-        private readonly Coalescer<string, YtDlpMediaInfo> _probes = new();
-
         private IOptions<DownloadOptions> Options { get; }
-        private YtDlpClient Client { get; }
-        private MetadataOnlyLinks Metadata { get; }
+        private YtDlpAudioSearchService Search { get; }
         private YtDlpDownloader Downloader { get; }
         private DownloadStore Store { get; }
-        private DownloadProbeCache Probes { get; }
         private IHostApplicationLifetime Lifetime { get; }
         private ILogger<DownloadService> Logger { get; }
 
         public DownloadService(
             IOptions<DownloadOptions> options,
-            YtDlpClient client,
-            MetadataOnlyLinks metadata,
+            YtDlpAudioSearchService search,
             YtDlpDownloader downloader,
             DownloadStore store,
-            DownloadProbeCache probes,
             IHostApplicationLifetime lifetime,
             ILogger<DownloadService> logger)
         {
             Options = options;
-            Client = client;
-            Metadata = metadata;
+            Search = search;
             Downloader = downloader;
             Store = store;
-            Probes = probes;
             Lifetime = lifetime;
             Logger = logger;
         }
@@ -90,51 +83,33 @@ namespace NOVAxis.Services.Download
         }
 
         /// <summary>
-        /// Looks a link up without committing to fetching it. Coalesced, so two people
-        /// pasting the same link - or one double submitting - costs a single extractor run.
+        /// Looks a link up without committing to fetching it. The lookup itself belongs to
+        /// the audio side - it is the same question playback asks, cached and coalesced the
+        /// same way, and a link Spotify only describes is handled there once for both.
+        /// What stays here is what only a download cares about: the address gate, and the
+        /// refusal to fetch something which never ends.
         /// </summary>
-        public async Task<YtDlpMediaInfo> ProbeAsync(string url, CancellationToken cancellationToken = default)
+        public async Task<AudioTrack> ProbeAsync(string url, CancellationToken cancellationToken = default)
         {
-            var normalized = Normalize(url);
+            var media = await Search.InspectAsync(Normalize(url), cancellationToken);
 
-            if (Probes.TryGetValue(normalized, out var known))
-                return Verify(known);
-
-            var info = await _probes.RunAsync(normalized, async token =>
-            {
-                // Checked again inside: the caller this one joined may have just stored it
-                if (Probes.TryGetValue(normalized, out var found))
-                    return found;
-
-                // Spotify and its kind carry no media yt-dlp can read, so the page is read
-                // for what the track is and the search stands in for the link - exactly what
-                // playing one of them already does
-                var target = await Metadata.ResolveAsync(new Uri(normalized), token);
-
-                if (string.IsNullOrEmpty(target))
-                    return null;
-
-                var probed = await Client.ProbeAsync(target, token);
-
-                if (probed != null)
-                    Probes[normalized] = probed;
-
-                return probed;
-            }, cancellationToken);
-
-            if (info == null)
+            if (media == null)
                 throw new DownloadException(DownloadFailure.Failed, "Na této adrese se nic nenašlo");
 
-            return Verify(info);
+            return Verify(media);
         }
 
-        private static YtDlpMediaInfo Verify(YtDlpMediaInfo info)
+        /// <summary>
+        /// Playing a live stream is fine, downloading one is not: it has neither an end
+        /// nor a size to hold against the limit.
+        /// </summary>
+        private static AudioTrack Verify(AudioTrack media)
         {
-            if (info.IsLive)
+            if (media.IsLiveStream)
                 throw new DownloadException(DownloadFailure.Unsupported,
                     "Živé vysílání stáhnout nelze - nemá konec ani velikost");
 
-            return info;
+            return media;
         }
 
         /// <summary>
@@ -142,7 +117,7 @@ namespace NOVAxis.Services.Download
         /// marked. Video formats without audio are costed together with the audio they would
         /// be merged with, because that is what actually lands on disk.
         /// </summary>
-        public IReadOnlyList<DownloadChoice> ChoicesFor(YtDlpMediaInfo info, DownloadKind kind)
+        public IReadOnlyList<DownloadChoice> ChoicesFor(AudioTrack media, DownloadKind kind)
         {
             var options = Options.Value;
 
@@ -153,14 +128,14 @@ namespace NOVAxis.Services.Download
                     .ToList();
             }
 
-            var bestAudio = info.Formats
+            var bestAudio = media.Formats
                 .Where(f => f.HasAudio && !f.HasVideo)
                 .Select(f => f.Size)
                 .Where(s => s.HasValue)
                 .DefaultIfEmpty(null)
                 .Max();
 
-            return info.Formats
+            return media.Formats
                 .Where(f => f.HasVideo)
                 .OrderByDescending(f => f.Size ?? 0)
                 .ThenByDescending(f => f.Bitrate ?? 0)
@@ -191,7 +166,7 @@ namespace NOVAxis.Services.Download
             string url,
             DownloadKind kind,
             string formatId,
-            YtDlpMediaInfo info = null,
+            AudioTrack media = null,
             string title = null,
             CancellationToken cancellationToken = default)
         {
@@ -204,14 +179,14 @@ namespace NOVAxis.Services.Download
             // and running an extraction just to read back a title they handed us is waste.
             var named = !string.IsNullOrWhiteSpace(title);
 
-            if (info == null && (!string.IsNullOrEmpty(formatId) || !named))
-                info = await ProbeAsync(normalized, cancellationToken);
+            if (media == null && (!string.IsNullOrEmpty(formatId) || !named))
+                media = await ProbeAsync(normalized, cancellationToken);
 
-            if (info != null)
-                Verify(info);
+            if (media != null)
+                Verify(media);
 
-            var choice = info != null
-                ? Resolve(info, kind, formatId)
+            var choice = media != null
+                ? Resolve(media, kind, formatId)
                 : DefaultChoice(kind);
 
             if (choice != null && !choice.WithinLimit)
@@ -278,7 +253,7 @@ namespace NOVAxis.Services.Download
 
                 try
                 {
-                    record = Begin(userId, kind, Target(info, normalized), Name(info, title), choice, formatId, options);
+                    record = Begin(userId, kind, Target(media, normalized), Name(media, title), choice, formatId, options);
                 }
                 catch (Exception)
                 {
@@ -444,22 +419,22 @@ namespace NOVAxis.Services.Download
         /// What to actually fetch. A link the extractor cannot read resolves to something
         /// else entirely, and handing it the original would fail all over again.
         /// </summary>
-        private static string Target(YtDlpMediaInfo info, string url)
+        private static string Target(AudioTrack media, string url)
         {
-            return info?.Url?.AbsoluteUri ?? url;
+            return media?.Uri?.AbsoluteUri ?? url;
         }
 
         /// <summary>
         /// What to call it: what the lookup found, else what the caller said it was.
         /// </summary>
-        private static string Name(YtDlpMediaInfo info, string title)
+        private static string Name(AudioTrack media, string title)
         {
-            return Shorten(info?.Title ?? title);
+            return Shorten(media?.Title ?? title);
         }
 
-        private DownloadChoice Resolve(YtDlpMediaInfo info, DownloadKind kind, string formatId)
+        private DownloadChoice Resolve(AudioTrack media, DownloadKind kind, string formatId)
         {
-            var choices = ChoicesFor(info, kind);
+            var choices = ChoicesFor(media, kind);
 
             if (kind == DownloadKind.Audio)
             {

@@ -1,9 +1,6 @@
-import { Link } from 'react-router-dom'
-
 import { TrackDto } from '../api'
 import { LiveState } from '../live'
 import { Download, Note } from '../Icons'
-import { downloadHref } from '../downloads'
 
 /**
  * The hero - what the core is playing right now, with who asked for it.
@@ -90,9 +87,6 @@ export function NowPlaying({ live, onDownload, startingUri }: NowPlayingProps) {
               )}
               Stáhnout zvuk
             </button>
-            <Link className="text-btn" to={downloadHref(track.uri, `/g/${state.guildId}`)}>
-              Vybrat formát
-            </Link>
           </div>
         )}
       </div>

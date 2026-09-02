@@ -1,14 +1,13 @@
-﻿using System;
 using System.Collections.Generic;
 
-namespace NOVAxis.Services.Audio.YtDlp
+namespace NOVAxis.Services.Audio
 {
     /// <summary>
-    /// One downloadable rendition of a piece of media, as yt-dlp reports it. Most fields
-    /// are extractor dependent and routinely absent - a null size in particular means
-    /// "unknown", never "empty", and is the case the size watchdog exists for.
+    /// One rendition a piece of media is offered in. Most fields are extractor dependent
+    /// and routinely absent - a null size in particular means "unknown", never "empty",
+    /// and is the case the size watchdog exists for.
     /// </summary>
-    public sealed record YtDlpFormat(
+    public sealed record MediaFormat(
         string Id,
         string Ext,
         string Resolution,
@@ -50,16 +49,4 @@ namespace NOVAxis.Services.Audio.YtDlp
             return string.Join(' ', parts);
         }
     }
-
-    /// <summary>
-    /// What a download needs to know about a link before committing to fetching it.
-    /// </summary>
-    public sealed record YtDlpMediaInfo(
-        string Title,
-        Uri Url,
-        Uri Thumbnail,
-        TimeSpan Duration,
-        bool IsLive,
-        string Extractor,
-        IReadOnlyList<YtDlpFormat> Formats);
 }

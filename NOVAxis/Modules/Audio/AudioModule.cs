@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Microsoft.Extensions.Options;
@@ -117,14 +118,32 @@ namespace NOVAxis.Modules.Audio
         }
 
         /// <summary>
-        /// Runs a search and hands the outcome over to <see cref="PlayAudio"/>, mapping every
-        /// way the lookup can go wrong onto a message the user can act on.
+        /// Starts a lookup without waiting on it. The extractor is by far the slow half of
+        /// playing something and it needs nothing from the player, so it runs while the bot
+        /// is still joining rather than after - otherwise the track lands in the queue
+        /// seconds behind the bot which came to play it.
         /// </summary>
-        private async Task SearchAndPlay(IAudioPlayer player, string input)
+        private Task<AudioLoadResult> Lookup(string input)
+        {
+            var lookup = SearchService.LoadAsync(input).AsTask();
+
+            // The join may still turn the command away, leaving this awaited by nobody -
+            // and a failure with no observer is one raised at a finalizer instead
+            _ = lookup.ContinueWith(t => _ = t.Exception, CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+
+            return lookup;
+        }
+
+        /// <summary>
+        /// Awaits a lookup and hands the outcome over to <see cref="PlayAudio"/>, mapping
+        /// every way it can go wrong onto a message the user can act on.
+        /// </summary>
+        private async Task SearchAndPlay(IAudioPlayer player, Task<AudioLoadResult> lookup)
         {
             try
             {
-                var result = await SearchService.LoadAsync(input);
+                var result = await lookup;
 
                 if (result.IsFailed)
                 {
@@ -254,10 +273,13 @@ namespace NOVAxis.Modules.Audio
             // Connecting to voice outlasts the acknowledgement window Discord allows
             await DeferAsync();
 
+            // Started before the join, so the two run side by side
+            var lookup = Lookup(input);
+
             var player = await GetPlayerAsync(joinChannel: true);
             if (player == null) return;
 
-            await SearchAndPlay(player, input);
+            await SearchAndPlay(player, lookup);
         }
 
         [ComponentInteraction("AudioControls_*", true)]
@@ -304,10 +326,12 @@ namespace NOVAxis.Modules.Audio
         {
             await DeferAsync();
 
+            var lookup = Lookup(trackUrl);
+
             var player = await GetPlayerAsync(joinChannel: true);
             if (player == null) return;
 
-            await SearchAndPlay(player, trackUrl);
+            await SearchAndPlay(player, lookup);
         }
 
         [ComponentInteraction("TrackControls_Remove,*", true)]
