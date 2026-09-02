@@ -929,89 +929,75 @@ button:disabled {
   flex-shrink: 0;
 }
 
-.hero-actions {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin-top: 14px;
-}
-
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 10px;
 }
 
+/* An icon button like the others, not a slab bolted to the side of the search box */
 .topbar-downloads {
-  white-space: nowrap;
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  flex-shrink: 0;
+}
+
+.topbar-downloads:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.topbar-downloads.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Room only for the fact that something is happening */
+.download-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.download-dot.ready {
+  background: var(--accent);
+}
+
+.download-dot.failed {
+  background: var(--danger);
+  box-shadow: none;
 }
 
 /* ---------- downloads ---------- */
 
-.downloads {
-  justify-content: flex-start;
-  align-items: center;
-  padding: 10vh 20px 60px;
-  gap: 20px;
-  overflow-y: auto;
-}
-
-.downloads > * {
-  width: min(760px, 100%);
-}
-
-.downloads-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.downloads-head h1 {
-  font-family: var(--font-display);
-  font-size: 28px;
-  margin: 6px 0;
-}
-
-.downloads-sub {
-  color: var(--dim);
-  font-size: 14px;
-  max-width: 52ch;
-}
-
-.downloads-nav {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.download-panel {
+/* The same card the hero and the queue sit in, so the view reads as one page */
+.panel {
+  display: grid;
+  gap: 16px;
+  padding: 26px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 18px;
-  display: grid;
-  gap: 14px;
+  border-radius: 14px;
 }
 
 .download-form {
   display: flex;
   gap: 10px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .download-form .search-field {
   flex: 1;
-}
-
-.download-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  min-width: 240px;
 }
 
 .download-quota {
@@ -1032,7 +1018,7 @@ button:disabled {
 
 .download-found {
   display: flex;
-  gap: 14px;
+  gap: 16px;
   align-items: center;
 }
 
@@ -1057,7 +1043,7 @@ button:disabled {
 .format-list {
   display: grid;
   gap: 8px;
-  max-height: 280px;
+  max-height: 260px;
   overflow-y: auto;
 }
 
@@ -1073,7 +1059,6 @@ button:disabled {
   color: var(--text);
   text-align: left;
   font-size: 13px;
-  cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
@@ -1116,7 +1101,7 @@ button:disabled {
   color: var(--dim);
 }
 
-.download-file {
+.download-actions {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -1154,9 +1139,8 @@ button:disabled {
   font-family: var(--font-body);
   font-size: 14px;
   font-weight: 600;
-  cursor: pointer;
   text-decoration: none;
-  transition: box-shadow 0.15s ease, opacity 0.15s ease;
+  transition: box-shadow 0.15s ease;
 }
 
 .btn-solid:hover:not(:disabled) {
@@ -1185,6 +1169,13 @@ button:disabled {
   border-color: var(--accent);
 }
 
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
 
 /* ---------- player bar ---------- */
 
@@ -1354,11 +1345,13 @@ button:disabled {
   }
 
   .topbar-actions {
-    width: 100%;
+    flex: 1;
+    justify-content: flex-end;
   }
 
-  .topbar-downloads span:not(.download-badge) {
-    display: none;
+  /* With no search box beside it there is nothing to wrap for */
+  .topbar-actions.compact {
+    flex: 0 0 auto;
   }
 
   .main {
@@ -1405,8 +1398,8 @@ button:disabled {
     opacity: 1;
   }
 
-  .downloads {
-    padding-top: 6vh;
+  .panel {
+    padding: 18px;
   }
 
   .format-row {

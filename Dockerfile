@@ -37,7 +37,8 @@ COPY --from=client /src/dist /app/NOVAxis/wwwroot
 
 WORKDIR /app/NOVAxis
 RUN dotnet restore
-RUN dotnet publish -c Release -o out
+# The frontend is already built and copied in above, and this stage has no node
+RUN dotnet publish -c Release -o out -p:BuildClientApp=false
 
 # -- Runtime --
 

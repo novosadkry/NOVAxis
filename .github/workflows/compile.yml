@@ -55,8 +55,9 @@ jobs:
 
     # Execute all unit tests in the solution
     - name: Execute unit tests
-      run: dotnet test --no-restore --verbosity normal
+      run: dotnet test --no-restore --verbosity normal -p:BuildClientApp=false
       
     # Build on all platforms and configurations
     - name: Build ${{ matrix.configuration }} on ${{ matrix.os }}
-      run: dotnet build --configuration ${{ matrix.configuration }} --no-restore
+      # Built in its own step above, where a frontend break reports as one
+      run: dotnet build --configuration ${{ matrix.configuration }} --no-restore -p:BuildClientApp=false

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { TrackDto } from '../api'
 import { LiveState } from '../live'
 import { Download, Note } from '../Icons'
-import { downloadHref } from '../pages/DownloadsPage'
+import { downloadHref } from '../downloads'
 
 /**
  * The hero - what the core is playing right now, with who asked for it.

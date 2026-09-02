@@ -8,7 +8,28 @@
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <!-- The frontend builds through npm, so msbuild must not glob it -->
     <DefaultItemExcludes>$(DefaultItemExcludes);Web/ClientApp/**</DefaultItemExcludes>
+
+    <!--
+      The frontend is built along with the project, so running the bot serves the client
+      that matches the code rather than whatever was in wwwroot from last time. The image
+      and CI build it in a step of their own and pass -p:BuildClientApp=false.
+    -->
+    <BuildClientApp Condition="'$(BuildClientApp)' == ''">true</BuildClientApp>
+    <ClientAppDirectory>$(MSBuildProjectDirectory)/Web/ClientApp</ClientAppDirectory>
   </PropertyGroup>
+
+  <ItemGroup Condition="'$(BuildClientApp)' == 'true'">
+    <!--
+      Named rather than globbed: an Exclude is applied after the Include has walked the
+      tree, and walking node_modules on every build costs more than the build itself.
+    -->
+    <ClientAppInput Include="$(ClientAppDirectory)/src/**" />
+    <ClientAppInput Include="$(ClientAppDirectory)/index.html" />
+    <ClientAppInput Include="$(ClientAppDirectory)/package.json" />
+    <ClientAppInput Include="$(ClientAppDirectory)/package-lock.json" />
+    <ClientAppInput Include="$(ClientAppDirectory)/tsconfig.json" />
+    <ClientAppInput Include="$(ClientAppDirectory)/vite.config.ts" />
+  </ItemGroup>
   <ItemGroup>
     <None Update="config.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -56,4 +77,32 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.7" />
   </ItemGroup>
+
+  <Target Name="CheckClientAppTooling" Condition="'$(BuildClientApp)' == 'true'">
+    <Exec Command="npm --version" WorkingDirectory="$(ClientAppDirectory)"
+          IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low">
+      <Output TaskParameter="ExitCode" PropertyName="ClientAppNpmExitCode" />
+    </Exec>
+    <!-- Saying so beats building a bot which quietly serves nothing -->
+    <Error Condition="'$(ClientAppNpmExitCode)' != '0'"
+           Text="The web player needs npm to build. Install Node 22, or pass -p:BuildClientApp=false to build the bot without a frontend." />
+  </Target>
+
+  <Target Name="RestoreClientApp" DependsOnTargets="CheckClientAppTooling"
+          Condition="'$(BuildClientApp)' == 'true' And !Exists('$(ClientAppDirectory)/node_modules')">
+    <Message Importance="high" Text="Installing web player dependencies..." />
+    <Exec Command="npm ci" WorkingDirectory="$(ClientAppDirectory)" />
+  </Target>
+
+  <!--
+    Before the build rather than after, so the files exist by the time publish decides what
+    to carry. Skipped whenever nothing under ClientApp has changed since the last one.
+  -->
+  <Target Name="BuildClientApp" BeforeTargets="Build" DependsOnTargets="RestoreClientApp"
+          Condition="'$(BuildClientApp)' == 'true'"
+          Inputs="@(ClientAppInput)" Outputs="$(MSBuildProjectDirectory)/wwwroot/index.html">
+    <Message Importance="high" Text="Building the web player frontend..." />
+    <Exec Command="npm run build:bot" WorkingDirectory="$(ClientAppDirectory)" />
+  </Target>
+
 </Project>
