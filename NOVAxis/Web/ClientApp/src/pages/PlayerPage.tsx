@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom'
 import { api, TrackDto } from '../api'
 import { useGuilds } from '../guilds'
 import { usePlayerState } from '../player'
-import { describeFailure, describeFreed, useDownloads } from '../downloads'
+import { describeFailure, useDownloads } from '../downloads'
 import { useToast } from '../Toast'
 import { AppShell } from '../components/AppShell'
 import { NowPlaying } from '../components/NowPlaying'
@@ -38,14 +38,10 @@ export function PlayerPage() {
       setStarting(track.uri)
 
       try {
-        const { freed } = await api.startDownload(track.uri, 'Audio', '', track.title)
+        await api.startDownload(track.uri, 'Audio', '', track.title)
         reload()
 
-        toast(
-          freed.length > 0
-            ? `Stahuji „${track.title}“ — ${describeFreed(freed).toLowerCase()}`
-            : `Stahuji „${track.title}“`,
-        )
+        toast(`Stahuji „${track.title}“`)
       } catch (error) {
         toast(describeFailure(error))
       } finally {

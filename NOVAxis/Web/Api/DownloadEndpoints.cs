@@ -131,12 +131,11 @@ namespace NOVAxis.Web.Api
 
             try
             {
-                var started = await downloads.RequestAsync(
+                var record = await downloads.RequestAsync(
                     userId, request.Url, kind, request.FormatId,
                     title: request.Title, cancellationToken: cancellationToken);
 
-                return Results.Ok(new DownloadStartedDto(
-                    DownloadDto.FromRecord(started.Record), started.Freed));
+                return Results.Ok(DownloadDto.FromRecord(record));
             }
             catch (DownloadException e)
             {

@@ -62,6 +62,8 @@ export interface DownloadFormatDto {
   extension: string
   sizeBytes: number | null
   withinLimit: boolean
+  /** The size is what the bitrate implies, not what the source reported. */
+  estimated: boolean
 }
 
 export interface DownloadProbeDto {
@@ -98,6 +100,8 @@ export interface DownloadDto {
   sampledAt: number
   fileUrl: string | null
   error: string | null
+  /** Older links of yours retired to fit this one in. Almost always empty. */
+  freed: string[]
 }
 
 export interface DownloadStorageDto {
@@ -109,12 +113,6 @@ export interface DownloadOverviewDto {
   downloads: DownloadDto[]
   storage: DownloadStorageDto
   quota: DownloadQuotaDto
-}
-
-/** A download just started, with any older links of yours retired to make room. */
-export interface DownloadStartedDto {
-  download: DownloadDto
-  freed: string[]
 }
 
 export class ApiError extends Error {
@@ -211,7 +209,7 @@ export const api = {
    * spares it a lookup it would otherwise make only to read the name back.
    */
   startDownload: (url: string, kind: DownloadDto['kind'], formatId = '', title = '') =>
-    post<DownloadStartedDto>('/api/downloads', { url, kind, formatId, title }),
+    post<DownloadDto>('/api/downloads', { url, kind, formatId, title }),
 
   revokeDownload: (id: string) =>
     request<void>(`/api/downloads/${id}`, { method: 'DELETE' }),

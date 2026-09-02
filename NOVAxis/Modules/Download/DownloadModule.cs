@@ -134,11 +134,11 @@ namespace NOVAxis.Modules.Download
 
             var media = pending.Media;
 
-            DownloadStart started;
+            DownloadRecord record;
 
             try
             {
-                started = await DownloadService.RequestAsync(
+                record = await DownloadService.RequestAsync(
                     Context.User.Id, media.Uri?.AbsoluteUri ?? media.Title, kind, formatId, media);
             }
             catch (DownloadException e)
@@ -156,7 +156,6 @@ namespace NOVAxis.Modules.Download
                 return;
             }
 
-            var record = started.Record;
             var progress = await FollowupAsync(ephemeral: true, embed: DownloadEmbeds.Preparing(record));
 
             try
@@ -165,7 +164,7 @@ namespace NOVAxis.Modules.Download
             }
             catch (Exception) { /* the record carries the outcome */ }
 
-            await ReportAsync(progress, record, started.Freed);
+            await ReportAsync(progress, record);
         }
 
         /// <summary>
@@ -173,13 +172,12 @@ namespace NOVAxis.Modules.Download
         /// editable while its interaction token lives, which outlasts the download timeout -
         /// but not by so much that the fallback is pointless.
         /// </summary>
-        private async Task ReportAsync(
-            IUserMessage progress, DownloadRecord record, IReadOnlyList<string> freed)
+        private async Task ReportAsync(IUserMessage progress, DownloadRecord record)
         {
             var url = WebOptions.Value.GetDownloadUrl(record.Id);
 
             var embed = record.State == DownloadState.Ready
-                ? DownloadEmbeds.Ready(record, freed)
+                ? DownloadEmbeds.Ready(record, record.Freed)
                 : DownloadEmbeds.Failed(record.Title, $"({record.Error ?? "Zkus to prosím znovu"})");
 
             var components = record.State == DownloadState.Ready && url != null

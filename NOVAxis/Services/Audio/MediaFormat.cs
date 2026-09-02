@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace NOVAxis.Services.Audio
@@ -22,6 +23,24 @@ namespace NOVAxis.Services.Audio
         // a plain file, and treating that as "no video" would drop every direct link
         public bool HasVideo => VideoCodec != "none";
         public bool HasAudio => AudioCodec != "none";
+
+        /// <summary>
+        /// How many bytes this rendition is likely to be, given how long the media runs.
+        /// The reported size when there is one, otherwise what the bitrate implies - which
+        /// is how yt-dlp derives its own approximation, and the only thing left to go on
+        /// for a fragmented stream. Null when it reports neither.
+        /// </summary>
+        public long? SizeOver(TimeSpan duration)
+        {
+            if (Size.HasValue)
+                return Size;
+
+            if (Bitrate is not > 0 || duration <= TimeSpan.Zero)
+                return null;
+
+            // tbr is kilobits per second, and a kilobit here is a thousand bits
+            return (long)(Bitrate.Value * 1000 / 8 * duration.TotalSeconds);
+        }
 
         /// <summary>
         /// A short human label - "1080p mp4 60fps". The size is left out: callers render

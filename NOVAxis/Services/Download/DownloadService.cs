@@ -28,15 +28,10 @@ namespace NOVAxis.Services.Download
         string Label,
         string Extension,
         long? Size,
-        bool WithinLimit);
+        bool WithinLimit,
+        bool Estimated = false);
 
     public sealed record DownloadQuota(int Limit, int Remaining, DateTimeOffset? ResetsAt);
-
-    /// <summary>
-    /// A started download, and the titles of whatever had to be retired to fit it in.
-    /// Empty almost always - it is only ever the caller's own oldest links.
-    /// </summary>
-    public sealed record DownloadStart(DownloadRecord Record, IReadOnlyList<string> Freed);
 
     /// <summary>
     /// The whole download feature, and the only place its rules live. Both the slash command
@@ -133,25 +128,28 @@ namespace NOVAxis.Services.Download
 
             if (kind == DownloadKind.Audio)
             {
+                var size = ExtractedSize(media);
+
                 return options.AudioFormats
-                    .Select(f => new DownloadChoice(f, DownloadKind.Audio, f.ToUpperInvariant(), f, null, true))
+                    .Select(f => new DownloadChoice(f, DownloadKind.Audio, f.ToUpperInvariant(), f,
+                        size, !size.HasValue || size.Value <= options.MaxFileSize, size.HasValue))
                     .ToList();
             }
 
             var bestAudio = media.Formats
                 .Where(f => f.HasAudio && !f.HasVideo)
-                .Select(f => f.Size)
+                .Select(f => f.SizeOver(media.Duration))
                 .Where(s => s.HasValue)
                 .DefaultIfEmpty(null)
                 .Max();
 
             return media.Formats
                 .Where(f => f.HasVideo)
-                .OrderByDescending(f => f.Size ?? 0)
+                .OrderByDescending(f => f.SizeOver(media.Duration) ?? 0)
                 .ThenByDescending(f => f.Bitrate ?? 0)
                 .Select(f =>
                 {
-                    var size = f.Size;
+                    var size = f.SizeOver(media.Duration);
 
                     if (size.HasValue && !f.HasAudio && bestAudio.HasValue)
                         size += bestAudio.Value;
@@ -162,16 +160,42 @@ namespace NOVAxis.Services.Download
                         f.Describe(),
                         f.Ext,
                         size,
-                        !size.HasValue || size.Value <= options.MaxFileSize);
+                        !size.HasValue || size.Value <= options.MaxFileSize,
+                        size.HasValue && !f.Size.HasValue);
                 })
                 .ToList();
+        }
+
+        /// <summary>
+        /// What extracting the audio is likely to leave on disk. The source stream is what
+        /// gets fetched, and "--audio-quality 0" re-encodes it at the best the format does
+        /// - which can come out larger than it went in, so the encoder's own ceiling is
+        /// what counts where it is higher than the source. Null when the source says
+        /// neither a size nor a bitrate.
+        /// </summary>
+        private static long? ExtractedSize(AudioTrack media)
+        {
+            var source = media.Formats
+                .Where(f => f.HasAudio && !f.HasVideo)
+                .Select(f => f.SizeOver(media.Duration))
+                .Where(s => s.HasValue)
+                .DefaultIfEmpty(null)
+                .Max();
+
+            if (source == null || media.Duration <= TimeSpan.Zero)
+                return source;
+
+            // A generous VBR ceiling: LAME V0 lands around 245 kbps and the others near it
+            var ceiling = (long)(256 * 1000 / 8 * media.Duration.TotalSeconds);
+
+            return System.Math.Max(source.Value, ceiling);
         }
 
         /// <summary>
         /// Prepares a download and starts it. Returns as soon as the record exists - the work
         /// itself outlives the request that asked for it.
         /// </summary>
-        public async Task<DownloadStart> RequestAsync(
+        public async Task<DownloadRecord> RequestAsync(
             ulong userId,
             string url,
             DownloadKind kind,
@@ -212,15 +236,13 @@ namespace NOVAxis.Services.Download
 
             try
             {
-                // What this one will occupy. An unknown size has to be assumed to be the
-                // largest it is allowed to become, or a budget could be walked past by
-                // asking only for things yt-dlp cannot measure
-                var wanted = choice?.Size ?? options.MaxFileSize;
+                // What this one will occupy, when that can be said at all
+                var wanted = choice?.Size;
 
                 if (wanted > options.MaxBytesPerUser)
                 {
                     throw new DownloadException(DownloadFailure.TooLarge,
-                        $"Tohle je {Megabytes(wanted)} MB a tvůj prostor je " +
+                        $"Tohle je {Megabytes(wanted.Value)} MB a tvůj prostor je " +
                         $"{Megabytes(options.MaxBytesPerUser)} MB");
                 }
 
@@ -230,11 +252,17 @@ namespace NOVAxis.Services.Download
                         "Jedno stahování ti už běží, počkej než doběhne");
                 }
 
-                // Room is made out of this person's own links and nobody else's: being
-                // busy must never cost someone their link to make space for a stranger
-                freed = await FreeRoomAsync(userId, wanted, options);
+                // Room is made out of this person's own links and nobody else's: being busy
+                // must never cost someone their link to make space for a stranger. And only
+                // against a size we actually have - nothing is taken away on a guess, since
+                // the real figure settles the budget the moment the download lands
+                freed = wanted.HasValue
+                    ? await FreeRoomAsync(userId, wanted.Value, options)
+                    : [];
 
-                if (Store.TotalBytes + wanted > options.OutputFolderLimit)
+                // The folder is shared, so overshooting it is someone else's problem too -
+                // there the unknown case is still charged the most it could become
+                if (Store.TotalBytes + (wanted ?? options.MaxFileSize) > options.OutputFolderLimit)
                 {
                     Logger.Warning("The download folder is full, refusing new downloads");
                     throw new DownloadException(DownloadFailure.StorageFull,
@@ -259,6 +287,7 @@ namespace NOVAxis.Services.Download
                 try
                 {
                     record = Begin(userId, kind, Target(media, normalized), Name(media, title), choice, formatId, options);
+                    record.Freed = freed;
                 }
                 catch (Exception)
                 {
@@ -275,7 +304,7 @@ namespace NOVAxis.Services.Download
 
             Logger.Info($"Download {record.Id} started for user {userId} ({kind}, {record.FormatLabel})");
 
-            return new DownloadStart(record, freed);
+            return record;
         }
 
         /// <summary>
@@ -409,6 +438,11 @@ namespace NOVAxis.Services.Download
 
                 Store.Publish(record, outcome.FilePath, outcome.Size);
 
+                // Admission could only estimate, and for some links not even that. Now that
+                // the figure is real, the budget is settled against it - which is what lets
+                // admission stay optimistic instead of retiring links to cover a guess
+                await SettleAsync(record);
+
                 Logger.Info($"Download {record.Id} ready: {Megabytes(outcome.Size)} MB");
             }
             catch (OperationCanceledException)
@@ -433,6 +467,58 @@ namespace NOVAxis.Services.Download
             finally
             {
                 Downloader.Exit();
+            }
+        }
+
+        /// <summary>
+        /// Brings a person back inside their budget once a download's true size is known,
+        /// by retiring their oldest links - never the one just finished, and never anyone
+        /// else's. Records what went on the download which caused it, so the surfaces can
+        /// say so where they report it.
+        /// </summary>
+        private async Task SettleAsync(DownloadRecord record)
+        {
+            var options = Options.Value;
+            var gate = Store.Gate(record.OwnerId);
+
+            // A request of theirs holding the gate frees room itself, and against the very
+            // size just written - so there is nothing here worth waiting for it to finish
+            if (!await gate.WaitAsync(0))
+                return;
+
+            try
+            {
+                var held = Store.BytesOf(record.OwnerId);
+
+                if (held <= options.MaxBytesPerUser)
+                    return;
+
+                var older = Store.FindByOwner(record.OwnerId)
+                    .Where(r => r.Id != record.Id && r.IsFinished)
+                    .OrderBy(r => r.CreatedAt)
+                    .ToList();
+
+                var freed = new List<string>();
+
+                foreach (var stale in older)
+                {
+                    if (held <= options.MaxBytesPerUser)
+                        break;
+
+                    Logger.Debug($"Retiring download {stale.Id} of user {record.OwnerId} to settle their space");
+
+                    held -= stale.Size;
+                    freed.Add(stale.Title);
+
+                    await Store.RemoveAsync(stale, DownloadState.Revoked);
+                }
+
+                if (freed.Count > 0)
+                    record.Freed = [.. record.Freed, .. freed];
+            }
+            finally
+            {
+                gate.Release();
             }
         }
 

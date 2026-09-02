@@ -94,7 +94,13 @@ namespace NOVAxis.Web.Contracts
         string Label,
         string Extension,
         long? SizeBytes,
-        bool WithinLimit)
+        bool WithinLimit,
+
+        /// <summary>
+        /// True where the size is what the bitrate implies rather than what the source
+        /// reported, so the page can show it as an approximation.
+        /// </summary>
+        bool Estimated)
     {
         public static DownloadFormatDto FromChoice(DownloadChoice choice) => new(
             choice.Id,
@@ -102,7 +108,8 @@ namespace NOVAxis.Web.Contracts
             choice.Label,
             choice.Extension,
             choice.Size,
-            choice.WithinLimit);
+            choice.WithinLimit,
+            choice.Estimated);
     }
 
     public record DownloadProbeDto(
@@ -136,7 +143,13 @@ namespace NOVAxis.Web.Contracts
         long ExpiresAt,
         long SampledAt,
         string FileUrl,
-        string Error)
+        string Error,
+
+        /// <summary>
+        /// Older links of the caller's retired to fit this one in, so the page can say
+        /// what went rather than leaving them to find a link that stopped working.
+        /// </summary>
+        IReadOnlyList<string> Freed)
     {
         public static DownloadDto FromRecord(DownloadRecord record)
         {
@@ -165,7 +178,8 @@ namespace NOVAxis.Web.Contracts
                 DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
 
                 ready ? $"/api/downloads/{record.Id}/file" : null,
-                record.Error);
+                record.Error,
+                record.Freed);
         }
 
         private static double? Ratio(long received, long? total)
@@ -192,13 +206,6 @@ namespace NOVAxis.Web.Contracts
         IReadOnlyList<DownloadDto> Downloads,
         DownloadStorageDto Storage,
         DownloadQuotaDto Quota);
-
-    /// <summary>
-    /// A download just started, with the titles of any of the caller's older links which
-    /// were retired to make room for it - so the page can say what went rather than
-    /// leaving them to notice.
-    /// </summary>
-    public record DownloadStartedDto(DownloadDto Download, IReadOnlyList<string> Freed);
 
     public record DownloadStorageDto(long UsedBytes, long LimitBytes)
     {

@@ -58,6 +58,13 @@ namespace NOVAxis.Services.Download
         /// <summary>What was known about the size before the download started, if anything.</summary>
         public long? EstimatedSize { get; init; }
 
+        /// <summary>
+        /// Titles of the owner's older links retired to fit this one - at admission where
+        /// the size was known, and again once the real one settled the budget. Almost
+        /// always empty; never anybody else's.
+        /// </summary>
+        public IReadOnlyList<string> Freed { get; set; } = [];
+
         public string FilePath { get; set; }
         public string Error { get; set; }
 
@@ -145,19 +152,18 @@ namespace NOVAxis.Services.Download
         }
 
         /// <summary>
-        /// What a person's downloads take up. A download still running is charged what it
-        /// is expected to reach rather than what it has written so far - admitting against
-        /// a half-fetched file would let a budget be walked straight past.
+        /// What a person's downloads take up. One still running is charged whichever is
+        /// larger of what it was expected to be and what it has actually written - never a
+        /// blanket ceiling, because the budget is settled against the real figure the
+        /// moment it lands, and charging a guess would retire links to cover it.
         /// </summary>
         public long BytesOf(ulong ownerId)
         {
-            var ceiling = Options.Value.MaxFileSize;
-
             return _byId.Values
                 .Where(r => r.OwnerId == ownerId)
                 .Sum(r => r.IsFinished
                     ? r.Size
-                    : System.Math.Max(r.Size, r.EstimatedSize ?? ceiling));
+                    : System.Math.Max(r.Received, r.EstimatedSize ?? 0));
         }
 
         /// <summary>Whether this person already has one being fetched.</summary>

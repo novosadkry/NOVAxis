@@ -117,12 +117,10 @@ export function DownloadsPage() {
     setStarting(true)
 
     try {
-      const { freed } = await api.startDownload(probe.url, chosen.kind, chosen.id, probe.title)
+      // What it displaced, if anything, is shown on the download's own card - room is
+      // often only needed once the real size lands, which is after this returns
+      await api.startDownload(probe.url, chosen.kind, chosen.id, probe.title)
       reload()
-
-      // Room comes out of their own oldest links, and a link that stopped working
-      // without a word is worse than the wait
-      if (freed.length > 0) toast(describeFreed(freed))
     } catch (failure) {
       toast(describeFailure(failure))
     } finally {
@@ -332,6 +330,10 @@ function DownloadCard({ download, onRevoke }: DownloadCardProps) {
       {download.state === 'Failed' && (
         <p className="download-error">{download.error ?? 'Stahování se nezdařilo'}</p>
       )}
+
+      {download.freed.length > 0 && (
+        <p className="download-hint">{describeFreed(download.freed)}</p>
+      )}
     </div>
   )
 }
@@ -368,7 +370,9 @@ function FormatPicker({ formats, selected, onSelect }: FormatPickerProps) {
                 >
                   <span>{format.label}</span>
                   <span className="format-size">
-                    {format.sizeBytes === null ? '~ neznámá' : formatBytes(format.sizeBytes)}
+                    {format.sizeBytes === null
+                      ? 'neznámá'
+                      : `${format.estimated ? '~' : ''}${formatBytes(format.sizeBytes)}`}
                   </span>
                   {!format.withinLimit && <span className="format-too-large">nad limit</span>}
                 </button>
