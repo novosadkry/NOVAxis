@@ -1,22 +1,23 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 
-import { api, PlayerStateDto, QueueItemDto } from '../api'
+import { api, PlayerStateDto, QueueItemDto, TrackDto } from '../api'
 import { formatDuration, formatTotal } from '../format'
 import { Close, Download, Grip } from '../Icons'
 import { useToast } from '../Toast'
-import { downloadHref } from '../pages/DownloadsPage'
 
 interface QueueListProps {
   guildId: string
   state: PlayerStateDto | null
+  /** Starts the download straight away - the format is the server's to pick. */
+  onDownload: (track: TrackDto) => void
+  startingUri: string | null
 }
 
 /**
  * The waiting tracks, in play order. Rows drag to reorder and every mutation is
  * applied locally first - the next server snapshot settles the truth.
  */
-export function QueueList({ guildId, state }: QueueListProps) {
+export function QueueList({ guildId, state, onDownload, startingUri }: QueueListProps) {
   const { run } = useToast()
   const [items, setItems] = useState<QueueItemDto[]>([])
   const [dragId, setDragId] = useState<string | null>(null)
@@ -124,15 +125,20 @@ export function QueueList({ guildId, state }: QueueListProps) {
               {formatDuration(item.track.durationMs, item.track.isLiveStream)}
             </span>
             {item.track.uri && !item.track.isLiveStream && (
-              <Link
+              <button
+                type="button"
                 className="icon-btn queue-download"
-                to={downloadHref(item.track.uri, `/g/${guildId}`)}
                 aria-label={`Stáhnout ${item.track.title}`}
-                title="Stáhnout"
-                onDragStart={event => event.preventDefault()}
+                title="Stáhnout zvuk"
+                disabled={startingUri !== null}
+                onClick={() => onDownload(item.track)}
               >
-                <Download size={16} />
-              </Link>
+                {startingUri === item.track.uri ? (
+                  <span className="btn-spinner" aria-hidden="true" />
+                ) : (
+                  <Download size={16} />
+                )}
+              </button>
             )}
             <button
               type="button"

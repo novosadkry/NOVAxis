@@ -896,6 +896,47 @@ button:disabled {
   color: var(--accent);
 }
 
+/* The download's state, where the sidebar already links to it */
+.download-badge {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.download-badge.ready {
+  background: rgba(52, 231, 231, 0.22);
+}
+
+.download-badge.failed {
+  background: rgba(229, 72, 77, 0.14);
+  color: var(--danger);
+}
+
+/* Matches .search-spinner, sized for a row button */
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  animation: spin 0.9s linear infinite;
+  flex-shrink: 0;
+}
+
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
 /* ---------- downloads ---------- */
 
 .downloads {
@@ -1128,14 +1169,11 @@ button:disabled {
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 
-.btn-ghost:hover {
+.btn-ghost:hover:not(:disabled) {
   color: var(--text);
   border-color: var(--accent);
 }
 
-.hero-actions {
-  margin-top: 14px;
-}
 
 /* ---------- player bar ---------- */
 

@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
-import { api, GuildDto } from '../api'
-import { usePlayerState } from '../live'
+import { api, GuildDto, TrackDto } from '../api'
+import { useDownload, usePlayerState } from '../live'
 import { useUser } from '../user'
+import { useToast } from '../Toast'
 import { Download, Power } from '../Icons'
+import { describeFailure } from './DownloadsPage'
 import { NowPlaying } from '../components/NowPlaying'
 import { PlayerBar } from '../components/PlayerBar'
 import { QueueList } from '../components/QueueList'
@@ -19,6 +21,39 @@ export function PlayerPage() {
   const user = useUser()
   const live = usePlayerState(guildId)
   const [guilds, setGuilds] = useState<GuildDto[]>([])
+
+  // One place watches the download, so the rows and the card do not each poll for it
+  const { overview, reload } = useDownload()
+  const { toast } = useToast()
+  const [starting, setStarting] = useState<string | null>(null)
+
+  const active = overview?.active ?? null
+
+  const quickDownload = useCallback(
+    async (track: TrackDto) => {
+      if (!track.uri || starting) return
+
+      // Only one link lives at a time, so say so rather than quietly taking the last one
+      const replacing = active !== null && (active.state === 'Ready' || active.state === 'Running' || active.state === 'Pending')
+
+      setStarting(track.uri)
+
+      try {
+        await api.startDownload(track.uri, 'Audio')
+        reload()
+        toast(
+          replacing
+            ? `Stahuji „${track.title}“ — předchozí odkaz byl nahrazen`
+            : `Stahuji „${track.title}“`,
+        )
+      } catch (error) {
+        toast(describeFailure(error))
+      } finally {
+        setStarting(null)
+      }
+    },
+    [active, reload, starting, toast],
+  )
 
   useEffect(() => {
     api.guilds().then(setGuilds).catch(() => setGuilds([]))
@@ -58,6 +93,16 @@ export function PlayerPage() {
             <Download size={16} />
           </span>
           <span className="sidebar-guild-name">Stahování</span>
+          {active && active.state !== 'Failed' && (
+            <span className={`download-badge${active.state === 'Ready' ? ' ready' : ''}`}>
+              {active.state === 'Ready'
+                ? 'hotovo'
+                : active.progress !== null
+                  ? `${Math.round(active.progress * 100)} %`
+                  : '…'}
+            </span>
+          )}
+          {active?.state === 'Failed' && <span className="download-badge failed">chyba</span>}
         </Link>
         {user && (
           <div className="sidebar-user">
@@ -98,8 +143,13 @@ export function PlayerPage() {
 
         {!live.error && (
           <>
-            <NowPlaying live={live} />
-            <QueueList guildId={guildId} state={state} />
+            <NowPlaying live={live} onDownload={quickDownload} startingUri={starting} />
+            <QueueList
+              guildId={guildId}
+              state={state}
+              onDownload={quickDownload}
+              startingUri={starting}
+            />
           </>
         )}
       </main>

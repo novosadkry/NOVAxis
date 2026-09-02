@@ -29,7 +29,7 @@ const FileErrors: Record<string, string> = {
   not_found: 'Soubor už na serveru není',
 }
 
-function describeFailure(error: unknown): string {
+export function describeFailure(error: unknown): string {
   if (!(error instanceof ApiError)) return 'Nastala neznámá chyba'
 
   // The limiter answers without a code; the hourly quota answers with one

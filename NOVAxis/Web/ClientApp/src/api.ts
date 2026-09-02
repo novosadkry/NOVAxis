@@ -194,7 +194,8 @@ export const api = {
   probeDownload: (url: string, signal?: AbortSignal) =>
     request<DownloadProbeDto>(`/api/downloads/probe?url=${encodeURIComponent(url)}`, { signal }),
 
-  startDownload: (url: string, kind: DownloadDto['kind'], formatId: string) =>
+  /** An empty formatId leaves the choice to the server. */
+  startDownload: (url: string, kind: DownloadDto['kind'], formatId = '') =>
     post<DownloadDto>('/api/downloads', { url, kind, formatId }),
 
   revokeDownload: (id: string) =>

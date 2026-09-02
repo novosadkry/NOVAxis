@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 
+import { TrackDto } from '../api'
 import { LiveState } from '../live'
 import { Download, Note } from '../Icons'
 import { downloadHref } from '../pages/DownloadsPage'
@@ -8,7 +9,13 @@ import { downloadHref } from '../pages/DownloadsPage'
  * The hero - what the core is playing right now, with who asked for it.
  * When nothing plays, it turns into a quiet invitation instead.
  */
-export function NowPlaying({ live }: { live: LiveState }) {
+interface NowPlayingProps {
+  live: LiveState
+  onDownload: (track: TrackDto) => void
+  startingUri: string | null
+}
+
+export function NowPlaying({ live, onDownload, startingUri }: NowPlayingProps) {
   const state = live.state
   const item = state?.current
 
@@ -70,8 +77,21 @@ export function NowPlaying({ live }: { live: LiveState }) {
         {/* A live stream has no end, so it would only ever hit the size ceiling */}
         {track.uri && !track.isLiveStream && (
           <div className="hero-actions">
-            <Link className="btn-ghost" to={downloadHref(track.uri, `/g/${state.guildId}`)}>
-              <Download size={16} /> Stáhnout
+            <button
+              type="button"
+              className="btn-ghost"
+              disabled={startingUri !== null}
+              onClick={() => onDownload(track)}
+            >
+              {startingUri === track.uri ? (
+                <span className="btn-spinner" aria-hidden="true" />
+              ) : (
+                <Download size={16} />
+              )}
+              Stáhnout zvuk
+            </button>
+            <Link className="text-btn" to={downloadHref(track.uri, `/g/${state.guildId}`)}>
+              Vybrat formát
             </Link>
           </div>
         )}

@@ -386,6 +386,15 @@ namespace NOVAxis.Services.Download
 
             if (kind == DownloadKind.Audio)
             {
+                // Naming none means "whatever you would pick", the same as it does for video,
+                // so a caller which only has a link does not have to know our configuration
+                if (string.IsNullOrEmpty(formatId))
+                {
+                    return choices.FirstOrDefault()
+                           ?? throw new DownloadException(DownloadFailure.Unsupported,
+                               "Není nastaven žádný zvukový formát");
+                }
+
                 // The audio formats are ours, not yt-dlp's, and go straight into an argument
                 var match = choices.FirstOrDefault(c =>
                     string.Equals(c.Id, formatId, StringComparison.OrdinalIgnoreCase));
