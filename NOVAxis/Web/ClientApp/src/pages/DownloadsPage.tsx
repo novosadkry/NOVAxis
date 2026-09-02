@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 
 import { DownloadDto, DownloadFormatDto, DownloadProbeDto, api, isAbortError } from '../api'
 import { describeFailure, describeFileError, isLive, useDownloads } from '../downloads'
-import { usePlayerState } from '../live'
+import { useGuilds } from '../guilds'
+import { usePlayerState } from '../player'
 import { formatBytes, formatDuration } from '../format'
 import { Close, Download, Note } from '../Icons'
 import { useToast } from '../Toast'
@@ -42,10 +43,11 @@ function useRemaining(expiresAt: number | undefined, sampledAt: number | undefin
  * transport keeps playing, so this is somewhere you look rather than somewhere you go.
  */
 export function DownloadsPage() {
-  // Reached with a guild when coming from its player, and without from the picker or a
-  // link handed out on Discord
-  const { guildId } = useParams()
-  const live = usePlayerState(guildId ?? '')
+  // Downloads belong to the person, not to a guild - but the page still sits in the
+  // frame of whichever guild was last open, so the transport carries on playing. There
+  // is none when the page was reached cold, from a link handed out on Discord
+  const { lastGuildId: guildId } = useGuilds()
+  const live = usePlayerState(guildId)
 
   const { toast, run } = useToast()
   const [params, setParams] = useSearchParams()
@@ -135,7 +137,7 @@ export function DownloadsPage() {
 
   return (
     <AppShell
-      activeGuildId={guildId}
+      activeGuildId={guildId ?? undefined}
       activeTool="downloads"
       title="Stahování"
       subtitle="max 100 MB · platí hodinu · jeden naráz"

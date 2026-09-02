@@ -505,7 +505,10 @@ button:disabled {
 
 .search {
   position: relative;
-  width: min(420px, 100%);
+  /* Wide enough for the whole placeholder - it was being squeezed to half of it */
+  flex: 1 1 420px;
+  max-width: 420px;
+  min-width: 0;
 }
 
 .search-field {
@@ -932,7 +935,11 @@ button:disabled {
 .topbar-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
+  /* Claims the room the search box needs, rather than being sized by its contents */
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 /* An icon button like the others, not a slab bolted to the side of the search box */
@@ -1344,12 +1351,7 @@ button:disabled {
     display: block;
   }
 
-  .topbar-actions {
-    flex: 1;
-    justify-content: flex-end;
-  }
-
-  /* With no search box beside it there is nothing to wrap for */
+  /* With no search box beside it there is nothing to claim the room for */
   .topbar-actions.compact {
     flex: 0 0 auto;
   }

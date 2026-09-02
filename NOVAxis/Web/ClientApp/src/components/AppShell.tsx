@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { api, GuildDto } from '../api'
+import { api } from '../api'
 import { useDownloads } from '../downloads'
+import { useGuilds } from '../guilds'
 import { useUser } from '../user'
 import { Download, Power } from '../Icons'
 
@@ -39,16 +39,9 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const user = useUser()
-  const [guilds, setGuilds] = useState<GuildDto[]>([])
-
-  useEffect(() => {
-    api.guilds().then(setGuilds).catch(() => setGuilds([]))
-  }, [])
+  const { guilds } = useGuilds()
 
   const heading = title ?? guilds.find(g => g.id === activeGuildId)?.name ?? '…'
-
-  // Downloads stay with the guild being looked at, so the transport does not go away
-  const downloadsHref = activeGuildId ? `/g/${activeGuildId}/downloads` : '/downloads'
 
   return (
     <div className="app">
@@ -79,7 +72,7 @@ export function AppShell({
 
         <p className="sidebar-label">Nástroje</p>
         <Link
-          to={downloadsHref}
+          to="/downloads"
           className={`sidebar-guild${activeTool === 'downloads' ? ' active' : ''}`}
         >
           <span className="guild-icon-fallback">
@@ -123,7 +116,7 @@ export function AppShell({
             {/* The sidebar is gone below 860px, so the way through lives here too */}
             {activeTool !== 'downloads' && (
               <Link
-                to={downloadsHref}
+                to="/downloads"
                 className="icon-btn topbar-downloads"
                 title="Stahování"
                 aria-label="Stahování"

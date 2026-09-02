@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr'
 
 import { api, ApiError, DownloadOverviewDto, PlayerStateDto } from './api'
 
@@ -8,70 +7,6 @@ export interface LiveState {
   /** Client clock at the moment the snapshot arrived - the interpolation base. */
   receivedAt: number
   error: string | null
-}
-
-/**
- * Subscribes to a guild's live state over SignalR, falling back to polling when
- * the socket cannot be established. Every snapshot is stamped with the client
- * clock so the progress bar interpolates without trusting the server clock.
- */
-export function usePlayerState(guildId: string): LiveState {
-  const [live, setLive] = useState<LiveState>({ state: null, receivedAt: 0, error: null })
-
-  useEffect(() => {
-    let disposed = false
-    let poller: number | undefined
-    let connection: HubConnection | undefined
-
-    const receive = (state: PlayerStateDto) => {
-      if (disposed || state.guildId !== guildId) return
-      setLive({ state, receivedAt: Date.now(), error: null })
-    }
-
-    const fail = (message: string) => {
-      if (disposed) return
-      setLive(prev => ({ ...prev, error: message }))
-    }
-
-    const startPolling = () => {
-      if (disposed || poller !== undefined) return
-
-      const tick = () => api.state(guildId).then(receive).catch(() => undefined)
-
-      tick()
-      poller = window.setInterval(tick, 3000)
-    }
-
-    connection = new HubConnectionBuilder()
-      .withUrl('/hub/player')
-      .withAutomaticReconnect()
-      .build()
-
-    connection.on('state', receive)
-
-    const subscribe = () =>
-      connection!
-        .invoke<PlayerStateDto>('Subscribe', guildId)
-        .then(receive)
-        .catch(() => fail('Nejste členem tohoto serveru'))
-
-    connection.onreconnected(() => void subscribe())
-
-    connection
-      .start()
-      .then(subscribe)
-      .catch(startPolling)
-
-    return () => {
-      disposed = true
-
-      if (poller !== undefined) window.clearInterval(poller)
-
-      connection?.stop().catch(() => undefined)
-    }
-  }, [guildId])
-
-  return live
 }
 
 /**

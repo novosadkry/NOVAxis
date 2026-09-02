@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { api, GuildDto } from '../api'
+import { useGuilds } from '../guilds'
+import { usePlayerState } from '../player'
 import { Download, Note } from '../Icons'
 
 /**
@@ -9,11 +9,11 @@ import { Download, Note } from '../Icons'
  * playing right now marked. Picking one opens its player.
  */
 export function GuildPicker() {
-  const [guilds, setGuilds] = useState<GuildDto[] | null>(null)
+  const { guilds, loading } = useGuilds()
 
-  useEffect(() => {
-    api.guilds().then(setGuilds).catch(() => setGuilds([]))
-  }, [])
+  // The connection outlives the page now, so the picker has to say it follows nobody -
+  // otherwise the server keeps ticking out snapshots for whichever guild was last open
+  usePlayerState(null)
 
   return (
     <div className="screen picker">
@@ -25,16 +25,16 @@ export function GuildPicker() {
         </Link>
       </header>
 
-      {guilds === null && <div className="pulse-ring" aria-label="Načítání" />}
+      {loading && <div className="pulse-ring" aria-label="Načítání" />}
 
-      {guilds !== null && guilds.length === 0 && (
+      {!loading && guilds.length === 0 && (
         <p className="empty-note">
           Nesdílíš s&nbsp;jádrem žádný server. Pozvi bota, nebo se připoj tam, kde už je.
         </p>
       )}
 
       <div className="guild-grid">
-        {guilds?.map(guild => (
+        {guilds.map(guild => (
           <Link key={guild.id} to={`/g/${guild.id}`} className="guild-card">
             {guild.iconUrl ? (
               <img src={guild.iconUrl} alt="" className="guild-icon" />

@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
 import { api, TrackDto } from '../api'
-import { usePlayerState } from '../live'
+import { useGuilds } from '../guilds'
+import { usePlayerState } from '../player'
 import { describeFailure, isLive, useDownloads } from '../downloads'
 import { useToast } from '../Toast'
 import { AppShell } from '../components/AppShell'
@@ -18,6 +19,13 @@ import { SearchBox } from '../components/SearchBox'
 export function PlayerPage() {
   const { guildId = '' } = useParams()
   const live = usePlayerState(guildId)
+
+  // So the downloads page, which has no guild of its own, keeps this one's frame
+  const { remember } = useGuilds()
+
+  useEffect(() => {
+    if (guildId) remember(guildId)
+  }, [guildId, remember])
 
   const { overview, reload } = useDownloads()
   const { toast } = useToast()

@@ -7,6 +7,8 @@ import { Discord } from './Icons'
 import { ToastProvider } from './Toast'
 import { UserContext } from './user'
 import { DownloadProvider } from './downloads'
+import { GuildsProvider } from './guilds'
+import { PlayerProvider } from './player'
 import { GuildPicker } from './pages/GuildPicker'
 import { PlayerPage } from './pages/PlayerPage'
 import { DownloadsPage } from './pages/DownloadsPage'
@@ -66,7 +68,11 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
   return (
     <UserContext.Provider value={user}>
-      <DownloadProvider>{children}</DownloadProvider>
+      <GuildsProvider>
+        <PlayerProvider>
+          <DownloadProvider>{children}</DownloadProvider>
+        </PlayerProvider>
+      </GuildsProvider>
     </UserContext.Provider>
   )
 }
@@ -77,7 +83,6 @@ function App() {
       <Routes>
         <Route path="/" element={<GuildPicker />} />
         <Route path="/g/:guildId" element={<PlayerPage />} />
-        <Route path="/g/:guildId/downloads" element={<DownloadsPage />} />
         <Route path="/downloads" element={<DownloadsPage />} />
         <Route path="*" element={<GuildPicker />} />
       </Routes>
