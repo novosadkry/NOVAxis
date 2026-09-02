@@ -39,7 +39,7 @@ export function PlayerPage() {
       setStarting(track.uri)
 
       try {
-        await api.startDownload(track.uri, 'Audio')
+        await api.startDownload(track.uri, 'Audio', '', track.title)
         reload()
         toast(
           replacing
@@ -136,7 +136,24 @@ export function PlayerPage() {
               </p>
             </div>
           </div>
-          <SearchBox guildId={guildId} />
+          <div className="topbar-actions">
+            <SearchBox guildId={guildId} />
+            {/* Also here, not only in the sidebar: that is hidden on a narrow screen,
+                which would leave the player with no way through to a download at all */}
+            <Link to="/downloads" className="btn-ghost topbar-downloads">
+              <Download size={16} />
+              <span>Stahování</span>
+              {active && active.state !== 'Failed' && (
+                <span className={`download-badge${active.state === 'Ready' ? ' ready' : ''}`}>
+                  {active.state === 'Ready'
+                    ? 'hotovo'
+                    : active.progress !== null
+                      ? `${Math.round(active.progress * 100)} %`
+                      : '…'}
+                </span>
+              )}
+            </Link>
+          </div>
         </header>
 
         {live.error && <p className="empty-note">{live.error}</p>}

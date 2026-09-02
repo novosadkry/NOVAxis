@@ -937,6 +937,17 @@ button:disabled {
   margin-top: 14px;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.topbar-downloads {
+  white-space: nowrap;
+}
+
 /* ---------- downloads ---------- */
 
 .downloads {
@@ -1340,6 +1351,14 @@ button:disabled {
 
   .topbar-back {
     display: block;
+  }
+
+  .topbar-actions {
+    width: 100%;
+  }
+
+  .topbar-downloads span:not(.download-badge) {
+    display: none;
   }
 
   .main {

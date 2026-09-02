@@ -194,9 +194,12 @@ export const api = {
   probeDownload: (url: string, signal?: AbortSignal) =>
     request<DownloadProbeDto>(`/api/downloads/probe?url=${encodeURIComponent(url)}`, { signal }),
 
-  /** An empty formatId leaves the choice to the server. */
-  startDownload: (url: string, kind: DownloadDto['kind'], formatId = '') =>
-    post<DownloadDto>('/api/downloads', { url, kind, formatId }),
+  /**
+   * An empty formatId leaves the choice to the server. Passing a title you already have
+   * spares it a lookup it would otherwise make only to read the name back.
+   */
+  startDownload: (url: string, kind: DownloadDto['kind'], formatId = '', title = '') =>
+    post<DownloadDto>('/api/downloads', { url, kind, formatId, title }),
 
   revokeDownload: (id: string) =>
     request<void>(`/api/downloads/${id}`, { method: 'DELETE' }),

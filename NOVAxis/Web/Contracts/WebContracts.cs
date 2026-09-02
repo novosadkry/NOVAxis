@@ -186,5 +186,9 @@ namespace NOVAxis.Web.Contracts
 
     public record DownloadOverviewDto(DownloadDto Active, DownloadQuotaDto Quota);
 
-    public record DownloadRequest(string Url, string Kind, string FormatId);
+    /// <summary>
+    /// Title is what the caller already calls it, and spares a lookup when no format is
+    /// named. It is only ever shown back to the person who sent it.
+    /// </summary>
+    public record DownloadRequest(string Url, string Kind, string FormatId, string Title);
 }

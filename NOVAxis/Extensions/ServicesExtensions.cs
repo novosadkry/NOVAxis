@@ -243,6 +243,7 @@ namespace NOVAxis.Extensions
             // Registered here alone, so the guard is torn down once at shutdown
             collection.AddHostedService(p => p.GetRequiredService<GuardedProxy>());
 
+            collection.AddSingleton<DownloadProbeCache>();
             collection.AddSingleton<DownloadStore>();
             collection.AddSingleton<YtDlpDownloader>();
             collection.AddSingleton<DownloadService>();

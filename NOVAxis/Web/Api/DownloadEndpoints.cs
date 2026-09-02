@@ -131,7 +131,8 @@ namespace NOVAxis.Web.Api
             try
             {
                 var record = await downloads.RequestAsync(
-                    userId, request.Url, kind, request.FormatId, cancellationToken: cancellationToken);
+                    userId, request.Url, kind, request.FormatId,
+                    title: request.Title, cancellationToken: cancellationToken);
 
                 return Results.Ok(DownloadDto.FromRecord(record));
             }

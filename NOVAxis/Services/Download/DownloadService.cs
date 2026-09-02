@@ -44,6 +44,7 @@ namespace NOVAxis.Services.Download
         private YtDlpClient Client { get; }
         private YtDlpDownloader Downloader { get; }
         private DownloadStore Store { get; }
+        private DownloadProbeCache Probes { get; }
         private IHostApplicationLifetime Lifetime { get; }
         private ILogger<DownloadService> Logger { get; }
 
@@ -52,6 +53,7 @@ namespace NOVAxis.Services.Download
             YtDlpClient client,
             YtDlpDownloader downloader,
             DownloadStore store,
+            DownloadProbeCache probes,
             IHostApplicationLifetime lifetime,
             ILogger<DownloadService> logger)
         {
@@ -59,6 +61,7 @@ namespace NOVAxis.Services.Download
             Client = client;
             Downloader = downloader;
             Store = store;
+            Probes = probes;
             Lifetime = lifetime;
             Logger = logger;
         }
@@ -91,12 +94,31 @@ namespace NOVAxis.Services.Download
         {
             var normalized = Normalize(url);
 
-            var info = await _probes.RunAsync(normalized,
-                token => Client.ProbeAsync(normalized, token).AsTask(), cancellationToken);
+            if (Probes.TryGetValue(normalized, out var known))
+                return Verify(known);
+
+            var info = await _probes.RunAsync(normalized, async token =>
+            {
+                // Checked again inside: the caller this one joined may have just stored it
+                if (Probes.TryGetValue(normalized, out var found))
+                    return found;
+
+                var probed = await Client.ProbeAsync(normalized, token);
+
+                if (probed != null)
+                    Probes[normalized] = probed;
+
+                return probed;
+            }, cancellationToken);
 
             if (info == null)
                 throw new DownloadException(DownloadFailure.Failed, "Na této adrese se nic nenašlo");
 
+            return Verify(info);
+        }
+
+        private static YtDlpMediaInfo Verify(YtDlpMediaInfo info)
+        {
             if (info.IsLive)
                 throw new DownloadException(DownloadFailure.Unsupported,
                     "Živé vysílání stáhnout nelze - nemá konec ani velikost");
@@ -159,18 +181,27 @@ namespace NOVAxis.Services.Download
             DownloadKind kind,
             string formatId,
             YtDlpMediaInfo info = null,
+            string title = null,
             CancellationToken cancellationToken = default)
         {
             var options = Options.Value;
             var normalized = Normalize(url);
 
-            info ??= await ProbeAsync(normalized, cancellationToken);
+            // Naming a format means it has to be one this link actually offers, which only a
+            // lookup can say. Naming none leaves nothing to check, so a caller who already
+            // knows what they are asking for has told us everything the lookup would have -
+            // and running an extraction just to read back a title they handed us is waste.
+            var named = !string.IsNullOrWhiteSpace(title);
 
-            if (info.IsLive)
-                throw new DownloadException(DownloadFailure.Unsupported,
-                    "Živé vysílání stáhnout nelze - nemá konec ani velikost");
+            if (info == null && (!string.IsNullOrEmpty(formatId) || !named))
+                info = await ProbeAsync(normalized, cancellationToken);
 
-            var choice = Resolve(info, kind, formatId);
+            if (info != null)
+                Verify(info);
+
+            var choice = info != null
+                ? Resolve(info, kind, formatId)
+                : DefaultChoice(kind);
 
             if (choice != null && !choice.WithinLimit)
                 throw new DownloadException(DownloadFailure.TooLarge,
@@ -236,7 +267,7 @@ namespace NOVAxis.Services.Download
 
                 try
                 {
-                    record = Begin(userId, kind, normalized, info, choice, formatId, options);
+                    record = Begin(userId, kind, normalized, Name(info, title), choice, formatId, options);
                 }
                 catch (Exception)
                 {
@@ -260,7 +291,7 @@ namespace NOVAxis.Services.Download
             ulong userId,
             DownloadKind kind,
             string url,
-            YtDlpMediaInfo info,
+            string title,
             DownloadChoice choice,
             string formatId,
             DownloadOptions options)
@@ -274,7 +305,7 @@ namespace NOVAxis.Services.Download
                 OwnerId = userId,
                 Kind = kind,
                 SourceUrl = url,
-                Title = Shorten(info.Title),
+                Title = title,
                 FormatId = choice?.Id ?? formatId,
                 FormatLabel = choice?.Label ?? formatId,
                 DirectoryPath = Path.Combine(Store.Root, id.ToString()),
@@ -378,6 +409,32 @@ namespace NOVAxis.Services.Download
             record.State = DownloadState.Failed;
 
             Store.DiscardFiles(record);
+        }
+
+        /// <summary>
+        /// What to fetch when no format was named and no lookup was made. Mirrors what
+        /// Resolve settles on in the same case: the first configured audio format, or the
+        /// configured selector for video.
+        /// </summary>
+        private DownloadChoice DefaultChoice(DownloadKind kind)
+        {
+            if (kind != DownloadKind.Audio)
+                return null;
+
+            var format = Options.Value.AudioFormats?.FirstOrDefault()
+                ?? throw new DownloadException(DownloadFailure.Unsupported,
+                    "Není nastaven žádný zvukový formát");
+
+            return new DownloadChoice(format, DownloadKind.Audio,
+                format.ToUpperInvariant(), format, null, true);
+        }
+
+        /// <summary>
+        /// What to call it: what the lookup found, else what the caller said it was.
+        /// </summary>
+        private static string Name(YtDlpMediaInfo info, string title)
+        {
+            return Shorten(info?.Title ?? title);
         }
 
         private DownloadChoice Resolve(YtDlpMediaInfo info, DownloadKind kind, string formatId)
