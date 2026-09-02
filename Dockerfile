@@ -45,16 +45,23 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0-noble
 
 # ffmpeg and yt-dlp back the in-process audio streaming
 ARG BGUTIL_POT_VERSION=1.3.2
+ARG DENO_VERSION=v2.9.6
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ffmpeg \
         python3 \
         python3-venv \
+        curl \
+        unzip \
     && python3 -m venv /opt/yt-dlp \
     && /opt/yt-dlp/bin/pip install --no-cache-dir --upgrade \
-        yt-dlp \
+        "yt-dlp[default]" \
         "bgutil-ytdlp-pot-provider==${BGUTIL_POT_VERSION}" \
     && ln -s /opt/yt-dlp/bin/yt-dlp /usr/local/bin/yt-dlp \
+    && curl -fsSL -o /tmp/deno.zip \
+        "https://github.com/denoland/deno/releases/download/${DENO_VERSION}/deno-x86_64-unknown-linux-gnu.zip" \
+    && unzip -j /tmp/deno.zip deno -d /usr/local/bin \
+    && rm /tmp/deno.zip \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
