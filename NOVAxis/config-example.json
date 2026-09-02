@@ -41,7 +41,10 @@
       "Format": "bestaudio[abr<=?128]/bestaudio/best",
       "CookiesFile": null,
       "UserAgent": null,
-      "ExtraArguments": ["--extractor-args", "youtube:player_client=default,web_embedded"],
+      "ExtraArguments": [
+        "--extractor-args", "youtube:player_client=default,mweb",
+        "--extractor-args", "youtubepot-bgutilhttp:base_url=http://bgutil-provider:4416"
+      ],
       "MaxPlaylistSize": 500,
       "Prefetch": true,
       "ResolveTimeout": "00:00:30",

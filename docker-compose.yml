@@ -7,13 +7,24 @@
     container_name: novaxis-discord
     tty: true
     stdin_open: true
+    depends_on:
+      - bgutil-provider
     volumes:
       - ./NOVAxis/config.json:/app/config.json
-      # Data-protection key ring - web sessions survive a restart with it
       - ./NOVAxis/keys:/app/keys
     ports:
-      # The web player; TLS belongs to the reverse proxy in front
       - "5000:5000"
+    restart: unless-stopped
+    logging:
+      options:
+        max-size: 50m
+
+  bgutil-provider:
+    image: brainicism/bgutil-ytdlp-pot-provider:1.3.2
+    container_name: novaxis-bgutil-provider
+    init: true
+    expose:
+      - 4416
     restart: unless-stopped
     logging:
       options:

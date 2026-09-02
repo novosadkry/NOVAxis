@@ -44,13 +44,16 @@ RUN dotnet publish -c Release -o out
 FROM mcr.microsoft.com/dotnet/runtime:9.0-noble
 
 # ffmpeg and yt-dlp back the in-process audio streaming
+ARG BGUTIL_POT_VERSION=1.3.2
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ffmpeg \
         python3 \
         python3-venv \
     && python3 -m venv /opt/yt-dlp \
-    && /opt/yt-dlp/bin/pip install --no-cache-dir --upgrade yt-dlp \
+    && /opt/yt-dlp/bin/pip install --no-cache-dir --upgrade \
+        yt-dlp \
+        "bgutil-ytdlp-pot-provider==${BGUTIL_POT_VERSION}" \
     && ln -s /opt/yt-dlp/bin/yt-dlp /usr/local/bin/yt-dlp \
     && rm -rf /var/lib/apt/lists/*
 
