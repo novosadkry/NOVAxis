@@ -95,7 +95,7 @@ namespace NOVAxis.Core
 
         public string ExecutablePath { get; set; } = "yt-dlp";
         public string FfmpegPath { get; set; } = "ffmpeg";
-        public string Format { get; set; } = "bestaudio[abr<=?128]/bestaudio/best";
+        public string Format { get; set; } = "bestaudio[abr<=?137]/bestaudio/best";
         public string CookiesFile { get; set; }
         public string UserAgent { get; set; }
         public List<string> ExtraArguments { get; set; } = [];

@@ -38,7 +38,7 @@
     "YtDlp": {
       "ExecutablePath": "yt-dlp",
       "FfmpegPath": "ffmpeg",
-      "Format": "bestaudio[abr<=?128]/bestaudio/best",
+      "Format": "bestaudio[abr<=?137]/bestaudio/best",
       "CookiesFile": null,
       "UserAgent": null,
       "ExtraArguments": [
