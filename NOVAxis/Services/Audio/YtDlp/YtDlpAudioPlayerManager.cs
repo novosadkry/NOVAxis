@@ -51,7 +51,7 @@ namespace NOVAxis.Services.Audio.YtDlp
         /// while the command which just took it is still searching.
         /// </summary>
         private TimeSpan LookupWindow =>
-            YtDlpAudioSearchService.MetadataTimeout +
+            MetadataOnlyLinks.Timeout +
             Options.Value.YtDlp.ResolveTimeout +
             TimeSpan.FromSeconds(5);
 

@@ -273,3 +273,4 @@ __pycache__/
 /NOVAxis/downloads/
 /NOVAxis/Web/ClientApp/node_modules/
 /NOVAxis/Web/ClientApp/dist/
+/NOVAxis/Web/ClientApp/tsconfig.tsbuildinfo

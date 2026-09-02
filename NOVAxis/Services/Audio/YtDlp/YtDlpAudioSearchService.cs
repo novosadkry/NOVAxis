@@ -20,38 +20,9 @@ namespace NOVAxis.Services.Audio.YtDlp
     /// </summary>
     public class YtDlpAudioSearchService : IAudioSearchService
     {
-        /// <summary>
-        /// How long reading a page of one of the hosts below may take.
-        /// </summary>
-        public static readonly TimeSpan MetadataTimeout = TimeSpan.FromSeconds(15);
-
-        private static readonly HttpClient Http = new()
-        {
-            Timeout = MetadataTimeout
-        };
-
-        private static readonly string[] MetadataOnlyHosts =
-        {
-            "spotify.com",
-            "deezer.com",
-            "music.apple.com",
-            "tidal.com",
-            "soundcloud.app.goo.gl"
-        };
-
-        /// <summary>
-        /// Words describing the kind of a page rather than its performer.
-        /// </summary>
-        private static readonly string[] DescriptorWords =
-        {
-            "song", "album", "single", "ep", "playlist", "podcast", "episode", "track", "video"
-        };
-
-        private static readonly Regex TitleRegex = MetaRegex("og:title");
-        private static readonly Regex DescriptionRegex = MetaRegex("og:description");
-
         private YtDlpClient Client { get; }
         private AudioSearchCache Results { get; }
+        private MetadataOnlyLinks Metadata { get; }
         private ILogger<YtDlpAudioSearchService> Logger { get; }
 
         private Coalescer<string, AudioLoadResult> Lookups { get; } = new();
@@ -59,10 +30,12 @@ namespace NOVAxis.Services.Audio.YtDlp
         public YtDlpAudioSearchService(
             YtDlpClient client,
             AudioSearchCache results,
+            MetadataOnlyLinks metadata,
             ILogger<YtDlpAudioSearchService> logger)
         {
             Client = client;
             Results = results;
+            Metadata = metadata;
             Logger = logger;
         }
 
@@ -138,23 +111,17 @@ namespace NOVAxis.Services.Audio.YtDlp
                 return await Client.LoadAsync($"ytsearch1:{input}", cancellationToken);
             }
 
-            if (!IsMetadataOnly(uri))
+            if (!MetadataOnlyLinks.Covers(uri))
             {
                 Logger.Debug($"Loading '{uri}' through yt-dlp");
                 return await Client.LoadAsync(uri.AbsoluteUri, cancellationToken);
             }
 
-            var query = await DescribeAsync(uri, cancellationToken);
+            var resolved = await Metadata.ResolveAsync(uri, cancellationToken);
 
-            if (string.IsNullOrEmpty(query))
-            {
-                Logger.Warning($"Unable to derive a search query from '{uri}'");
-                return AudioLoadResult.Failed;
-            }
-
-            Logger.Debug($"Resolved '{uri}' to a YouTube search for '{query}'");
-
-            return await Client.LoadAsync($"ytsearch1:{query}", cancellationToken);
+            return string.IsNullOrEmpty(resolved)
+                ? AudioLoadResult.Failed
+                : await Client.LoadAsync(resolved, cancellationToken);
         }
 
         /// <summary>
@@ -173,92 +140,5 @@ namespace NOVAxis.Services.Audio.YtDlp
             return input;
         }
 
-        private static bool IsMetadataOnly(Uri uri)
-        {
-            var host = uri.Host.StartsWith("www.", StringComparison.OrdinalIgnoreCase)
-                ? uri.Host[4..]
-                : uri.Host;
-
-            return MetadataOnlyHosts.Any(x =>
-                host.Equals(x, StringComparison.OrdinalIgnoreCase) ||
-                host.EndsWith($".{x}", StringComparison.OrdinalIgnoreCase));
-        }
-
-        /// <summary>
-        /// Reads the OpenGraph tags of a page and turns them into "title artist".
-        /// </summary>
-        private async Task<string> DescribeAsync(Uri uri, CancellationToken cancellationToken)
-        {
-            string html;
-
-            try
-            {
-                html = await Http.GetStringAsync(uri, cancellationToken);
-            }
-            catch (HttpRequestException e)
-            {
-                Logger.Warning($"Unable to read metadata of '{uri}'", e);
-                return null;
-            }
-            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
-            {
-                Logger.Warning($"Timed out while reading metadata of '{uri}'");
-                return null;
-            }
-
-            var title = ReadMeta(TitleRegex, html);
-
-            if (string.IsNullOrWhiteSpace(title))
-                return null;
-
-            var artist = ReadArtist(ReadMeta(DescriptionRegex, html));
-
-            return string.IsNullOrWhiteSpace(artist)
-                ? title
-                : $"{title} {artist}";
-        }
-
-        private static string ReadMeta(Regex regex, string html)
-        {
-            var match = regex.Match(html);
-
-            return match.Success
-                ? WebUtility.HtmlDecode(match.Groups["content"].Value).Trim()
-                : null;
-        }
-
-        /// <summary>
-        /// Descriptions of those pages read like "Song · Artist · Album · 2019".
-        /// </summary>
-        private static string ReadArtist(string description)
-        {
-            if (string.IsNullOrWhiteSpace(description))
-                return null;
-
-            var segments = description
-                .Split(new[] { '·', '•', '|' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-            foreach (var segment in segments)
-            {
-                if (DescriptorWords.Contains(segment.ToLowerInvariant()))
-                    continue;
-
-                // Release years carry no search value
-                if (segment.Length == 4 && segment.All(char.IsDigit))
-                    continue;
-
-                return segment;
-            }
-
-            return null;
-        }
-
-        private static Regex MetaRegex(string property)
-        {
-            var pattern = "<meta[^>]+(?:property|name)\\s*=\\s*[\"']" + Regex.Escape(property) +
-                          "[\"'][^>]+content\\s*=\\s*[\"'](?<content>[^\"']*)[\"']";
-
-            return new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-        }
     }
 }

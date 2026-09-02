@@ -42,6 +42,7 @@ namespace NOVAxis.Services.Download
 
         private IOptions<DownloadOptions> Options { get; }
         private YtDlpClient Client { get; }
+        private MetadataOnlyLinks Metadata { get; }
         private YtDlpDownloader Downloader { get; }
         private DownloadStore Store { get; }
         private DownloadProbeCache Probes { get; }
@@ -51,6 +52,7 @@ namespace NOVAxis.Services.Download
         public DownloadService(
             IOptions<DownloadOptions> options,
             YtDlpClient client,
+            MetadataOnlyLinks metadata,
             YtDlpDownloader downloader,
             DownloadStore store,
             DownloadProbeCache probes,
@@ -59,6 +61,7 @@ namespace NOVAxis.Services.Download
         {
             Options = options;
             Client = client;
+            Metadata = metadata;
             Downloader = downloader;
             Store = store;
             Probes = probes;
@@ -103,7 +106,15 @@ namespace NOVAxis.Services.Download
                 if (Probes.TryGetValue(normalized, out var found))
                     return found;
 
-                var probed = await Client.ProbeAsync(normalized, token);
+                // Spotify and its kind carry no media yt-dlp can read, so the page is read
+                // for what the track is and the search stands in for the link - exactly what
+                // playing one of them already does
+                var target = await Metadata.ResolveAsync(new Uri(normalized), token);
+
+                if (string.IsNullOrEmpty(target))
+                    return null;
+
+                var probed = await Client.ProbeAsync(target, token);
 
                 if (probed != null)
                     Probes[normalized] = probed;
@@ -267,7 +278,7 @@ namespace NOVAxis.Services.Download
 
                 try
                 {
-                    record = Begin(userId, kind, normalized, Name(info, title), choice, formatId, options);
+                    record = Begin(userId, kind, Target(info, normalized), Name(info, title), choice, formatId, options);
                 }
                 catch (Exception)
                 {
@@ -427,6 +438,15 @@ namespace NOVAxis.Services.Download
 
             return new DownloadChoice(format, DownloadKind.Audio,
                 format.ToUpperInvariant(), format, null, true);
+        }
+
+        /// <summary>
+        /// What to actually fetch. A link the extractor cannot read resolves to something
+        /// else entirely, and handing it the original would fail all over again.
+        /// </summary>
+        private static string Target(YtDlpMediaInfo info, string url)
+        {
+            return info?.Url?.AbsoluteUri ?? url;
         }
 
         /// <summary>

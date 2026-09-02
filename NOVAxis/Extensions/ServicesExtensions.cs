@@ -124,6 +124,7 @@ namespace NOVAxis.Extensions
         {
             collection.TryAddSingleton<GuardedProxy>();
             collection.TryAddSingleton<YtDlpClient>();
+            collection.TryAddSingleton<MetadataOnlyLinks>();
             collection.AddSingleton<AudioSearchCache>();
             collection.AddSingleton<IAudioSearchService, YtDlpAudioSearchService>();
             collection.AddSingleton<YtDlpAudioPlayerManager>();
@@ -236,9 +237,10 @@ namespace NOVAxis.Extensions
         /// </summary>
         public static IServiceCollection AddDownloads(this IServiceCollection collection, IConfiguration config)
         {
-            // Both also registered by the yt-dlp audio backend, which only runs when chosen
+            // All also registered by the yt-dlp audio backend, which only runs when chosen
             collection.TryAddSingleton<GuardedProxy>();
             collection.TryAddSingleton<YtDlpClient>();
+            collection.TryAddSingleton<MetadataOnlyLinks>();
 
             // Registered here alone, so the guard is torn down once at shutdown
             collection.AddHostedService(p => p.GetRequiredService<GuardedProxy>());
