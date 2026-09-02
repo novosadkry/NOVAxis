@@ -184,7 +184,27 @@ namespace NOVAxis.Web.Contracts
         }
     }
 
-    public record DownloadOverviewDto(DownloadDto Active, DownloadQuotaDto Quota);
+    /// <summary>
+    /// What one person is holding: the links themselves, how much of their space those
+    /// take, and how many more downloads the hour allows.
+    /// </summary>
+    public record DownloadOverviewDto(
+        IReadOnlyList<DownloadDto> Downloads,
+        DownloadStorageDto Storage,
+        DownloadQuotaDto Quota);
+
+    /// <summary>
+    /// A download just started, with the titles of any of the caller's older links which
+    /// were retired to make room for it - so the page can say what went rather than
+    /// leaving them to notice.
+    /// </summary>
+    public record DownloadStartedDto(DownloadDto Download, IReadOnlyList<string> Freed);
+
+    public record DownloadStorageDto(long UsedBytes, long LimitBytes)
+    {
+        public static DownloadStorageDto From((long Used, long Limit) storage)
+            => new(storage.Used, storage.Limit);
+    }
 
     /// <summary>
     /// Title is what the caller already calls it, and spares a lookup when no format is

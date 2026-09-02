@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { DownloadDto, DownloadFormatDto, DownloadProbeDto, api, isAbortError } from '../api'
-import { describeFailure, describeFileError, isLive, useDownloads } from '../downloads'
+import { describeFailure, describeFileError, describeFreed, useDownloads } from '../downloads'
 import { useGuilds } from '../guilds'
 import { usePlayerState } from '../player'
 import { formatBytes, formatDuration } from '../format'
@@ -58,17 +58,15 @@ export function DownloadsPage() {
   const [probing, setProbing] = useState(false)
   const [probeError, setProbeError] = useState<string | null>(null)
   const [formatId, setFormatId] = useState<string | null>(null)
-  const [confirming, setConfirming] = useState(false)
   const [starting, setStarting] = useState(false)
 
   const pending = useRef<AbortController | null>(null)
   const greeted = useRef(false)
 
-  const active = overview?.active ?? null
+  const downloads = overview?.downloads ?? []
+  const storage = overview?.storage ?? null
   const quota = overview?.quota ?? null
 
-  const remaining = useRemaining(active?.expiresAt, active?.sampledAt)
-  const running = active?.state === 'Pending' || active?.state === 'Running'
   const exhausted = quota !== null && quota.remaining <= 0
 
   // A link that failed comes back as ?error=, because the file endpoint cannot toast
@@ -116,18 +114,15 @@ export function DownloadsPage() {
     const chosen = probe.formats.find(f => f.id === formatId)
     if (!chosen) return
 
-    // Only one link stays live, so replacing one is a two-step click, never a surprise
-    if (isLive(active) && !confirming) {
-      setConfirming(true)
-      return
-    }
-
-    setConfirming(false)
     setStarting(true)
 
     try {
-      await api.startDownload(probe.url, chosen.kind, chosen.id, probe.title)
+      const { freed } = await api.startDownload(probe.url, chosen.kind, chosen.id, probe.title)
       reload()
+
+      // Room comes out of their own oldest links, and a link that stopped working
+      // without a word is worse than the wait
+      if (freed.length > 0) toast(describeFreed(freed))
     } catch (failure) {
       toast(describeFailure(failure))
     } finally {
@@ -140,7 +135,7 @@ export function DownloadsPage() {
       activeGuildId={guildId ?? undefined}
       activeTool="downloads"
       title="Stahování"
-      subtitle="max 100 MB · platí hodinu · jeden naráz"
+      subtitle={`max 100 MB na soubor · platí hodinu · ${storage ? formatBytes(storage.limitBytes) : "300 MB"} prostoru`}
       backTo={guildId ? `/g/${guildId}` : '/'}
       bar={guildId ? <PlayerBar guildId={guildId} live={live} /> : undefined}
     >
@@ -223,88 +218,121 @@ export function DownloadsPage() {
           <div className="download-actions">
             <button
               type="button"
-              className={`btn-solid${confirming ? ' warn' : ''}`}
+              className="btn-solid"
               disabled={!formatId || starting || exhausted}
               onClick={() => void start()}
             >
-              {exhausted
-                ? 'Limit vyčerpán'
-                : confirming
-                  ? 'Nahradit současný odkaz?'
-                  : starting
-                    ? 'Spouštím…'
-                    : 'Stáhnout'}
+              {exhausted ? 'Limit vyčerpán' : starting ? 'Spouštím…' : 'Stáhnout'}
             </button>
-            {confirming && (
-              <span className="download-hint">
-                Současný odkaz přestane platit a soubor se smaže.
+          </div>
+        </section>
+      )}
+
+      {downloads.length > 0 && (
+        <section className="panel">
+          <header className="queue-head">
+            <h3 className="eyebrow">ODKAZY · {downloads.length}</h3>
+            {storage && (
+              <span className={`download-space${storage.usedBytes / storage.limitBytes > 0.8 ? ' warn' : ''}`}>
+                {formatBytes(storage.usedBytes)} / {formatBytes(storage.limitBytes)}
               </span>
             )}
+          </header>
+
+          {storage && (
+            <div className="progress-line inline space-meter">
+              <div
+                className="progress-fill"
+                style={{
+                  width: `${Math.min(100, Math.round((storage.usedBytes / storage.limitBytes) * 100))}%`,
+                }}
+              />
+            </div>
+          )}
+
+          <div className="download-list">
+            {downloads.map(download => (
+              <DownloadCard
+                key={download.id}
+                download={download}
+                onRevoke={() => void run(api.revokeDownload(download.id).then(reload))}
+              />
+            ))}
           </div>
         </section>
       )}
 
-      {active && (
-        <section className="panel">
-          <div className="download-active">
-            <div>
-              <p className="eyebrow accent">{STATE_LABELS[active.state]}</p>
-              <h2>{active.title}</h2>
-              <p className="download-hint">{active.formatLabel}</p>
-            </div>
-            <button
-              type="button"
-              className="icon-btn"
-              aria-label="Zrušit"
-              title="Zrušit"
-              onClick={() => void run(api.revokeDownload(active.id).then(reload))}
-            >
-              <Close size={16} />
-            </button>
-          </div>
-
-          {running && (
-            <>
-              <div className="progress-line inline">
-                <div
-                  className="progress-fill"
-                  style={{ width: `${Math.round((active.progress ?? 0) * 100)}%` }}
-                />
-              </div>
-              <p className="download-readout">
-                {formatBytes(active.receivedBytes)}
-                {active.sizeBytes ? ` / ${formatBytes(active.sizeBytes)}` : ''}
-                {active.progress !== null ? ` · ${Math.round(active.progress * 100)} %` : ''}
-              </p>
-            </>
-          )}
-
-          {active.state === 'Ready' && active.fileUrl && (
-            <div className="download-actions">
-              <a
-                className="btn-solid"
-                href={active.fileUrl}
-                download={active.fileName ?? undefined}
-              >
-                <Download size={16} /> Stáhnout soubor
-              </a>
-              <span className="download-readout">{formatBytes(active.sizeBytes)}</span>
-              <span
-                className={`download-expiry${remaining !== null && remaining < 300000 ? ' urgent' : ''}`}
-              >
-                {remaining !== null && remaining > 0
-                  ? `platí ještě ${formatDuration(remaining)}`
-                  : 'odkaz vypršel'}
-              </span>
-            </div>
-          )}
-
-          {active.state === 'Failed' && (
-            <p className="download-error">{active.error ?? 'Stahování se nezdařilo'}</p>
-          )}
-        </section>
-      )}
     </AppShell>
+  )
+}
+
+interface DownloadCardProps {
+  download: DownloadDto
+  onRevoke: () => void
+}
+
+/**
+ * One prepared link: what it is, how it is getting on, and how long it has left.
+ */
+function DownloadCard({ download, onRevoke }: DownloadCardProps) {
+  const remaining = useRemaining(download.expiresAt, download.sampledAt)
+  const running = download.state === 'Pending' || download.state === 'Running'
+
+  return (
+    <div className="download-item">
+      <div className="download-active">
+        <div>
+          <p className="eyebrow accent">{STATE_LABELS[download.state]}</p>
+          <h2>{download.title}</h2>
+          <p className="download-hint">{download.formatLabel}</p>
+        </div>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label={`Zrušit ${download.title}`}
+          title="Zrušit"
+          onClick={onRevoke}
+        >
+          <Close size={16} />
+        </button>
+      </div>
+
+      {running && (
+        <>
+          <div className="progress-line inline">
+            <div
+              className="progress-fill"
+              style={{ width: `${Math.round((download.progress ?? 0) * 100)}%` }}
+            />
+          </div>
+          <p className="download-readout">
+            {formatBytes(download.receivedBytes)}
+            {download.sizeBytes ? ` / ${formatBytes(download.sizeBytes)}` : ''}
+            {download.progress !== null ? ` · ${Math.round(download.progress * 100)} %` : ''}
+          </p>
+        </>
+      )}
+
+      {download.state === 'Ready' && download.fileUrl && (
+        <div className="download-actions">
+          <a className="btn-solid" href={download.fileUrl} download={download.fileName ?? undefined}>
+            <Download size={16} /> Stáhnout soubor
+          </a>
+          <span className="download-readout">{formatBytes(download.sizeBytes)}</span>
+          <span
+            className={`download-expiry${remaining !== null && remaining < 300000 ? ' urgent' : ''}`}
+          >
+            {remaining !== null && remaining > 0
+              ? `platí ještě ${formatDuration(remaining)}`
+              : 'odkaz vypršel'}
+          </span>
+        </div>
+      )}
+
+      {download.state === 'Failed' && (
+        <p className="download-error">{download.error ?? 'Stahování se nezdařilo'}</p>
+      )}
+    </div>
   )
 }
 

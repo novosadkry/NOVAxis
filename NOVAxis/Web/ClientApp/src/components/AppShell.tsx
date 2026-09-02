@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 
 import { api } from '../api'
-import { useDownloads } from '../downloads'
+import { headline, useDownloads } from '../downloads'
 import { useGuilds } from '../guilds'
 import { useUser } from '../user'
 import { Download, Power } from '../Icons'
@@ -142,7 +142,7 @@ export function AppShell({
  */
 function DownloadBadge({ dot = false }: { dot?: boolean }) {
   const { overview } = useDownloads()
-  const active = overview?.active ?? null
+  const active = headline(overview?.downloads ?? [])
 
   if (active === null) return null
 

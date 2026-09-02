@@ -72,8 +72,10 @@ export function useDownload(): DownloadLive {
 
   const reload = useCallback(() => setNonce(n => n + 1), [])
 
-  const status = overview?.active?.state
-  const interval = status === 'Pending' || status === 'Running' ? 1000 : status === 'Ready' ? 15000 : 0
+  const held = overview?.downloads ?? []
+  const running = held.some(d => d.state === 'Pending' || d.state === 'Running')
+
+  const interval = running ? 1000 : held.length > 0 ? 15000 : 0
 
   useEffect(() => {
     let disposed = false

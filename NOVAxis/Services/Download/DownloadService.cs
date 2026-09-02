@@ -33,6 +33,12 @@ namespace NOVAxis.Services.Download
     public sealed record DownloadQuota(int Limit, int Remaining, DateTimeOffset? ResetsAt);
 
     /// <summary>
+    /// A started download, and the titles of whatever had to be retired to fit it in.
+    /// Empty almost always - it is only ever the caller's own oldest links.
+    /// </summary>
+    public sealed record DownloadStart(DownloadRecord Record, IReadOnlyList<string> Freed);
+
+    /// <summary>
     /// The whole download feature, and the only place its rules live. Both the slash command
     /// and the web api come through here, which is what stops the two surfaces being played
     /// against each other for twice the quota.
@@ -69,7 +75,11 @@ namespace NOVAxis.Services.Download
 
         public DownloadRecord Find(ulong id) => Store.Find(id);
 
-        public DownloadRecord ForUser(ulong userId) => Store.FindByOwner(userId);
+        public IReadOnlyList<DownloadRecord> ForUser(ulong userId) => Store.FindByOwner(userId);
+
+        /// <summary>How much of their space one person is using, and of how much.</summary>
+        public (long Used, long Limit) StorageFor(ulong userId)
+            => (Store.BytesOf(userId), Options.Value.MaxBytesPerUser);
 
         public DownloadQuota QuotaFor(ulong userId)
         {
@@ -161,7 +171,7 @@ namespace NOVAxis.Services.Download
         /// Prepares a download and starts it. Returns as soon as the record exists - the work
         /// itself outlives the request that asked for it.
         /// </summary>
-        public async Task<DownloadRecord> RequestAsync(
+        public async Task<DownloadStart> RequestAsync(
             ulong userId,
             string url,
             DownloadKind kind,
@@ -198,17 +208,33 @@ namespace NOVAxis.Services.Download
             await gate.WaitAsync(cancellationToken);
 
             DownloadRecord record;
+            IReadOnlyList<string> freed;
 
             try
             {
-                var previous = Store.FindByOwner(userId);
+                // What this one will occupy. An unknown size has to be assumed to be the
+                // largest it is allowed to become, or a budget could be walked past by
+                // asking only for things yt-dlp cannot measure
+                var wanted = choice?.Size ?? options.MaxFileSize;
 
-                // Whatever is admitted below has to be decided before the previous download
-                // is touched: being turned away must not also cost the caller the link they
-                // already had
-                var reclaimable = previous?.Size ?? 0;
+                if (wanted > options.MaxBytesPerUser)
+                {
+                    throw new DownloadException(DownloadFailure.TooLarge,
+                        $"Tohle je {Megabytes(wanted)} MB a tvůj prostor je " +
+                        $"{Megabytes(options.MaxBytesPerUser)} MB");
+                }
 
-                if (Store.TotalBytes - reclaimable + options.MaxFileSize > options.OutputFolderLimit)
+                if (Store.RunningFor(userId) >= options.MaxConcurrentPerUser)
+                {
+                    throw new DownloadException(DownloadFailure.Busy,
+                        "Jedno stahování ti už běží, počkej než doběhne");
+                }
+
+                // Room is made out of this person's own links and nobody else's: being
+                // busy must never cost someone their link to make space for a stranger
+                freed = await FreeRoomAsync(userId, wanted, options);
+
+                if (Store.TotalBytes + wanted > options.OutputFolderLimit)
                 {
                     Logger.Warning("The download folder is full, refusing new downloads");
                     throw new DownloadException(DownloadFailure.StorageFull,
@@ -222,28 +248,7 @@ namespace NOVAxis.Services.Download
                         $"zkus to znovu za {Minutes(retryAfter)}");
                 }
 
-                // A download still running holds a concurrency slot which replacing it gives
-                // back, so in that case the slot is claimed afterwards rather than before -
-                // otherwise a single-slot host could never replace its own running download
-                var holdsSlot = previous != null && !previous.IsFinished;
-
-                if (!holdsSlot && !Downloader.TryEnter())
-                {
-                    Store.ReturnSlot(userId);
-
-                    throw new DownloadException(DownloadFailure.Busy,
-                        "Právě běží jiná stahování, zkus to za chvíli");
-                }
-
-                // Only one link per person stays live, so the previous one goes now, files
-                // and all, once the new one is certain to be admitted
-                if (previous != null)
-                {
-                    Logger.Debug($"Replacing download {previous.Id} of user {userId}");
-                    await Store.RemoveAsync(previous, DownloadState.Revoked);
-                }
-
-                if (holdsSlot && !Downloader.TryEnter())
+                if (!Downloader.TryEnter())
                 {
                     Store.ReturnSlot(userId);
 
@@ -270,7 +275,49 @@ namespace NOVAxis.Services.Download
 
             Logger.Info($"Download {record.Id} started for user {userId} ({kind}, {record.FormatLabel})");
 
-            return record;
+            return new DownloadStart(record, freed);
+        }
+
+        /// <summary>
+        /// Retires this person's oldest links until the new one fits in their budget, and
+        /// says what went. Only finished ones are given up: something still being fetched
+        /// is what they asked for most recently, and the concurrency cap means there is at
+        /// most one of it anyway.
+        /// </summary>
+        private async Task<IReadOnlyList<string>> FreeRoomAsync(ulong userId, long wanted, DownloadOptions options)
+        {
+            var held = Store.BytesOf(userId);
+
+            if (held + wanted <= options.MaxBytesPerUser)
+                return [];
+
+            var oldest = Store.FindByOwner(userId)
+                .Where(r => r.IsFinished)
+                .OrderBy(r => r.CreatedAt)
+                .ToList();
+
+            var freed = new List<string>();
+
+            foreach (var record in oldest)
+            {
+                if (held + wanted <= options.MaxBytesPerUser)
+                    break;
+
+                Logger.Debug($"Freeing download {record.Id} of user {userId} to make room");
+
+                held -= record.Size;
+                freed.Add(record.Title);
+
+                await Store.RemoveAsync(record, DownloadState.Revoked);
+            }
+
+            if (held + wanted > options.MaxBytesPerUser)
+            {
+                throw new DownloadException(DownloadFailure.StorageFull,
+                    $"Tohle se ti do zbývajících {Megabytes(options.MaxBytesPerUser - held)} MB nevejde");
+            }
+
+            return freed;
         }
 
         private DownloadRecord Begin(

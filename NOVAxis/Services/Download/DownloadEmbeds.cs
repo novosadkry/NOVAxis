@@ -68,9 +68,9 @@ namespace NOVAxis.Services.Download
                 .Build();
         }
 
-        public static Embed Ready(DownloadRecord record)
+        public static Embed Ready(DownloadRecord record, IReadOnlyList<string> freed = null)
         {
-            return new EmbedBuilder()
+            var builder = new EmbedBuilder()
                 .WithColor(AccentR, AccentG, AccentB)
                 .WithAuthor("Připraveno ke stažení:")
                 .WithTitle(Trim(record.Title, MaxTitle))
@@ -78,9 +78,21 @@ namespace NOVAxis.Services.Download
                 .AddField("Formát:", $"`{record.FormatLabel}`", true)
                 .AddField("Velikost:", $"`{FormatSize(record.Size)}`", true)
                 .AddField("Odkaz platí do:", $"<t:{record.ExpiresAt.ToUnixTimeSeconds()}:t>", true)
-                .WithFooter("Odkaz je jen pro tebe - na webu musíš být přihlášený.")
-                .Build();
+                .WithFooter("Odkaz je jen pro tebe - na webu musíš být přihlášený.");
+
+            // Room was made out of their own older links, so say which rather than
+            // leaving them to find a link they were given has quietly stopped working
+            if (freed is { Count: > 0 })
+            {
+                builder.AddField($"Uvolnil jsem místo, vypršelo:",
+                    string.Join('\n', freed.Select(t => $"· {Trim(t, MaxFreedTitle)}")));
+            }
+
+            return builder.Build();
         }
+
+        /// <summary>A retired title has to leave room for several of them in one field.</summary>
+        private const int MaxFreedTitle = 80;
 
         public static Embed Failed(string title, string reason)
         {

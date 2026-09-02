@@ -107,7 +107,6 @@ namespace NOVAxis.Services.Download
         private static readonly TimeSpan WorkerGrace = TimeSpan.FromSeconds(5);
 
         private readonly ConcurrentDictionary<ulong, DownloadRecord> _byId = new();
-        private readonly ConcurrentDictionary<ulong, DownloadRecord> _byOwner = new();
         private readonly ConcurrentDictionary<ulong, SemaphoreSlim> _gates = new();
         private readonly ConcurrentDictionary<ulong, Queue<DateTimeOffset>> _attempts = new();
 
@@ -136,15 +135,41 @@ namespace NOVAxis.Services.Download
             return _byId.TryGetValue(id, out var record) ? record : null;
         }
 
-        public DownloadRecord FindByOwner(ulong ownerId)
+        /// <summary>Everything one person is holding, newest first.</summary>
+        public IReadOnlyList<DownloadRecord> FindByOwner(ulong ownerId)
         {
-            return _byOwner.TryGetValue(ownerId, out var record) ? record : null;
+            return _byId.Values
+                .Where(r => r.OwnerId == ownerId)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToList();
         }
 
         /// <summary>
-        /// The lock every request from one user passes through. Revoking the previous
-        /// download and admitting the next one is one indivisible step, or two clicks in
-        /// quick succession would leave a file with no record pointing at it.
+        /// What a person's downloads take up. A download still running is charged what it
+        /// is expected to reach rather than what it has written so far - admitting against
+        /// a half-fetched file would let a budget be walked straight past.
+        /// </summary>
+        public long BytesOf(ulong ownerId)
+        {
+            var ceiling = Options.Value.MaxFileSize;
+
+            return _byId.Values
+                .Where(r => r.OwnerId == ownerId)
+                .Sum(r => r.IsFinished
+                    ? r.Size
+                    : System.Math.Max(r.Size, r.EstimatedSize ?? ceiling));
+        }
+
+        /// <summary>Whether this person already has one being fetched.</summary>
+        public int RunningFor(ulong ownerId)
+        {
+            return _byId.Values.Count(r => r.OwnerId == ownerId && !r.IsFinished);
+        }
+
+        /// <summary>
+        /// The lock every request from one user passes through. Freeing room and admitting
+        /// what needed it is one indivisible step, or two clicks in quick succession would
+        /// each decide against a total the other was about to change.
         /// </summary>
         public SemaphoreSlim Gate(ulong ownerId)
         {
@@ -154,7 +179,6 @@ namespace NOVAxis.Services.Download
         public void Add(DownloadRecord record)
         {
             _byId[record.Id] = record;
-            _byOwner[record.OwnerId] = record;
         }
 
         /// <summary>
@@ -225,10 +249,6 @@ namespace NOVAxis.Services.Download
             Interlocked.Add(ref _totalBytes, -record.TakeAccounted());
 
             _byId.TryRemove(record.Id, out _);
-
-            // Only if this is still the owner's current download - a replacement may
-            // already have taken the slot
-            _byOwner.TryRemove(new KeyValuePair<ulong, DownloadRecord>(record.OwnerId, record));
 
             record.Lifetime?.Dispose();
             record.Lifetime = null;

@@ -212,6 +212,22 @@ namespace NOVAxis.Core
         public int MaxPerWindow { get; set; } = 10;
         public TimeSpan QuotaWindow { get; set; } = TimeSpan.FromHours(1);
 
+        /// <summary>
+        /// How much one person's live links may take up at once. This is what bounds a
+        /// user rather than a count of downloads, so several links can be held at a time.
+        /// Sized against <see cref="OutputFolderLimit"/>: the folder has to hold this much
+        /// for every person likely to be holding links at the same time, or one of them
+        /// fills it and the rest are refused.
+        /// </summary>
+        public long MaxBytesPerUser { get; set; } = 314572800;
+
+        /// <summary>
+        /// How many of one person's downloads may be fetched at once. Separate from the
+        /// budget, which is about disk: this is about not letting one person occupy every
+        /// <see cref="MaxConcurrentDownloads"/> slot now that they can ask for several.
+        /// </summary>
+        public int MaxConcurrentPerUser { get; set; } = 1;
+
         /// <summary>The ceiling across every user. Keep it under the real disk.</summary>
         public long OutputFolderLimit { get; set; } = 3221225472;
         public int MaxConcurrentDownloads { get; set; } = 2;

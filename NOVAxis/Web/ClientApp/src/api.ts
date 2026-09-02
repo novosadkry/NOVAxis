@@ -100,9 +100,21 @@ export interface DownloadDto {
   error: string | null
 }
 
+export interface DownloadStorageDto {
+  usedBytes: number
+  limitBytes: number
+}
+
 export interface DownloadOverviewDto {
-  active: DownloadDto | null
+  downloads: DownloadDto[]
+  storage: DownloadStorageDto
   quota: DownloadQuotaDto
+}
+
+/** A download just started, with any older links of yours retired to make room. */
+export interface DownloadStartedDto {
+  download: DownloadDto
+  freed: string[]
 }
 
 export class ApiError extends Error {
@@ -199,7 +211,7 @@ export const api = {
    * spares it a lookup it would otherwise make only to read the name back.
    */
   startDownload: (url: string, kind: DownloadDto['kind'], formatId = '', title = '') =>
-    post<DownloadDto>('/api/downloads', { url, kind, formatId, title }),
+    post<DownloadStartedDto>('/api/downloads', { url, kind, formatId, title }),
 
   revokeDownload: (id: string) =>
     request<void>(`/api/downloads/${id}`, { method: 'DELETE' }),

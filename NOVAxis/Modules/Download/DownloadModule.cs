@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -133,11 +134,11 @@ namespace NOVAxis.Modules.Download
 
             var media = pending.Media;
 
-            DownloadRecord record;
+            DownloadStart started;
 
             try
             {
-                record = await DownloadService.RequestAsync(
+                started = await DownloadService.RequestAsync(
                     Context.User.Id, media.Uri?.AbsoluteUri ?? media.Title, kind, formatId, media);
             }
             catch (DownloadException e)
@@ -155,6 +156,7 @@ namespace NOVAxis.Modules.Download
                 return;
             }
 
+            var record = started.Record;
             var progress = await FollowupAsync(ephemeral: true, embed: DownloadEmbeds.Preparing(record));
 
             try
@@ -163,7 +165,7 @@ namespace NOVAxis.Modules.Download
             }
             catch (Exception) { /* the record carries the outcome */ }
 
-            await ReportAsync(progress, record);
+            await ReportAsync(progress, record, started.Freed);
         }
 
         /// <summary>
@@ -171,12 +173,13 @@ namespace NOVAxis.Modules.Download
         /// editable while its interaction token lives, which outlasts the download timeout -
         /// but not by so much that the fallback is pointless.
         /// </summary>
-        private async Task ReportAsync(IUserMessage progress, DownloadRecord record)
+        private async Task ReportAsync(
+            IUserMessage progress, DownloadRecord record, IReadOnlyList<string> freed)
         {
             var url = WebOptions.Value.GetDownloadUrl(record.Id);
 
             var embed = record.State == DownloadState.Ready
-                ? DownloadEmbeds.Ready(record)
+                ? DownloadEmbeds.Ready(record, freed)
                 : DownloadEmbeds.Failed(record.Title, $"({record.Error ?? "Zkus to prosím znovu"})");
 
             var components = record.State == DownloadState.Ready && url != null

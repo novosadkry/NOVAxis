@@ -56,7 +56,8 @@ namespace NOVAxis.Web.Api
                 return WebApiErrors.NotMember();
 
             return Results.Ok(new DownloadOverviewDto(
-                DownloadDto.FromRecord(downloads.ForUser(userId)),
+                downloads.ForUser(userId).Select(DownloadDto.FromRecord).ToList(),
+                DownloadStorageDto.From(downloads.StorageFor(userId)),
                 DownloadQuotaDto.FromQuota(downloads.QuotaFor(userId))));
         }
 
@@ -130,11 +131,12 @@ namespace NOVAxis.Web.Api
 
             try
             {
-                var record = await downloads.RequestAsync(
+                var started = await downloads.RequestAsync(
                     userId, request.Url, kind, request.FormatId,
                     title: request.Title, cancellationToken: cancellationToken);
 
-                return Results.Ok(DownloadDto.FromRecord(record));
+                return Results.Ok(new DownloadStartedDto(
+                    DownloadDto.FromRecord(started.Record), started.Freed));
             }
             catch (DownloadException e)
             {

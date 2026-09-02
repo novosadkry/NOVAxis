@@ -37,6 +37,22 @@ export function describeFailure(error: unknown): string {
   return error.message
 }
 
-/** True while a download is worth warning about replacing. */
-export const isLive = (active: DownloadDto | null) =>
-  active !== null && (active.state === 'Ready' || active.state === 'Running' || active.state === 'Pending')
+/**
+ * What to say when older links had to go to make room. They were the caller's own and
+ * the oldest of them, but a link that stopped working unannounced is still a surprise.
+ */
+export function describeFreed(freed: string[]): string {
+  if (freed.length === 1) return `Uvolnil jsem místo — vypršel odkaz „${freed[0]}“`
+
+  return `Uvolnil jsem místo — vypršelo ${freed.length} starších odkazů`
+}
+
+/** Whichever of a person's downloads is worth showing in the chrome. */
+export function headline(downloads: DownloadDto[]): DownloadDto | null {
+  return (
+    downloads.find(d => d.state === 'Running' || d.state === 'Pending') ??
+    downloads.find(d => d.state === 'Failed') ??
+    downloads.find(d => d.state === 'Ready') ??
+    null
+  )
+}
