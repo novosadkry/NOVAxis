@@ -91,6 +91,16 @@ namespace NOVAxis.Web
             if (user == null)
                 return WebApiErrors.NotMember();
 
+            // The extractor is the slow half and needs nothing from the player, so it runs
+            // while the bot is still joining - otherwise the queue only gains the track
+            // seconds after the browser has already seen the bot connect
+            var lookup = SearchService.LoadAsync(query, cancellationToken).AsTask();
+
+            // The retrieve below may still turn the request away, leaving this awaited by
+            // nobody - and a failure with no observer is one raised at a finalizer instead
+            _ = lookup.ContinueWith(t => _ = t.Exception, CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+
             var options = new AudioPlayerRetrieveOptions
             {
                 JoinChannel = true,
@@ -106,7 +116,7 @@ namespace NOVAxis.Web
 
             try
             {
-                load = await SearchService.LoadAsync(query, cancellationToken);
+                load = await lookup;
             }
             catch (Exception e) when (e is ProcessException or HttpRequestException)
             {

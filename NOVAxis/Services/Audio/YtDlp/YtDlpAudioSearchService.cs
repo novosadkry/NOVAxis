@@ -151,11 +151,20 @@ namespace NOVAxis.Services.Audio.YtDlp
                 return cached;
             }
 
+            if (Played(input) is { } played)
+            {
+                Logger.Debug($"Reusing the track already played for '{input}'");
+                return played;
+            }
+
             return await Inspections.RunAsync(input, async token =>
             {
                 // Checked again inside: the caller this one joined may have just stored it
                 if (Media.TryGetValue(input, out var found))
                     return found;
+
+                if (Played(input) is { } sinceQueued)
+                    return sinceQueued;
 
                 var target = await ResolveAsync(input, token);
 
@@ -169,6 +178,24 @@ namespace NOVAxis.Services.Audio.YtDlp
 
                 return media;
             }, cancellationToken);
+        }
+
+        /// <summary>
+        /// The playback lookup of the same link, when it can answer an inspection too -
+        /// which is what stops queueing a track and then downloading it costing two
+        /// extractions. It can only when yt-dlp was asked about a single thing and came
+        /// back with the renditions: a playlist was a different question entirely, and an
+        /// entry listed flat carries no formats to offer. Anything else falls through to
+        /// a probe, so the reuse can only ever be a saving, never a worse answer.
+        /// </summary>
+        private AudioTrack Played(string input)
+        {
+            if (!Results.TryGetValue(input, out var result) || result.IsFailed || result.IsPlaylist)
+                return null;
+
+            var track = result.Track;
+
+            return track?.Formats.Count > 0 ? track : null;
         }
 
         private async ValueTask<AudioLoadResult> LookUpAsync(string input, CancellationToken cancellationToken)
