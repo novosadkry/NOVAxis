@@ -38,6 +38,8 @@ namespace NOVAxis.Services.Net
         private readonly CancellationTokenSource _stopping = new();
         private readonly Lazy<string> _proxy;
 
+        private readonly HashSet<string> _allowed = new(StringComparer.OrdinalIgnoreCase);
+
         private TcpListener _listener;
         private Task _accepting;
         private string _credentials;
@@ -100,6 +102,8 @@ namespace NOVAxis.Services.Net
                 throw new InvalidOperationException("The network guard could not open a port", e);
             }
 
+            CollectAllowed(ytDlp);
+
             var port = ((IPEndPoint)_listener.LocalEndpoint).Port;
 
             // Loopback keeps it to this host; the token keeps it to this process
@@ -133,6 +137,63 @@ namespace NOVAxis.Services.Net
         {
             await StopAsync(CancellationToken.None);
             _stopping.Dispose();
+        }
+
+        /// <summary>
+        /// Gathers the hosts allowed past the guard: the ones an operator named, plus the
+        /// base_url of any provider they pointed yt-dlp at. Reading that second one out of
+        /// their own arguments spares them writing the same address twice - and it is their
+        /// configuration either way, not anything a caller can reach.
+        /// </summary>
+        private void CollectAllowed(AudioYtDlpOptions ytDlp)
+        {
+            if (ytDlp.AllowedHosts != null)
+            {
+                foreach (var entry in ytDlp.AllowedHosts)
+                {
+                    if (!string.IsNullOrWhiteSpace(entry))
+                        _allowed.Add(entry.Trim());
+                }
+            }
+
+            foreach (var argument in ytDlp.ExtraArguments ?? [])
+            {
+                foreach (var host in ProviderHosts(argument))
+                    _allowed.Add(host);
+            }
+
+            if (_allowed.Count > 0)
+                Logger.Info($"Network guard also allows {string.Join(", ", _allowed)}");
+        }
+
+        /// <summary>
+        /// Pulls the authority out of every base_url in an extractor argument, which yt-dlp
+        /// writes as "key:name=value" with further pairs separated by semicolons.
+        /// </summary>
+        private static IEnumerable<string> ProviderHosts(string argument)
+        {
+            if (string.IsNullOrEmpty(argument))
+                yield break;
+
+            var at = argument.IndexOf("base_url=", StringComparison.OrdinalIgnoreCase);
+
+            while (at >= 0)
+            {
+                var value = argument[(at + "base_url=".Length)..];
+                var terminator = value.IndexOf(';');
+
+                if (terminator >= 0)
+                    value = value[..terminator];
+
+                if (Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri) &&
+                    !string.IsNullOrEmpty(uri.Host))
+                {
+                    yield return uri.Host;
+                    yield return $"{uri.Host}:{uri.Port}";
+                }
+
+                at = argument.IndexOf("base_url=", at + 1, StringComparison.OrdinalIgnoreCase);
+            }
         }
 
         private async Task AcceptAsync(CancellationToken cancellationToken)
@@ -295,7 +356,12 @@ namespace NOVAxis.Services.Net
             if (port is <= 0 or > 65535)
                 return null;
 
-            var addresses = await PrivateNetworks.ResolveAsync(host, cancellationToken);
+            // A helper yt-dlp is configured to talk to is private by design, so an operator
+            // may name it. Scoped to the host and port they named, and never to the address
+            // it resolves to, which is not theirs to promise.
+            var allowPrivate = _allowed.Contains(host) || _allowed.Contains($"{host}:{port}");
+
+            var addresses = await PrivateNetworks.ResolveAsync(host, allowPrivate, cancellationToken);
 
             if (addresses.Count == 0)
                 return null;

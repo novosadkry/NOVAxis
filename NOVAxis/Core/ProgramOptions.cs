@@ -110,6 +110,14 @@ namespace NOVAxis.Core
         /// with it off, a link anyone can paste can reach anything the bot can.
         /// </summary>
         public bool RestrictNetwork { get; set; } = true;
+
+        /// <summary>
+        /// Hosts the guard lets through even though they sit on this machine's own network,
+        /// as "host" or "host:port". For the helpers yt-dlp is told to talk to - a PO token
+        /// provider alongside it, say - which are private by design. The base_url of such a
+        /// provider is picked up from ExtraArguments on its own; this is for anything else.
+        /// </summary>
+        public List<string> AllowedHosts { get; set; } = [];
     }
 
     public class AnthropicOptions

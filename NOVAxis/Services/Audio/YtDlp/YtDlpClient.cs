@@ -196,7 +196,7 @@ namespace NOVAxis.Services.Audio.YtDlp
             if (uri.IsFile || uri.IsUnc || string.IsNullOrEmpty(uri.Host))
                 return false;
 
-            var addresses = await PrivateNetworks.ResolveAsync(uri.DnsSafeHost, cancellationToken);
+            var addresses = await PrivateNetworks.ResolveAsync(uri.DnsSafeHost, cancellationToken: cancellationToken);
 
             return addresses.Count > 0;
         }

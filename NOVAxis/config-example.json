@@ -49,7 +49,8 @@
       "Prefetch": true,
       "ResolveTimeout": "00:00:30",
       "MaxConcurrentLookups": 4,
-      "RestrictNetwork": true
+      "RestrictNetwork": true,
+      "AllowedHosts": []
     },
     "Lavalink": {
       "Host": "localhost",

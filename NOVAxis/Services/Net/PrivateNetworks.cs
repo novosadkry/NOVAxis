@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -82,13 +82,13 @@ namespace NOVAxis.Services.Net
         /// rather than the offending record quietly dropped.
         /// </summary>
         public static async ValueTask<IReadOnlyList<IPAddress>> ResolveAsync(
-            string host, CancellationToken cancellationToken = default)
+            string host, bool allowPrivate = false, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(host))
                 return [];
 
             if (IPAddress.TryParse(host, out var literal))
-                return IsBlocked(literal) ? [] : [literal];
+                return !allowPrivate && IsBlocked(literal) ? [] : [literal];
 
             IPAddress[] addresses;
 
@@ -101,7 +101,7 @@ namespace NOVAxis.Services.Net
                 return [];
             }
 
-            if (addresses.Length == 0 || addresses.Any(IsBlocked))
+            if (addresses.Length == 0 || (!allowPrivate && addresses.Any(IsBlocked)))
                 return [];
 
             return addresses;
