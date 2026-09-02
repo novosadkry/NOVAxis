@@ -41,7 +41,7 @@ RUN dotnet publish -c Release -o out
 
 # -- Runtime --
 
-FROM mcr.microsoft.com/dotnet/runtime:9.0-noble
+FROM mcr.microsoft.com/dotnet/aspnet:9.0-noble
 
 # ffmpeg and yt-dlp back the in-process audio streaming
 ARG BGUTIL_POT_VERSION=1.3.2
