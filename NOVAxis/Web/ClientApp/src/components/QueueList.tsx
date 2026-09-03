@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { api, PlayerStateDto, QueueItemDto, TrackDto } from '../api'
-import { formatDuration, formatTotal } from '../format'
+import { formatDuration, formatQueueEndTime, formatTotal } from '../format'
 import { Close, Download, Grip } from '../Icons'
 import { useToast } from '../Toast'
 
@@ -30,6 +30,7 @@ export function QueueList({ guildId, state, onDownload, startingUri }: QueueList
   if (!state?.connected) return null
 
   const totalMs = items.reduce((total, item) => total + item.track.durationMs, 0)
+  const endTime = formatQueueEndTime(state, totalMs)
 
   const drop = (toIndex: number) => {
     if (dragId === null) return
@@ -64,7 +65,13 @@ export function QueueList({ guildId, state, onDownload, startingUri }: QueueList
       <header className="queue-head">
         <h3 className="eyebrow">
           FRONTA · {items.length}
-          {items.length > 0 && <span className="queue-total"> / {formatTotal(totalMs)}</span>}
+          {items.length > 0 && (
+            <span className="queue-total">
+              {' / '}
+              {formatTotal(totalMs)}
+              {endTime && ` · ${endTime}`}
+            </span>
+          )}
         </h3>
         {items.length > 0 && (
           <button type="button" className="text-btn" onClick={() => run(api.clearQueue(guildId))}>
