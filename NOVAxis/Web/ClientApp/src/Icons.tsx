@@ -75,6 +75,14 @@ export const Volume = (p: IconProps) => (
   </Svg>
 )
 
+export const VolumeMuted = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M11 5 6 9H2v6h4l5 4z" fill="currentColor" stroke="none" />
+    <path d="m16 9 5 6" />
+    <path d="m21 9-5 6" />
+  </Svg>
+)
+
 export const Power = (p: IconProps) => (
   <Svg {...p}>
     <path d="M12 2v10" />

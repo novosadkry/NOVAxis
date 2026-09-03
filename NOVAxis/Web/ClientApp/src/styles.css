@@ -494,11 +494,24 @@ button:disabled {
   font-weight: 700;
 }
 
-.topbar-sub {
+.topbar-sub,
+.topbar-live {
   font-family: var(--font-mono);
   font-size: 11.5px;
   color: var(--faint);
   letter-spacing: 0.04em;
+}
+
+/* The live link, but only while it is not simply working - a warning light, not chrome */
+.topbar-live {
+  margin-top: 3px;
+  color: var(--warn);
+}
+
+/* Still getting updates, just not over the socket - a fallback working as designed
+   reads calmer than a link that is actively down, so this one keeps the quiet colour */
+.topbar-live.topbar-live-fallback {
+  color: var(--faint);
 }
 
 /* ---------- search ---------- */
@@ -729,6 +742,66 @@ button:disabled {
 .requester strong {
   color: var(--text);
   font-weight: 600;
+}
+
+.hero {
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-backdrop {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 70%;
+  height: 70%;
+  z-index: 0;
+  object-fit: cover;
+  /* Rendered at a fraction of the card's size, then scaled back up on the
+     compositor — the blur only has to process a small box, not the full
+     width of the hero, so this stays cheap even though it looks full-bleed. */
+  transform: translate(-50%, -50%) scale(1.7);
+  transform-origin: center;
+  filter: blur(26px) saturate(1.15) brightness(0.55);
+  opacity: 0.9;
+  pointer-events: none;
+  animation: hero-backdrop-in 0.5s ease both;
+}
+
+@keyframes hero-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.9;
+  }
+}
+
+/* Scrim: only exists when a backdrop is actually rendered, so the no-art
+   fallback path stays exactly as it was. Darkest over the left/art column,
+   fading right, with a floor opacity that still protects text at the far
+   edge of a wide hero. */
+.hero-has-backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    rgba(11, 14, 20, 0.95) 0%,
+    rgba(11, 14, 20, 0.84) 38%,
+    rgba(11, 14, 20, 0.64) 100%
+  );
+}
+
+.hero > .hero-art {
+  z-index: 1;
+}
+
+.hero > .hero-meta {
+  position: relative;
+  z-index: 1;
 }
 
 /* idle state */
@@ -1336,6 +1409,38 @@ button:disabled {
   color: var(--faint);
 }
 
+/* The speaker is a button now; a full 36px well would crowd the readout off the row */
+.volume-btn {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+}
+
+.volume-slider {
+  /* Roughly the native thumb: the mark belongs where the thumb stops, half a thumb
+     in from each end - not at a flat two thirds of the element */
+  --volume-thumb: 16px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* The range runs to 150 with nothing saying where normal is; a hairline at 100 does.
+   It is drawn over the slider - the native track is opaque, and anything behind it
+   would only show at the edges - so it stays faint enough to read as part of it. */
+.volume-slider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: calc(var(--volume-thumb) / 2 + (100% - var(--volume-thumb)) * 0.6667);
+  width: 1px;
+  height: 10px;
+  transform: translate(-50%, -50%);
+  background: var(--faint);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 /* ---------- toasts ---------- */
 
 .toasts {
@@ -1428,6 +1533,11 @@ button:disabled {
     order: 3;
     grid-column: 1 / -1;
     justify-content: space-between;
+  }
+
+  /* The mute button costs the narrow bar 40px; the slider hands them back */
+  .volume-slider input[type='range'] {
+    width: 92px;
   }
 
   .queue-grip,

@@ -6,12 +6,28 @@ import { LiveState } from './live'
 
 const Idle: LiveState = { state: null, receivedAt: 0, error: null }
 
+/**
+ * 'connecting' is the one-time initial handshake; 'reconnecting' is the same "no data
+ * right now" situation returned to later, kept distinct so the UI can say "still there,
+ * hold on" rather than repeating the first-load message. 'polling' means automatic
+ * reconnect gave up and the fallback has taken over for good, until the guild changes.
+ */
+type Transport = 'connecting' | 'hub' | 'reconnecting' | 'polling'
+
 interface PlayerLive extends LiveState {
   /** Points the one connection at a guild, or at none. */
   watch: (guildId: string | null) => void
+  transport: Transport
+  /** The guild actually being followed right now, for callers with no live state of their own. */
+  guildId: string | null
 }
 
-const PlayerContext = createContext<PlayerLive>({ ...Idle, watch: () => undefined })
+const PlayerContext = createContext<PlayerLive>({
+  ...Idle,
+  watch: () => undefined,
+  transport: 'connecting',
+  guildId: null,
+})
 
 /**
  * One socket for the whole session, following whichever guild is being looked at, with
@@ -26,7 +42,7 @@ const PlayerContext = createContext<PlayerLive>({ ...Idle, watch: () => undefine
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [guildId, setGuildId] = useState<string | null>(null)
   const [live, setLive] = useState<LiveState>(Idle)
-  const [transport, setTransport] = useState<'connecting' | 'hub' | 'polling'>('connecting')
+  const [transport, setTransport] = useState<Transport>('connecting')
 
   const hub = useRef<HubConnection | null>(null)
 
@@ -49,23 +65,48 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       .withAutomaticReconnect()
       .build()
 
+    // connection.stop() on unmount fires onclose itself - without this, that teardown
+    // would flip a dead component's transport to 'polling' behind its own back
+    let stopped = false
+
     connection.on('state', receive)
 
+    // Not a verdict yet - SignalR is retrying on its own schedule. Only onreconnected
+    // or onclose settle what actually happened
+    connection.onreconnecting(() => {
+      if (!stopped) setTransport('reconnecting')
+    })
+
     connection.onreconnected(() => {
+      if (stopped) return
+
+      setTransport('hub')
+
       const following = watched.current
 
       if (following)
         void connection.invoke<PlayerStateDto>('Subscribe', following).then(receive).catch(() => undefined)
     })
 
+    // Automatic reconnect exhausted its attempts - polling is what keeps the position
+    // honest instead of quietly extrapolating over a socket nobody is coming back on
+    connection.onclose(() => {
+      if (!stopped) setTransport('polling')
+    })
+
     hub.current = connection
 
     connection
       .start()
-      .then(() => setTransport('hub'))
-      .catch(() => setTransport('polling'))
+      .then(() => {
+        if (!stopped) setTransport('hub')
+      })
+      .catch(() => {
+        if (!stopped) setTransport('polling')
+      })
 
     return () => {
+      stopped = true
       hub.current = null
       connection.stop().catch(() => undefined)
     }
@@ -77,7 +118,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // Another guild is another player, and its state must not be shown under this one
     setLive(prev => (prev.state !== null && prev.state.guildId !== guildId ? Idle : prev))
 
-    if (guildId === null || transport === 'connecting')
+    // While 'reconnecting', SignalR itself is mid-retry on the very socket a Subscribe
+    // would need - invoking through it now would just surface a network hiccup as if it
+    // were the server refusing the guild. Wait for a verdict: back to 'hub', or 'polling'
+    if (guildId === null || transport === 'connecting' || transport === 'reconnecting')
       return
 
     let disposed = false
@@ -109,7 +153,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [guildId, transport, receive])
 
   return (
-    <PlayerContext.Provider value={{ ...live, watch }}>{children}</PlayerContext.Provider>
+    <PlayerContext.Provider value={{ ...live, watch, transport, guildId }}>
+      {children}
+    </PlayerContext.Provider>
   )
 }
 
@@ -126,4 +172,14 @@ export function usePlayerState(guildId: string | null): LiveState {
   }, [guildId, watch])
 
   return live
+}
+
+/**
+ * Read-only look at the one connection's health, for chrome that sits outside whichever
+ * page is following a guild (the shell around it) and so has no live state of its own to
+ * derive this from. Never calls watch() - looking at the socket must not steer it.
+ */
+export function usePlayerTransport(): { transport: Transport; guildId: string | null } {
+  const { transport, guildId } = useContext(PlayerContext)
+  return { transport, guildId }
 }

@@ -9,9 +9,15 @@ export interface LiveState {
   error: string | null
 }
 
+// Polling ticks every 3s - anything twice that stale is not a slow tick, it is a link
+// that stopped delivering, and extrapolating past it would just be inventing a position
+const STALE_AFTER_MS = 8000
+
 /**
  * The position to draw right now - the last sample plus the time elapsed since
- * it arrived, frozen while paused and clamped to the track's length.
+ * it arrived, frozen while paused and clamped to the track's length. Once the snapshot
+ * itself is stale, elapsed time stops being trusted and the bar holds instead of drifting
+ * further past a truth nobody has confirmed.
  */
 export function usePosition(live: LiveState): number {
   const [, setFrame] = useState(0)
@@ -46,7 +52,8 @@ export function usePosition(live: LiveState): number {
   if (!state?.current) return 0
   if (!playing) return state.positionMs
 
-  const elapsed = Math.max(Date.now() - live.receivedAt, 0)
+  const age = Date.now() - live.receivedAt
+  const elapsed = Math.max(Math.min(age, STALE_AFTER_MS), 0)
   const position = state.positionMs + elapsed
   const duration = state.current.track.durationMs
 

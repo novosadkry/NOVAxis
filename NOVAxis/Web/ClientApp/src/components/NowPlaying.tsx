@@ -35,7 +35,19 @@ export function NowPlaying({ live, onDownload, startingUri }: NowPlayingProps) {
   const track = item.track
 
   return (
-    <section className="hero">
+    <section className={`hero${track.artworkUri ? ' hero-has-backdrop' : ''}`}>
+      {track.artworkUri && (
+        // Ambient copy of the art, blurred behind the card — re-keyed so a track
+        // change replays the fade-in instead of popping to the new image.
+        <img
+          key={track.artworkUri}
+          className="hero-backdrop"
+          src={track.artworkUri}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+        />
+      )}
       <div className="hero-art">
         {track.artworkUri ? (
           <img src={track.artworkUri} alt="" />

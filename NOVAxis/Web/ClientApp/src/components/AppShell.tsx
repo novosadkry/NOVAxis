@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { headline, useDownloads } from '../downloads'
 import { useGuilds } from '../guilds'
+import { usePlayerTransport } from '../player'
 import { useUser } from '../user'
 import { Download, Power } from '../Icons'
 
@@ -40,8 +41,19 @@ export function AppShell({
 }: AppShellProps) {
   const user = useUser()
   const { guilds } = useGuilds()
+  const { transport, guildId: liveGuildId } = usePlayerTransport()
 
   const heading = title ?? guilds.find(g => g.id === activeGuildId)?.name ?? '…'
+
+  // Nothing to say about a socket nobody is following (the downloads page has no guild),
+  // nothing while it is healthy, and nothing during the first handshake either - that one
+  // is expected and quick, and a warning that flashes on every load stops being read
+  const linkStatus =
+    liveGuildId === null || transport === 'hub' || transport === 'connecting'
+      ? null
+      : transport === 'polling'
+        ? 'omezené spojení · aktualizuji pomaleji'
+        : 'spojuji se s jádrem…'
 
   return (
     <div className="app">
@@ -108,6 +120,14 @@ export function AppShell({
             <div>
               <h1>{heading}</h1>
               {subtitle && <p className="topbar-sub">{subtitle}</p>}
+              {linkStatus && (
+                <p
+                  className={`topbar-live${transport === 'polling' ? ' topbar-live-fallback' : ''}`}
+                  role="status"
+                >
+                  {linkStatus}
+                </p>
+              )}
             </div>
           </div>
 

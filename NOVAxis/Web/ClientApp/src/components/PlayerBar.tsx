@@ -1,9 +1,9 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { api, PlayerStateDto } from '../api'
 import { formatDuration } from '../format'
 import { LiveState, usePosition } from '../live'
-import { Pause, Play, Power, Repeat, RepeatOne, Skip, Stop, Volume } from '../Icons'
+import { Pause, Play, Power, Repeat, RepeatOne, Skip, Stop, Volume, VolumeMuted } from '../Icons'
 import { useToast } from '../Toast'
 
 interface PlayerBarProps {
@@ -17,6 +17,97 @@ const repeatCycle: Record<PlayerStateDto['repeatMode'], PlayerStateDto['repeatMo
   Track: 'None',
 }
 
+const repeatNames: Record<PlayerStateDto['repeatMode'], string> = {
+  None: 'vypnuto',
+  Queue: 'celá fronta',
+  Track: 'jedna skladba',
+}
+
+interface Pending<T> {
+  value: T
+  /**
+   * Client clock at which the request came back. A snapshot older than this was already on
+   * the wire when the control was touched, so it still carries the value being replaced.
+   */
+  ackAt: number
+}
+
+/**
+ * A control that answers the click instead of the network: the chosen value shows at once
+ * and holds until the server is seen agreeing with it. Over the three-second polling
+ * fallback the alternative is a button that looks broken.
+ *
+ * `delay` coalesces a burst of changes into one request - the slider's need.
+ */
+function useOptimistic<T>(receivedAt: number, send: (value: T) => Promise<unknown>, delay = 0) {
+  const { run } = useToast()
+  const [pending, setPending] = useState<Pending<T> | null>(null)
+  const timers = useRef<{ send?: number; expiry?: number }>({})
+  const attempt = useRef(0)
+
+  const clearTimers = () => {
+    window.clearTimeout(timers.current.send)
+    window.clearTimeout(timers.current.expiry)
+  }
+
+  useEffect(() => {
+    // Waiting for the acknowledgement first is what keeps a snapshot that predates the
+    // command from flicking the control back to the old value and then forward again
+    if (pending && receivedAt > pending.ackAt) {
+      clearTimers()
+      setPending(null)
+    }
+  }, [pending, receivedAt])
+
+  useEffect(() => clearTimers, [])
+
+  const apply = (value: T) => {
+    const attemptId = ++attempt.current
+
+    clearTimers()
+    setPending({ value, ackAt: Infinity })
+
+    timers.current.send = window.setTimeout(() => {
+      const request = send(value)
+
+      request.then(
+        () => {
+          // A later touch owns the override by now, and its own answer is still coming
+          if (attemptId === attempt.current)
+            setPending(current => (current ? { ...current, ackAt: Date.now() } : null))
+        },
+        () => {
+          // run() turns the failure into a toast; this only has to stop the UI lying
+          if (attemptId === attempt.current) setPending(null)
+        },
+      )
+
+      run(request)
+
+      // A command that is lost or ignored must not leave a wrong value on screen for good
+      timers.current.expiry = window.setTimeout(() => setPending(null), 5000)
+    }, delay)
+  }
+
+  return [pending?.value, apply] as const
+}
+
+/**
+ * For the commands with no honest local answer - which track comes next is the server's to
+ * decide. All this can do is keep an impatient second click from skipping a second track.
+ */
+function useSingleFlight(send: () => Promise<unknown>) {
+  const { run } = useToast()
+  const [busy, setBusy] = useState(false)
+
+  const fire = () => {
+    setBusy(true)
+    run(send()).then(() => setBusy(false))
+  }
+
+  return [busy, fire] as const
+}
+
 /**
  * The transport - the one place every control lives. The progress line across
  * its top edge is scrubbable and doubles as the page's heartbeat.
@@ -27,11 +118,28 @@ export function PlayerBar({ guildId, live }: PlayerBarProps) {
   const position = usePosition(live)
   const lineRef = useRef<HTMLDivElement>(null)
 
-  const [pendingVolume, setPendingVolume] = useState<number | null>(null)
-  const volumeTimer = useRef<number>()
+  const [pendingPlaying, setPlaying] = useOptimistic<boolean>(live.receivedAt, next =>
+    next ? api.resume(guildId) : api.pause(guildId),
+  )
+
+  const [pendingRepeat, setRepeat] = useOptimistic<PlayerStateDto['repeatMode']>(
+    live.receivedAt,
+    mode => api.repeat(guildId, mode),
+  )
+
+  // One request when the slider settles, not one per pixel
+  const [pendingVolume, setVolume] = useOptimistic<number>(
+    live.receivedAt,
+    percent => api.volume(guildId, percent),
+    250,
+  )
+
+  const [skipping, skip] = useSingleFlight(() => api.skip(guildId))
+  const [stopping, stopAll] = useSingleFlight(() => api.stop(guildId))
 
   const track = state?.current?.track
-  const playing = state?.state === 'Playing' && !state.isPaused
+  const playing = pendingPlaying ?? (state?.state === 'Playing' && !state.isPaused)
+  const repeatMode = pendingRepeat ?? state?.repeatMode ?? 'None'
   const seekable = !!track && !track.isLiveStream && track.durationMs > 0
   const progress = seekable ? Math.min(position / track.durationMs, 1) : 0
 
@@ -45,17 +153,14 @@ export function PlayerBar({ guildId, live }: PlayerBarProps) {
   }
 
   const volume = pendingVolume ?? Math.round((state?.volume ?? 1) * 100)
+  const muted = volume === 0
+  const restore = useRef(100)
 
-  const changeVolume = (percent: number) => {
-    setPendingVolume(percent)
-
-    // One request when the slider settles, not one per pixel
-    window.clearTimeout(volumeTimer.current)
-    volumeTimer.current = window.setTimeout(() => {
-      run(api.volume(guildId, percent))
-      setPendingVolume(null)
-    }, 250)
-  }
+  useEffect(() => {
+    // Unmuting returns the slider to wherever it last stood, or to normal if the player
+    // has been silent since the page loaded
+    if (volume > 0) restore.current = volume
+  }, [volume])
 
   const disabled = !state?.connected || !state.current
 
@@ -86,13 +191,13 @@ export function PlayerBar({ guildId, live }: PlayerBarProps) {
         <div className="playerbar-controls">
           <button
             type="button"
-            className={'icon-btn' + (state?.repeatMode !== 'None' ? ' active' : '')}
+            className={'icon-btn' + (repeatMode !== 'None' ? ' active' : '')}
             aria-label="Režim opakování"
-            title={`Opakování: ${state?.repeatMode ?? 'None'}`}
+            title={`Opakování: ${repeatNames[repeatMode]}`}
             disabled={disabled}
-            onClick={() => state && run(api.repeat(guildId, repeatCycle[state.repeatMode]))}
+            onClick={() => setRepeat(repeatCycle[repeatMode])}
           >
-            {state?.repeatMode === 'Track' ? <RepeatOne size={18} /> : <Repeat size={18} />}
+            {repeatMode === 'Track' ? <RepeatOne size={18} /> : <Repeat size={18} />}
           </button>
 
           <button
@@ -100,7 +205,7 @@ export function PlayerBar({ guildId, live }: PlayerBarProps) {
             className="play-btn"
             aria-label={playing ? 'Pozastavit' : 'Přehrát'}
             disabled={disabled}
-            onClick={() => run(playing ? api.pause(guildId) : api.resume(guildId))}
+            onClick={() => setPlaying(!playing)}
           >
             {playing ? <Pause size={22} /> : <Play size={22} />}
           </button>
@@ -109,8 +214,8 @@ export function PlayerBar({ guildId, live }: PlayerBarProps) {
             type="button"
             className="icon-btn"
             aria-label="Přeskočit"
-            disabled={disabled}
-            onClick={() => run(api.skip(guildId))}
+            disabled={disabled || skipping}
+            onClick={skip}
           >
             <Skip size={18} />
           </button>
@@ -120,27 +225,40 @@ export function PlayerBar({ guildId, live }: PlayerBarProps) {
             className="icon-btn"
             aria-label="Zastavit a vyprázdnit frontu"
             title="Zastavit a vyprázdnit frontu"
-            disabled={disabled}
-            onClick={() => run(api.stop(guildId))}
+            disabled={disabled || stopping}
+            onClick={stopAll}
           >
             <Stop size={18} />
           </button>
         </div>
 
         <div className="playerbar-right">
-          <label className="volume">
-            <Volume size={18} />
-            <input
-              type="range"
-              min={0}
-              max={150}
-              value={volume}
+          <div className="volume">
+            <button
+              type="button"
+              className="icon-btn volume-btn"
+              aria-label={muted ? 'Zrušit ztlumení' : 'Ztlumit'}
+              title={muted ? 'Zrušit ztlumení' : 'Ztlumit'}
               disabled={!state?.connected}
-              aria-label="Hlasitost"
-              onChange={e => changeVolume(Number(e.target.value))}
-            />
+              onClick={() => setVolume(muted ? restore.current : 0)}
+            >
+              {muted ? <VolumeMuted size={18} /> : <Volume size={18} />}
+            </button>
+
+            <span className="volume-slider">
+              <input
+                type="range"
+                min={0}
+                max={150}
+                value={volume}
+                disabled={!state?.connected}
+                aria-label="Hlasitost"
+                onChange={e => setVolume(Number(e.target.value))}
+              />
+            </span>
+
             <span className="volume-value">{volume}%</span>
-          </label>
+          </div>
 
           <button
             type="button"
