@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 
 using NOVAxis.Services.Audio;
+using NOVAxis.Services.Polls;
 using NOVAxis.Web.Contracts;
 
 using Discord.WebSocket;
@@ -17,11 +18,16 @@ namespace NOVAxis.Web
     {
         private DiscordShardedClient Client { get; }
         private IAudioPlayerManager PlayerManager { get; }
+        private SkipVoteService SkipVotes { get; }
 
-        public PlayerStateService(DiscordShardedClient client, IAudioPlayerManager playerManager)
+        public PlayerStateService(
+            DiscordShardedClient client,
+            IAudioPlayerManager playerManager,
+            SkipVoteService skipVotes)
         {
             Client = client;
             PlayerManager = playerManager;
+            SkipVotes = skipVotes;
         }
 
         public PlayerStateDto GetState(ulong guildId)
@@ -47,7 +53,8 @@ namespace NOVAxis.Web
                 DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 channel == null ? null : new VoiceChannelDto(channel.Id.ToString(), channel.Name),
                 QueueItemDto.FromItem(current),
-                queue);
+                queue,
+                SkipVoteDto.FromVote(SkipVotes.Peek(guildId, current?.RequestId)));
         }
     }
 }

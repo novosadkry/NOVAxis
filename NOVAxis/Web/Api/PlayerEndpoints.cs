@@ -25,6 +25,7 @@ namespace NOVAxis.Web.Api
             group.MapPost("/resume", Resume);
             group.MapPost("/stop", Stop);
             group.MapPost("/skip", Skip);
+            group.MapPost("/skip/against", VoteAgainstSkip);
             group.MapPost("/seek", Seek);
             group.MapPost("/volume", Volume);
             group.MapPost("/repeat", Repeat);
@@ -71,6 +72,12 @@ namespace NOVAxis.Web.Api
             var count = Math.Max(request?.Count ?? 1, 1);
 
             return player.SkipAsync(user, guildId, count);
+        }
+
+        private static Task<IResult> VoteAgainstSkip(
+            ulong guildId, ClaimsPrincipal user, WebPlayerService player)
+        {
+            return player.VoteAgainstSkipAsync(user, guildId);
         }
 
         private static Task<IResult> Seek(

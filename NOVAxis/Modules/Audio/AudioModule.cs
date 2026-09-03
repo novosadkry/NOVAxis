@@ -377,39 +377,26 @@ namespace NOVAxis.Modules.Audio
                 return;
             }
 
-            var open = SkipVotes.Current(Context.Guild.Id, item.RequestId);
+            var opening = SkipVotes.Peek(Context.Guild.Id, item.RequestId) == null;
 
-            if (open != null)
+            var vote = await SkipVotes.CastOrOpenAsync(
+                player, (IGuildUser)Context.User, item, listeners, SkipVote.Yes);
+
+            if (vote == null)
             {
-                await CastAsync(open, SkipVote.Yes, player, defer: false);
+                await RespondAsync(ephemeral: true, embed: AudioEmbeds.Warning(
+                    "Tvůj hlas už mám", "(Hlasovat lze jen jednou)"));
+
                 return;
             }
 
-            var vote = new SkipVote(
-                Context.Guild.Id, (IGuildUser)Context.User, item,
-                listeners, SkipVotes.Needed(listeners));
-
-            // Whoever asked has plainly voted for it
-            vote.AddVote((IGuildUser)Context.User, SkipVote.Yes);
-
-            var builder = new SkipVoteEmbedBuilder(vote);
-
-            var interaction = new PollInteraction
-            {
-                Poll = vote,
-                Builder = builder,
-                Tracker = new AggregatePollTracker(vote,
-                [
-                    new SkipVoteTracker(vote),
-                    new TimeoutPollTracker(vote, SkipVotes.Timeout)
-                ])
-            };
-
-            await RespondAsync(embed: builder.BuildEmbed(), components: builder.BuildComponents());
-
-            interaction.Message = await GetOriginalResponseAsync();
-
-            SkipVotes.Add(Context.Guild.Id, interaction);
+            // Opening already posted the vote to the channel, so saying it again here
+            // would put the same thing on screen twice
+            await RespondAsync(ephemeral: true, embed: AudioEmbeds.Info(
+                opening
+                    ? "Spustil jsem hlasování o přeskočení"
+                    : $"Hlas přijat — {vote.InFavour}/{vote.Needed}",
+                Context.User));
         }
 
         [ComponentInteraction("skipvote_yes_*", true)]
@@ -439,38 +426,15 @@ namespace NOVAxis.Modules.Audio
 
             if (player == null) return;
 
-            await CastAsync(interaction, choice, player);
-        }
-
-        private async Task CastAsync(PollInteraction interaction, int choice, IAudioPlayer player, bool defer = true)
-        {
-            var vote = (SkipVote)interaction.Poll;
-
-            if (!vote.AddVote((IGuildUser)Context.User, choice))
+            if (!await SkipVotes.CastAsync(interaction, (IGuildUser)Context.User, choice, player))
             {
                 await AnswerAsync(AudioEmbeds.Warning(
-                    "Tvůj hlas už mám",
-                    "(Hlasovat lze jen jednou)"));
+                    "Tvůj hlas už mám", "(Hlasovat lze jen jednou)"));
 
                 return;
             }
 
-            if (vote.Settled)
-            {
-                await interaction.Close(rebuild: false);
-                SkipVotes.Forget(vote.GuildId);
-            }
-
-            await interaction.Rebuild();
-
-            if (defer)
-                await DeferAsync();
-            else
-                await RespondAsync(ephemeral: true, embed: AudioEmbeds.Info("Hlas přijat"));
-
-            // Only once the message shows the result - the skip pushes a new now-playing
-            if (vote.Passed && player.CurrentItem?.RequestId == vote.ItemId)
-                await player.SkipAsync();
+            await DeferAsync();
         }
 
         private async ValueTask<int> ListenersAsync(IAudioPlayer player)

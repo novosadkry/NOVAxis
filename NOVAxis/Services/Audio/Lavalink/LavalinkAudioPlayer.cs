@@ -26,7 +26,7 @@ namespace NOVAxis.Services.Audio.Lavalink
     {
         private readonly LavalinkAudioTrackQueue _queue;
 
-        private ITextChannel TextChannel { get; }
+        public ITextChannel TextChannel { get; }
         private IDiscordClient Client { get; }
         private AudioNotifier Notifier { get; }
 

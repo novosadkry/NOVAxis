@@ -1,11 +1,9 @@
 using System.Linq;
 using System.Text;
 
-using NOVAxis.Services.Polls;
-
 using Discord;
 
-namespace NOVAxis.Modules.Audio
+namespace NOVAxis.Services.Polls
 {
     /// <summary>
     /// The skip vote as a message. Shows the count against the threshold rather than a

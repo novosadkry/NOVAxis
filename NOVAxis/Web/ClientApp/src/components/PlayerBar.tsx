@@ -135,6 +135,10 @@ export function PlayerBar({ guildId, live }: PlayerBarProps) {
   )
 
   const [skipping, skip] = useSingleFlight(() => api.skip(guildId))
+
+  // With a vote open the button adds to it rather than skipping, and saying so beforehand
+  // is better than a press that appears to do nothing
+  const voting = state?.skipVote != null
   const [stopping, stopAll] = useSingleFlight(() => api.stop(guildId))
 
   const track = state?.current?.track
@@ -212,8 +216,9 @@ export function PlayerBar({ guildId, live }: PlayerBarProps) {
 
           <button
             type="button"
-            className="icon-btn"
-            aria-label="Přeskočit"
+            aria-label={voting ? 'Hlasovat pro přeskočení' : 'Přeskočit'}
+            title={voting ? 'Hlasovat pro přeskočení' : undefined}
+            className={'icon-btn' + (voting ? ' active' : '')}
             disabled={disabled || skipping}
             onClick={skip}
           >

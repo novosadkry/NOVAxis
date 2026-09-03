@@ -144,7 +144,7 @@ namespace NOVAxis.Services.Audio.YtDlp
         /// </summary>
         internal DateTimeOffset ReservedUntil { get; private set; }
 
-        internal ITextChannel TextChannel => _textChannel;
+        public ITextChannel TextChannel => _textChannel;
         internal IVoiceChannel VoiceChannel => _voiceChannel;
 
         internal void Reserve(TimeSpan duration)

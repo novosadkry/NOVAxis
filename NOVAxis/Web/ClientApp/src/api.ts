@@ -28,6 +28,17 @@ export interface VoiceChannelDto {
   name: string
 }
 
+export interface SkipVoteDto {
+  id: string
+  title: string | null
+  inFavour: number
+  needed: number
+  listeners: number
+  /** Who voted, rather than whether you did - one snapshot goes to every watcher. */
+  favourIds: string[]
+  againstIds: string[]
+}
+
 export interface PlayerStateDto {
   guildId: string
   connected: boolean
@@ -40,6 +51,7 @@ export interface PlayerStateDto {
   voiceChannel: VoiceChannelDto | null
   current: QueueItemDto | null
   queue: QueueItemDto[]
+  skipVote: SkipVoteDto | null
 }
 
 export interface GuildDto {
@@ -200,7 +212,14 @@ export const api = {
   pause: (guildId: string) => post<void>(`/api/guilds/${guildId}/pause`),
   resume: (guildId: string) => post<void>(`/api/guilds/${guildId}/resume`),
   stop: (guildId: string) => post<void>(`/api/guilds/${guildId}/stop`),
-  skip: (guildId: string) => post<void>(`/api/guilds/${guildId}/skip`, { count: 1 }),
+  /**
+   * Skips outright where that is the caller's to do, and otherwise opens the guild's
+   * vote or adds to it - the body says which by coming back with a vote.
+   */
+  skip: (guildId: string) => post<SkipVoteDto | void>(`/api/guilds/${guildId}/skip`, { count: 1 }),
+
+  voteAgainstSkip: (guildId: string) =>
+    post<SkipVoteDto>(`/api/guilds/${guildId}/skip/against`),
   disconnect: (guildId: string) => post<void>(`/api/guilds/${guildId}/disconnect`),
 
   seek: (guildId: string, positionMs: number) =>

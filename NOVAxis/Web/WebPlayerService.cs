@@ -49,10 +49,10 @@ namespace NOVAxis.Web
         }
 
         /// <summary>
-        /// Skipping from here obeys the same rule it does on Discord. The vote itself is a
-        /// message with buttons and this page has no way to hold one, so a skip which needs
-        /// asking is refused and pointed at the command - better than leaving a second door
-        /// around a rule the room just agreed to.
+        /// Skipping from here follows the same rule as anywhere else: your own track, or a
+        /// channel small enough to ask out loud in, goes at once. Otherwise this opens the
+        /// guild's vote or adds to it - the same vote Discord is looking at, posted to the
+        /// channel the player answers in, so neither side has a private version of it.
         /// </summary>
         public Task<IResult> SkipAsync(ClaimsPrincipal principal, ulong guildId, int count)
         {
@@ -68,17 +68,45 @@ namespace NOVAxis.Web
                     return null;
                 }
 
-                var channel = await user.Guild.GetVoiceChannelAsync(player.VoiceChannelId);
-                var listeners = await SkipVoteService.ListenersAsync(channel);
+                var listeners = await ListenersAsync(player, user);
 
-                if (SkipVotes.Required(listeners))
-                    return WebApiErrors.NeedsAVote(
-                        $"Posloucháte {listeners} — o přeskočení se hlasuje. " +
-                        "Spusť hlasování příkazem /audio skip na Discordu.");
+                if (!SkipVotes.Required(listeners))
+                {
+                    await player.SkipAsync(count);
+                    return null;
+                }
 
-                await player.SkipAsync(count);
-                return null;
+                var vote = await SkipVotes.CastOrOpenAsync(player, user, item, listeners, SkipVote.Yes);
+
+                return vote == null
+                    ? WebApiErrors.AlreadyVoted()
+                    : Results.Ok(SkipVoteDto.FromVote(vote));
             }, AudioPrecondition.Playing);
+        }
+
+        /// <summary>
+        /// A voice against the guild's open vote. There is nothing to open here - saying no
+        /// to a skip nobody proposed is not an action.
+        /// </summary>
+        public Task<IResult> VoteAgainstSkipAsync(ClaimsPrincipal principal, ulong guildId)
+        {
+            return AnswerAsync(principal, guildId, async (player, user) =>
+            {
+                var open = SkipVotes.Current(guildId, player.CurrentItem?.RequestId);
+
+                if (open == null)
+                    return WebApiErrors.NotFound("O téhle skladbě se nehlasuje");
+
+                return await SkipVotes.CastAsync(open, user, SkipVote.No, player)
+                    ? Results.Ok(SkipVoteDto.FromVote((SkipVote)open.Poll))
+                    : WebApiErrors.AlreadyVoted();
+            }, AudioPrecondition.Playing);
+        }
+
+        private static async ValueTask<int> ListenersAsync(IAudioPlayer player, IGuildUser user)
+        {
+            var channel = await user.Guild.GetVoiceChannelAsync(player.VoiceChannelId);
+            return await SkipVoteService.ListenersAsync(channel);
         }
 
         /// <summary>
@@ -99,8 +127,9 @@ namespace NOVAxis.Web
         }
 
         /// <summary>
-        /// The same, for an action which may decide the answer itself. Returning a result
-        /// from it says the change did not happen, so nothing is broadcast either.
+        /// The same, for an action which may decide the answer itself. A result from it
+        /// says what happened; only a null one means the change went through and is worth
+        /// broadcasting.
         /// </summary>
         private async Task<IResult> AnswerAsync(
             ClaimsPrincipal principal,
@@ -125,14 +154,12 @@ namespace NOVAxis.Web
             if (result.Status != AudioPlayerRetrieveStatus.Success)
                 return WebApiErrors.From(result);
 
-            var refusal = await action(result.Player, user);
+            var answer = await action(result.Player, user);
 
-            if (refusal != null)
-                return refusal;
-
+            // A vote is a change too - the panel showing it has to reach the other watchers
             await Broadcaster.PushAsync(guildId);
 
-            return Results.NoContent();
+            return answer ?? Results.NoContent();
         }
 
         /// <summary>

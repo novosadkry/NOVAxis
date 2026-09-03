@@ -4,6 +4,7 @@ using System.Linq;
 
 using NOVAxis.Database.Playlists;
 using NOVAxis.Services.Audio;
+using NOVAxis.Services.Polls;
 using NOVAxis.Services.Audio.YtDlp;
 using NOVAxis.Services.Download;
 
@@ -63,7 +64,8 @@ namespace NOVAxis.Web.Contracts
         long SampledAt,
         VoiceChannelDto VoiceChannel,
         QueueItemDto Current,
-        IReadOnlyList<QueueItemDto> Queue)
+        IReadOnlyList<QueueItemDto> Queue,
+        SkipVoteDto SkipVote)
     {
         public static PlayerStateDto Disconnected(ulong guildId) => new(
             guildId.ToString(),
@@ -76,7 +78,45 @@ namespace NOVAxis.Web.Contracts
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             null,
             null,
-            Array.Empty<QueueItemDto>());
+            Array.Empty<QueueItemDto>(),
+            null);
+    }
+
+    /// <summary>
+    /// The guild's open skip vote. Who voted travels rather than whether "you" did: the
+    /// snapshot goes to a whole group over one push, so it cannot be about any one viewer.
+    /// </summary>
+    public record SkipVoteDto(
+        string Id,
+        string Title,
+        int InFavour,
+        int Needed,
+        int Listeners,
+        IReadOnlyList<string> FavourIds,
+        IReadOnlyList<string> AgainstIds)
+    {
+        public static SkipVoteDto FromVote(SkipVote vote)
+        {
+            if (vote == null)
+                return null;
+
+            return new SkipVoteDto(
+                vote.Id.ToString(),
+                vote.Track?.Title,
+                vote.InFavour,
+                vote.Needed,
+                vote.Listeners,
+                Who(vote, SkipVote.Yes),
+                Who(vote, SkipVote.No));
+        }
+
+        private static IReadOnlyList<string> Who(SkipVote vote, int choice)
+        {
+            return vote.Votes
+                .Where(x => x.Value == choice)
+                .Select(x => x.Key.Id.ToString())
+                .ToList();
+        }
     }
 
     public record GuildDto(string Id, string Name, string IconUrl, bool Connected);

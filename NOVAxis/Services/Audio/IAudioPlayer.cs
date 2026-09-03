@@ -30,6 +30,12 @@ namespace NOVAxis.Services.Audio
         ulong GuildId { get; }
         ulong VoiceChannelId { get; }
 
+        /// <summary>
+        /// Where this player answers - the channel it was summoned from. Anything which
+        /// has to say something to the room, rather than to whoever asked, sends it here.
+        /// </summary>
+        ITextChannel TextChannel { get; }
+
         IAudioTrackQueue Queue { get; }
         AudioTrackQueueItem CurrentItem { get; }
         AudioTrack CurrentTrack { get; }

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 
 using NOVAxis.Core;
+using NOVAxis.Services.Audio;
 
 using Discord;
 
@@ -85,10 +86,96 @@ namespace NOVAxis.Services.Polls
             return null;
         }
 
-        public void Add(ulong guildId, PollInteraction interaction)
+        /// <summary>
+        /// Opens the guild's vote and posts it where the player answers, so a vote started
+        /// from the web is the same vote Discord sees rather than a second one nobody in
+        /// the channel is told about. The opener's own yes is counted - they plainly want it.
+        /// </summary>
+        public async ValueTask<SkipVote> OpenAsync(
+            IAudioPlayer player, IGuildUser starter, AudioTrackQueueItem item, int listeners)
         {
-            _open[guildId] = interaction;
+            var vote = new SkipVote(player.GuildId, starter, item, listeners, Needed(listeners));
+            vote.AddVote(starter, SkipVote.Yes);
+
+            var builder = new SkipVoteEmbedBuilder(vote);
+
+            var interaction = new PollInteraction
+            {
+                Poll = vote,
+                Builder = builder,
+                Tracker = new AggregatePollTracker(vote,
+                [
+                    new SkipVoteTracker(vote),
+                    new TimeoutPollTracker(vote, Timeout)
+                ])
+            };
+
+            _open[player.GuildId] = interaction;
             Polls.Add(interaction);
+
+            var channel = player.TextChannel;
+
+            if (channel != null)
+            {
+                interaction.Message = await channel.SendMessageAsync(
+                    embed: builder.BuildEmbed(),
+                    components: builder.BuildComponents());
+            }
+
+            return vote;
+        }
+
+        /// <summary>
+        /// Records a vote and acts on it. Returns false where the same choice was already
+        /// theirs, so a caller can say so rather than pretending something happened.
+        /// </summary>
+        public async ValueTask<bool> CastAsync(
+            PollInteraction interaction, IGuildUser voter, int choice, IAudioPlayer player)
+        {
+            var vote = (SkipVote)interaction.Poll;
+
+            if (!vote.AddVote(voter, choice))
+                return false;
+
+            if (vote.Settled)
+            {
+                await interaction.Close(rebuild: false);
+                Forget(vote.GuildId);
+            }
+
+            if (interaction.Message != null)
+                await interaction.Rebuild();
+
+            // Only once the message shows the outcome - the skip pushes a new now playing
+            if (vote.Passed && player.CurrentItem?.RequestId == vote.ItemId)
+                await player.SkipAsync();
+
+            return true;
+        }
+
+        /// <summary>
+        /// Whichever the caller needs: joins the guild's open vote, or opens one. Returns
+        /// null when the same vote was already theirs to begin with.
+        /// </summary>
+        public async ValueTask<SkipVote> CastOrOpenAsync(
+            IAudioPlayer player, IGuildUser voter, AudioTrackQueueItem item, int listeners, int choice)
+        {
+            var open = Current(player.GuildId, item.RequestId);
+
+            if (open == null)
+                return choice == SkipVote.Yes
+                    ? await OpenAsync(player, voter, item, listeners)
+                    : null;
+
+            return await CastAsync(open, voter, choice, player)
+                ? (SkipVote)open.Poll
+                : null;
+        }
+
+        /// <summary>The guild's open vote as a plain value, for anything only reading it.</summary>
+        public SkipVote Peek(ulong guildId, ulong? currentItemId)
+        {
+            return Current(guildId, currentItemId)?.Poll as SkipVote;
         }
 
         /// <summary>

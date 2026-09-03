@@ -11,6 +11,7 @@ import { AppShell } from '../components/AppShell'
 import { NowPlaying } from '../components/NowPlaying'
 import { PlayerBar } from '../components/PlayerBar'
 import { QueueList } from '../components/QueueList'
+import { SkipVote } from '../components/SkipVote'
 import { SearchBox } from '../components/SearchBox'
 
 /**
@@ -87,6 +88,7 @@ export function PlayerPage() {
             startingUri={starting}
             pending={heroPending}
           />
+          <SkipVote guildId={guildId} vote={state?.skipVote ?? null} />
           <QueueList
             guildId={guildId}
             state={state}

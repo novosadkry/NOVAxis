@@ -27,13 +27,11 @@ namespace NOVAxis.Web.Api
         public static IResult ServiceUnavailable()
             => Error(StatusCodes.Status503ServiceUnavailable, "service_unavailable", "Služba není momentálně dostupná");
 
-        /// <summary>
-        /// The action is not the caller's alone to take. Conflict rather than Forbidden:
-        /// nothing is wrong with who they are, only with doing it without asking.
-        /// </summary>
-        public static IResult NeedsAVote(string message)
+        public static IResult AlreadyVoted()
         {
-            return Results.Json(new { code = "needs_vote", message }, statusCode: 409);
+            return Results.Json(
+                new { code = "already_voted", message = "Tvůj hlas už mám" },
+                statusCode: 409);
         }
 
         public static IResult NotFound(string message)
