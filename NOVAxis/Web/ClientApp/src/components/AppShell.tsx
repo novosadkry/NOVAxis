@@ -5,13 +5,13 @@ import { headline, useDownloads } from '../downloads'
 import { useGuilds } from '../guilds'
 import { usePlayerTransport } from '../player'
 import { useUser } from '../user'
-import { Download, Power } from '../Icons'
+import { Download, Note, Power } from '../Icons'
 
 interface AppShellProps {
   /** Highlights the guild being looked at, if any. */
   activeGuildId?: string
   /** Highlights the tools entry instead. */
-  activeTool?: 'downloads'
+  activeTool?: 'downloads' | 'playlists'
   /** Falls back to the name of the guild being looked at. */
   title?: string
   subtitle?: string
@@ -83,6 +83,16 @@ export function AppShell({
         </nav>
 
         <p className="sidebar-label">Nástroje</p>
+        <Link
+          to="/playlists"
+          className={`sidebar-guild${activeTool === 'playlists' ? ' active' : ''}`}
+        >
+          <span className="guild-icon-fallback">
+            <Note size={16} />
+          </span>
+          <span className="sidebar-guild-name">Playlisty</span>
+        </Link>
+
         <Link
           to="/downloads"
           className={`sidebar-guild${activeTool === 'downloads' ? ' active' : ''}`}

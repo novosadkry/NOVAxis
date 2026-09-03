@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Security.Claims;
@@ -132,6 +133,81 @@ namespace NOVAxis.Web
             await Broadcaster.PushAsync(guildId);
 
             return Results.NoContent();
+        }
+
+        /// <summary>
+        /// Hands the guild's player to <paramref name="action"/>, which decides the answer.
+        /// Being in the voice channel is not required: reading what is queued is not the
+        /// same as reaching for the controls.
+        /// </summary>
+        public async Task<IResult> WithPlayerAsync(
+            ClaimsPrincipal principal,
+            ulong guildId,
+            Func<IAudioPlayer, Task<IResult>> action)
+        {
+            var user = await Access.GetGuildUserAsync(guildId, principal.GetDiscordId());
+
+            if (user == null)
+                return WebApiErrors.NotMember();
+
+            var result = await PlayerManager.RetrieveAsync(user, null, new AudioPlayerRetrieveOptions
+            {
+                JoinChannel = false,
+                RequireSameChannel = false
+            });
+
+            return result.Status != AudioPlayerRetrieveStatus.Success
+                ? WebApiErrors.From(result)
+                : await action(result.Player);
+        }
+
+        /// <summary>
+        /// Queues tracks which are already known, so nothing is looked up - the whole point
+        /// of a playlist storing more than its links.
+        /// </summary>
+        public async Task<IResult> EnqueueAsync(
+            ClaimsPrincipal principal,
+            ulong guildId,
+            IReadOnlyList<AudioTrack> tracks,
+            bool replace)
+        {
+            if (tracks.Count == 0)
+                return WebApiErrors.BadRequest("Není co přehrát");
+
+            var user = await Access.GetGuildUserAsync(guildId, principal.GetDiscordId());
+
+            if (user == null)
+                return WebApiErrors.NotMember();
+
+            var result = await PlayerManager.RetrieveAsync(user, null, new AudioPlayerRetrieveOptions
+            {
+                JoinChannel = true,
+                RequireSameChannel = true
+            });
+
+            if (result.Status != AudioPlayerRetrieveStatus.Success)
+                return WebApiErrors.From(result);
+
+            var items = tracks
+                .Select(track => new AudioTrackQueueItem
+                {
+                    Track = track,
+                    RequestedBy = user,
+                    RequestId = Snowflake.Next()
+                })
+                .ToList();
+
+            if (replace)
+                await result.Player.Queue.ClearAsync();
+
+            await result.Player.PlayAsync(items[0]);
+
+            if (items.Count > 1)
+                await result.Player.Queue.AddRangeAsync(items.Skip(1));
+
+            await Broadcaster.PushAsync(guildId);
+
+            return Results.Ok(new PlayResponse(items.Count, TrackDto.FromTrack(tracks[0]), null));
         }
 
         /// <summary>

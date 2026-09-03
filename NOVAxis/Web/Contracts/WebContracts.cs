@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
+using NOVAxis.Database.Playlists;
 using NOVAxis.Services.Audio;
 using NOVAxis.Services.Audio.YtDlp;
 using NOVAxis.Services.Download;
@@ -87,6 +89,63 @@ namespace NOVAxis.Web.Contracts
     public record MoveRequest(int ToIndex);
 
     public record PlayResponse(int Enqueued, TrackDto Track, string PlaylistName);
+
+    public record PlaylistTrackDto(
+        string Title,
+        string Author,
+        string Uri,
+        string ArtworkUri,
+        long DurationMs)
+    {
+        public static PlaylistTrackDto FromTrack(PlaylistTrack track)
+        {
+            return new PlaylistTrackDto(
+                track.Title,
+                track.Author,
+                track.Url,
+                track.ArtworkUrl,
+                track.DurationMs);
+        }
+    }
+
+    public record PlaylistDto(
+        string Id,
+        string Name,
+        string OwnerId,
+        string OwnerName,
+        bool Mine,
+        bool Shared,
+        int TrackCount,
+        long TotalMs,
+        long UpdatedAt,
+        IReadOnlyList<PlaylistTrackDto> Tracks)
+    {
+        /// <summary>
+        /// <paramref name="tracks"/> decides whether the contents travel: a listing of
+        /// twenty playlists has no use for every track in each of them.
+        /// </summary>
+        public static PlaylistDto FromPlaylist(Playlist playlist, ulong viewerId, bool tracks)
+        {
+            return new PlaylistDto(
+                playlist.Id.ToString(),
+                playlist.Name,
+                playlist.OwnerId.ToString(),
+                playlist.OwnerName,
+                playlist.OwnerId == viewerId,
+                playlist.GuildId != null,
+                playlist.Tracks.Count,
+                playlist.Tracks.Sum(x => x.DurationMs),
+                new DateTimeOffset(DateTime.SpecifyKind(playlist.UpdatedAt, DateTimeKind.Utc))
+                    .ToUnixTimeMilliseconds(),
+                tracks
+                    ? playlist.Tracks.Select(PlaylistTrackDto.FromTrack).ToList()
+                    : []);
+        }
+    }
+
+    public record SavePlaylistRequest(string Name, string GuildId, bool Share);
+    public record LoadPlaylistRequest(string GuildId, bool Replace);
+    public record SharePlaylistRequest(string GuildId, bool Shared);
 
     public record DownloadFormatDto(
         string Id,

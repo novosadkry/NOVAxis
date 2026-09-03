@@ -49,6 +49,28 @@ export interface GuildDto {
   connected: boolean
 }
 
+export interface PlaylistTrackDto {
+  title: string
+  author: string | null
+  uri: string | null
+  artworkUri: string | null
+  durationMs: number
+}
+
+export interface PlaylistDto {
+  id: string
+  name: string
+  ownerId: string
+  ownerName: string | null
+  mine: boolean
+  shared: boolean
+  trackCount: number
+  totalMs: number
+  updatedAt: number
+  /** Only filled in when one playlist is asked for by id. */
+  tracks: PlaylistTrackDto[]
+}
+
 export interface PlayResponse {
   enqueued: number
   track: TrackDto | null
@@ -198,6 +220,24 @@ export const api = {
 
   moveItem: (guildId: string, requestId: string, toIndex: number) =>
     post<void>(`/api/guilds/${guildId}/queue/${requestId}/move`, { toIndex }),
+
+  playlists: (guildId?: string) =>
+    request<PlaylistDto[]>('/api/playlists' + (guildId ? `?guildId=${guildId}` : '')),
+
+  playlist: (id: string, guildId?: string) =>
+    request<PlaylistDto>(`/api/playlists/${id}` + (guildId ? `?guildId=${guildId}` : '')),
+
+  savePlaylist: (guildId: string, name: string, share: boolean) =>
+    post<PlaylistDto>('/api/playlists', { guildId, name, share }),
+
+  loadPlaylist: (id: string, guildId: string, replace: boolean) =>
+    post<PlayResponse>(`/api/playlists/${id}/load`, { guildId, replace }),
+
+  sharePlaylist: (id: string, guildId: string, shared: boolean) =>
+    post<PlaylistDto>(`/api/playlists/${id}/share`, { guildId, shared }),
+
+  deletePlaylist: (id: string) =>
+    request<void>(`/api/playlists/${id}`, { method: 'DELETE' }),
 
   downloads: () => request<DownloadOverviewDto>('/api/downloads'),
 

@@ -12,6 +12,7 @@ import { PlayerProvider } from './player'
 import { GuildPicker } from './pages/GuildPicker'
 import { PlayerPage } from './pages/PlayerPage'
 import { DownloadsPage } from './pages/DownloadsPage'
+import { PlaylistsPage } from './pages/PlaylistsPage'
 
 import './styles.css'
 
@@ -84,6 +85,7 @@ function App() {
         <Route path="/" element={<GuildPicker />} />
         <Route path="/g/:guildId" element={<PlayerPage />} />
         <Route path="/downloads" element={<DownloadsPage />} />
+        <Route path="/playlists" element={<PlaylistsPage />} />
         <Route path="*" element={<GuildPicker />} />
       </Routes>
     </AuthGate>

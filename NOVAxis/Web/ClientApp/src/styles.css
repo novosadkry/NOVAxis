@@ -1330,6 +1330,82 @@ button:disabled {
   margin-top: 14px;
 }
 
+/* ---------- playlists ---------- */
+
+.playlist-save {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.playlist-save input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+}
+
+.playlist-save input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.playlist-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* The whole left half opens the playlist, so the target is the row rather than a chevron */
+.playlist-open {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  color: inherit;
+}
+
+.playlist-art {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--faint);
+}
+
+.playlist-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.playlist-tracks {
+  list-style: none;
+  margin-top: 12px;
+  padding-left: 48px;
+  display: grid;
+  gap: 7px;
+}
+
+.playlist-tracks li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 /* ---------- player bar ---------- */
 
 .playerbar {
@@ -1593,6 +1669,20 @@ button:disabled {
 
   .queue-requester {
     display: none;
+  }
+
+  .playlist-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .playlist-actions {
+    justify-content: flex-end;
+  }
+
+  .playlist-tracks {
+    padding-left: 0;
   }
 }
 

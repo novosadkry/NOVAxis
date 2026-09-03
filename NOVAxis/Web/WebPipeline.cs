@@ -37,6 +37,7 @@ namespace NOVAxis.Web
                 endpoints.MapPlayerApi();
                 endpoints.MapSearchApi();
                 endpoints.MapDownloadApi();
+                endpoints.MapPlaylistApi();
 
                 endpoints.MapHub<PlayerHub>("/hub/player");
 
