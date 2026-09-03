@@ -1,5 +1,6 @@
 import { TrackDto } from '../api'
 import { LiveState } from '../live'
+import { PendingTrack } from '../pending'
 import { Download, Note } from '../Icons'
 
 /**
@@ -10,13 +11,41 @@ interface NowPlayingProps {
   live: LiveState
   onDownload: (track: TrackDto) => void
   startingUri: string | null
+  /** With nothing playing, the track being looked up is the one about to play. */
+  pending: PendingTrack | null
 }
 
-export function NowPlaying({ live, onDownload, startingUri }: NowPlayingProps) {
+export function NowPlaying({ live, onDownload, startingUri, pending }: NowPlayingProps) {
   const state = live.state
-  const item = state?.current
+  const item = state?.connected ? state.current : null
 
-  if (!state || !state.connected || !item) {
+  // Something on its way is worth more than an invitation to go and add something
+  if (!item && pending) {
+    return (
+      <section className="hero hero-waiting">
+        <div className="hero-art">
+          {pending.known?.artworkUri ? (
+            <img src={pending.known.artworkUri} alt="" />
+          ) : (
+            <div className="hero-art-fallback">
+              <Note size={48} />
+            </div>
+          )}
+        </div>
+
+        <div className="hero-meta">
+          <p className="eyebrow accent">
+            NAČÍTÁM
+            <span className="btn-spinner" aria-hidden="true" />
+          </p>
+          <h2 className="hero-title">{pending.known?.title ?? pending.label}</h2>
+          <p className="hero-author">{pending.known?.author ?? 'jádro shání stopu'}</p>
+        </div>
+      </section>
+    )
+  }
+
+  if (!item) {
     return (
       <section className="hero hero-idle">
         <div className="hero-idle-ring" aria-hidden="true" />
@@ -60,7 +89,7 @@ export function NowPlaying({ live, onDownload, startingUri }: NowPlayingProps) {
 
       <div className="hero-meta">
         <p className="eyebrow accent">
-          {state.isPaused ? 'POZASTAVENO' : 'PRÁVĚ HRAJE'}
+          {state?.isPaused ? 'POZASTAVENO' : 'PRÁVĚ HRAJE'}
           {track.isLiveStream && <span className="live-badge">ŽIVĚ</span>}
         </p>
         <h2 className="hero-title">

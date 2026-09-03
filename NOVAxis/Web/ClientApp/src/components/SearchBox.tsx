@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { api, ApiError, isAbortError, TrackDto } from '../api'
+import { api, ApiError, isAbortError, PlayResponse, TrackDto } from '../api'
 import { formatDuration } from '../format'
 import { Note, Plus, Search } from '../Icons'
 import { useToast } from '../Toast'
@@ -15,11 +15,21 @@ function describeFailure(error: unknown): string {
   return 'Vyhledávání se nepodařilo'
 }
 
+interface SearchBoxProps {
+  guildId: string
+  /**
+   * Handed the request as it goes out, so the page can stand a row in for the track
+   * while the extractor works. A picked result comes with everything it knew; a typed
+   * phrase or a pasted link comes with nothing but itself.
+   */
+  onEnqueue?: (label: string, known: TrackDto | null, request: Promise<PlayResponse>) => void
+}
+
 /**
  * Search-as-you-type over the bot's own lookup. Picking a result queues it;
  * Enter queues whatever the query resolves to - a pasted link included.
  */
-export function SearchBox({ guildId }: { guildId: string }) {
+export function SearchBox({ guildId, onEnqueue }: SearchBoxProps) {
   const { run, toast } = useToast()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<TrackDto[] | null>(null)
@@ -79,17 +89,21 @@ export function SearchBox({ guildId }: { guildId: string }) {
     return () => window.removeEventListener('mousedown', close)
   }, [])
 
-  const enqueue = (input: string, title?: string) => {
+  const enqueue = (input: string, known: TrackDto | null = null) => {
     setOpen(false)
     setQuery('')
     setResults(null)
     setFailure(null)
 
+    const request = api.play(guildId, input)
+
+    onEnqueue?.(known?.title ?? input, known, request)
+
     run(
-      api.play(guildId, input).then(response => {
+      request.then(response => {
         if (response.enqueued > 1)
           toast(`Přidáno do fronty: ${response.playlistName ?? 'playlist'} (${response.enqueued})`)
-        else toast(`Přidáno do fronty: ${title ?? response.track?.title ?? input}`)
+        else toast(`Přidáno do fronty: ${known?.title ?? response.track?.title ?? input}`)
       }),
     )
   }
@@ -127,7 +141,7 @@ export function SearchBox({ guildId }: { guildId: string }) {
               type="button"
               key={`${track.uri ?? track.title}-${index}`}
               className="search-row"
-              onClick={() => enqueue(track.uri ?? track.title, track.title)}
+              onClick={() => enqueue(track.uri ?? track.title, track)}
             >
               {track.artworkUri ? (
                 <img src={track.artworkUri} alt="" />

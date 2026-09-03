@@ -808,6 +808,17 @@ button:disabled {
   z-index: 1;
 }
 
+/* waiting for the first track - the same hero, with nothing in it yet */
+
+.hero-waiting .hero-art-fallback {
+  animation: ghost-pulse 1.8s ease-in-out infinite;
+}
+
+.hero-waiting .hero-title,
+.hero-waiting .hero-author {
+  color: var(--dim);
+}
+
 /* idle state */
 
 .hero-idle {
@@ -873,6 +884,28 @@ button:disabled {
 
 .queue-row.dragging {
   opacity: 0.35;
+}
+
+/* A track the server has been asked for but has not confirmed. Real enough to hold
+   its place in the order, unfinished enough that it is not mistaken for one that is
+   already there - which matters for the second or so where both are on screen */
+.queue-ghost {
+  cursor: default;
+  animation: ghost-pulse 1.8s ease-in-out infinite;
+}
+
+.queue-ghost:hover {
+  background: none;
+}
+
+@keyframes ghost-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.38;
+  }
 }
 
 .drop-before {

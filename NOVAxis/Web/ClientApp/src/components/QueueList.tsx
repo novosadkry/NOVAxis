@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { api, PlayerStateDto, QueueItemDto, TrackDto } from '../api'
 import { formatDuration, formatQueueEndTime, formatTotal } from '../format'
 import { Close, Download, Grip } from '../Icons'
+import { PendingTrack } from '../pending'
 import { useToast } from '../Toast'
 
 interface QueueListProps {
@@ -11,13 +12,15 @@ interface QueueListProps {
   /** Starts the download straight away - the format is the server's to pick. */
   onDownload: (track: TrackDto) => void
   startingUri: string | null
+  /** Asked for, not yet shown by the server - rows standing in until it is. */
+  pending: PendingTrack[]
 }
 
 /**
  * The waiting tracks, in play order. Rows drag to reorder and every mutation is
  * applied locally first - the next server snapshot settles the truth.
  */
-export function QueueList({ guildId, state, onDownload, startingUri }: QueueListProps) {
+export function QueueList({ guildId, state, onDownload, startingUri, pending }: QueueListProps) {
   const { run } = useToast()
   const [items, setItems] = useState<QueueItemDto[]>([])
   const [dragId, setDragId] = useState<string | null>(null)
@@ -27,10 +30,18 @@ export function QueueList({ guildId, state, onDownload, startingUri }: QueueList
     setItems(state?.queue ?? [])
   }, [state])
 
-  if (!state?.connected) return null
+  if (!state?.connected && pending.length === 0) return null
 
-  const totalMs = items.reduce((total, item) => total + item.track.durationMs, 0)
-  const endTime = formatQueueEndTime(state, totalMs)
+  // A track still being looked up counts against the queue, and carries its length
+  // too where the search already knew it
+  const totalMs =
+    items.reduce((total, item) => total + item.track.durationMs, 0) +
+    pending.reduce((total, entry) => total + (entry.known?.durationMs ?? 0), 0)
+
+  const measurable = pending.every(entry => entry.known && !entry.known.isLiveStream)
+  const endTime = state && measurable ? formatQueueEndTime(state, totalMs) : null
+
+  const count = items.length + pending.length
 
   const drop = (toIndex: number) => {
     if (dragId === null) return
@@ -64,8 +75,8 @@ export function QueueList({ guildId, state, onDownload, startingUri }: QueueList
     <section className="queue">
       <header className="queue-head">
         <h3 className="eyebrow">
-          FRONTA · {items.length}
-          {items.length > 0 && (
+          FRONTA · {count}
+          {count > 0 && (
             <span className="queue-total">
               {' / '}
               {formatTotal(totalMs)}
@@ -80,7 +91,7 @@ export function QueueList({ guildId, state, onDownload, startingUri }: QueueList
         )}
       </header>
 
-      {items.length === 0 && (
+      {count === 0 && (
         <p className="empty-note">Fronta je prázdná — vyhledej, co má hrát dál.</p>
       )}
 
@@ -155,6 +166,23 @@ export function QueueList({ guildId, state, onDownload, startingUri }: QueueList
             >
               <Close size={16} />
             </button>
+          </li>
+        ))}
+
+        {pending.map((entry, index) => (
+          <li className="queue-row queue-ghost" key={entry.id}>
+            <span className="queue-grip" aria-hidden="true" />
+            <span className="queue-index" aria-hidden="true">
+              {String(items.length + index + 1).padStart(2, '0')}
+            </span>
+            <span className="queue-titles">
+              <span className="queue-title">{entry.known?.title ?? entry.label}</span>
+              <span className="queue-author">{entry.known?.author ?? 'hledám…'}</span>
+            </span>
+            <span className="queue-duration">
+              {entry.known ? formatDuration(entry.known.durationMs, entry.known.isLiveStream) : '–:––'}
+            </span>
+            <span className="btn-spinner" role="status" aria-label="Přidávám do fronty" />
           </li>
         ))}
 
