@@ -762,8 +762,11 @@ button:disabled {
      width of the hero, so this stays cheap even though it looks full-bleed. */
   transform: translate(-50%, -50%) scale(1.7);
   transform-origin: center;
-  filter: blur(26px) saturate(1.15) brightness(0.55);
-  opacity: 0.9;
+  /* Lighter than a first pass: brightness(0.55) plus the scrim below crushed the
+     art to near-black, so the "ambient" glow never actually showed up on screen.
+     0.8 leaves the colour readable through the scrim without it becoming a picture. */
+  filter: blur(30px) saturate(1.2) brightness(0.8);
+  opacity: 1;
   pointer-events: none;
   animation: hero-backdrop-in 0.5s ease both;
 }
@@ -773,14 +776,15 @@ button:disabled {
     opacity: 0;
   }
   to {
-    opacity: 0.9;
+    opacity: 1;
   }
 }
 
 /* Scrim: only exists when a backdrop is actually rendered, so the no-art
    fallback path stays exactly as it was. Darkest over the left/art column,
    fading right, with a floor opacity that still protects text at the far
-   edge of a wide hero. */
+   edge of a wide hero. Tinted toward --surface rather than --bg, so the glow
+   reads as this card's own surface catching colour, not the page behind it. */
 .hero-has-backdrop::after {
   content: '';
   position: absolute;
@@ -789,9 +793,9 @@ button:disabled {
   pointer-events: none;
   background: linear-gradient(
     100deg,
-    rgba(11, 14, 20, 0.95) 0%,
-    rgba(11, 14, 20, 0.84) 38%,
-    rgba(11, 14, 20, 0.64) 100%
+    rgba(17, 21, 29, 0.92) 0%,
+    rgba(17, 21, 29, 0.78) 38%,
+    rgba(17, 21, 29, 0.5) 100%
   );
 }
 
