@@ -70,9 +70,7 @@ namespace NOVAxis.Web.Api
         {
             var count = Math.Max(request?.Count ?? 1, 1);
 
-            return player.ControlAsync(user, guildId,
-                p => p.SkipAsync(count),
-                AudioPrecondition.Playing);
+            return player.SkipAsync(user, guildId, count);
         }
 
         private static Task<IResult> Seek(

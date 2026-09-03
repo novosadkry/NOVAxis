@@ -11,6 +11,7 @@ using NOVAxis.Core;
 using NOVAxis.Preconditions;
 using NOVAxis.Services.Audio;
 using NOVAxis.Services.Audio.YtDlp;
+using NOVAxis.Services.Polls;
 using NOVAxis.Utilities;
 
 using Discord;
@@ -24,6 +25,8 @@ namespace NOVAxis.Modules.Audio
     public class AudioModule : InteractionModuleBase<ShardedInteractionContext>
     {
         public IAudioPlayerManager PlayerManager { get; set; }
+        public SkipVoteService SkipVotes { get; set; }
+        public PollService PollService { get; set; }
         public IAudioSearchService SearchService { get; set; }
         public InteractionCache InteractionCache { get; set; }
         public IOptions<WebOptions> WebOptions { get; set; }
@@ -54,55 +57,12 @@ namespace NOVAxis.Modules.Audio
             };
 
             var result = await PlayerManager.RetrieveAsync(Context, options);
+            var refusal = AudioEmbeds.Retrieval(result);
 
-            switch (result.Status)
-            {
-                case AudioPlayerRetrieveStatus.Success:
-                    return result.Player;
+            if (refusal == null)
+                return result.Player;
 
-                case AudioPlayerRetrieveStatus.UserNotInVoiceChannel:
-                    await AnswerAsync(AudioEmbeds.Error(
-                        "Mému jádru se nepodařilo naladit na stejnou zvukovou frekvenci",
-                        "(Neplatný kanál)"));
-                    break;
-
-                case AudioPlayerRetrieveStatus.VoiceChannelMismatch:
-                    await AnswerAsync(AudioEmbeds.Error(
-                        "Pro komunikaci s jádrem musíš být naladěn na stejnou frekvenci",
-                        "(Neplatný příkaz)"));
-                    break;
-
-                case AudioPlayerRetrieveStatus.PreconditionFailed when result.Precondition is AudioPrecondition.Paused or AudioPrecondition.NotPlaying:
-                    await AnswerAsync(AudioEmbeds.Warning(
-                        "Stream audia již běží",
-                        "(Neplatný příkaz)"));
-                    break;
-
-                case AudioPlayerRetrieveStatus.BotNotConnected:
-                case AudioPlayerRetrieveStatus.PreconditionFailed when result.Precondition is AudioPrecondition.Playing:
-                    await AnswerAsync(AudioEmbeds.Warning(
-                        "Právě teď není streamováno na serveru žádné audio",
-                        "(Neplatný příkaz)"));
-                    break;
-
-                case AudioPlayerRetrieveStatus.PreconditionFailed when result.Precondition is AudioPrecondition.NotPaused:
-                    await AnswerAsync(AudioEmbeds.Warning(
-                        "Stream audia již byl pozastaven",
-                        "(Neplatný příkaz)"));
-                    break;
-
-                case AudioPlayerRetrieveStatus.PreconditionFailed when result.Precondition is AudioPrecondition.QueueNotEmpty:
-                    await AnswerAsync(AudioEmbeds.Warning(
-                        "Právě teď se ve frontě nenachází žádná zvuková stopa",
-                        "(Neplatný příkaz)"));
-                    break;
-
-                default:
-                    await AnswerAsync(AudioEmbeds.Error(
-                        "Při komunikaci s jádrem nastala neznámá chyba",
-                        "(Neznámá chyba)"));
-                    break;
-            }
+            await AnswerAsync(refusal);
 
             return null;
         }
@@ -390,6 +350,12 @@ namespace NOVAxis.Modules.Audio
                 await RespondAsync($"{new Emoji("\uD83E\uDD13")}", ephemeral: true);
         }
 
+        /// <summary>
+        /// Skipping is one person's call while the channel is small enough to ask out loud
+        /// in, or while the track is their own. Past that it goes to a vote - one per
+        /// guild, and asking again while one is open casts a vote rather than opening
+        /// a second.
+        /// </summary>
         [SlashCommand("skip", "Skips to the next audio transmission")]
         public async Task CmdSkipAudio(int count = 1)
         {
@@ -399,10 +365,118 @@ namespace NOVAxis.Modules.Audio
 
             if (player == null) return;
 
-            await RespondAsync(embed: AudioEmbeds.Info(
-                "Stream audia byl úspěšně přeskočen", Context.User));
+            var item = player.CurrentItem;
+            var listeners = await ListenersAsync(player);
 
-            await player.SkipAsync(count);
+            if (item == null || item.RequestedBy?.Id == Context.User.Id || !SkipVotes.Required(listeners))
+            {
+                await RespondAsync(embed: AudioEmbeds.Info(
+                    "Stream audia byl úspěšně přeskočen", Context.User));
+
+                await player.SkipAsync(count);
+                return;
+            }
+
+            var open = SkipVotes.Current(Context.Guild.Id, item.RequestId);
+
+            if (open != null)
+            {
+                await CastAsync(open, SkipVote.Yes, player, defer: false);
+                return;
+            }
+
+            var vote = new SkipVote(
+                Context.Guild.Id, (IGuildUser)Context.User, item,
+                listeners, SkipVotes.Needed(listeners));
+
+            // Whoever asked has plainly voted for it
+            vote.AddVote((IGuildUser)Context.User, SkipVote.Yes);
+
+            var builder = new SkipVoteEmbedBuilder(vote);
+
+            var interaction = new PollInteraction
+            {
+                Poll = vote,
+                Builder = builder,
+                Tracker = new AggregatePollTracker(vote,
+                [
+                    new SkipVoteTracker(vote),
+                    new TimeoutPollTracker(vote, SkipVotes.Timeout)
+                ])
+            };
+
+            await RespondAsync(embed: builder.BuildEmbed(), components: builder.BuildComponents());
+
+            interaction.Message = await GetOriginalResponseAsync();
+
+            SkipVotes.Add(Context.Guild.Id, interaction);
+        }
+
+        [ComponentInteraction("skipvote_yes_*", true)]
+        public Task CmdSkipVoteYes(ulong id) => CastAsync(id, SkipVote.Yes);
+
+        [ComponentInteraction("skipvote_no_*", true)]
+        public Task CmdSkipVoteNo(ulong id) => CastAsync(id, SkipVote.No);
+
+        private async Task CastAsync(ulong id, int choice)
+        {
+            var interaction = PollService.Get(id);
+
+            if (interaction?.Poll is not SkipVote || interaction.Poll.State != PollState.Opened)
+            {
+                await AnswerAsync(AudioEmbeds.Warning(
+                    "Toto hlasování už je uzavřeno",
+                    "(Zkus /audio skip znovu)"));
+
+                return;
+            }
+
+            // Retrieving the player with sameChannel is also the check that the voter is
+            // in the room - the vote belongs to the people actually listening
+            var player = await GetPlayerAsync(
+                joinChannel: false, sameChannel: true,
+                AudioPrecondition.Playing);
+
+            if (player == null) return;
+
+            await CastAsync(interaction, choice, player);
+        }
+
+        private async Task CastAsync(PollInteraction interaction, int choice, IAudioPlayer player, bool defer = true)
+        {
+            var vote = (SkipVote)interaction.Poll;
+
+            if (!vote.AddVote((IGuildUser)Context.User, choice))
+            {
+                await AnswerAsync(AudioEmbeds.Warning(
+                    "Tvůj hlas už mám",
+                    "(Hlasovat lze jen jednou)"));
+
+                return;
+            }
+
+            if (vote.Settled)
+            {
+                await interaction.Close(rebuild: false);
+                SkipVotes.Forget(vote.GuildId);
+            }
+
+            await interaction.Rebuild();
+
+            if (defer)
+                await DeferAsync();
+            else
+                await RespondAsync(ephemeral: true, embed: AudioEmbeds.Info("Hlas přijat"));
+
+            // Only once the message shows the result - the skip pushes a new now-playing
+            if (vote.Passed && player.CurrentItem?.RequestId == vote.ItemId)
+                await player.SkipAsync();
+        }
+
+        private async ValueTask<int> ListenersAsync(IAudioPlayer player)
+        {
+            var channel = await player.GetVoiceChannel(Context.Client);
+            return await SkipVoteService.ListenersAsync(channel);
         }
 
         [SlashCommand("stop", "Stops the audio transmission")]

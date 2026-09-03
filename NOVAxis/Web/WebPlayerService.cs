@@ -7,8 +7,11 @@ using System.Threading.Tasks;
 
 using Microsoft.AspNetCore.Http;
 
+using Discord;
+
 using NOVAxis.Services.Audio;
 using NOVAxis.Services.Audio.YtDlp;
+using NOVAxis.Services.Polls;
 using NOVAxis.Utilities;
 using NOVAxis.Web.Api;
 using NOVAxis.Web.Auth;
@@ -28,26 +31,80 @@ namespace NOVAxis.Web
         private IAudioSearchService SearchService { get; }
         private PlayerBroadcaster Broadcaster { get; }
 
+        private SkipVoteService SkipVotes { get; }
+
         public WebPlayerService(
             GuildAccessService access,
             IAudioPlayerManager playerManager,
             IAudioSearchService searchService,
-            PlayerBroadcaster broadcaster)
+            PlayerBroadcaster broadcaster,
+            SkipVoteService skipVotes)
         {
             Access = access;
             PlayerManager = playerManager;
             SearchService = searchService;
             Broadcaster = broadcaster;
+            SkipVotes = skipVotes;
+        }
+
+        /// <summary>
+        /// Skipping from here obeys the same rule it does on Discord. The vote itself is a
+        /// message with buttons and this page has no way to hold one, so a skip which needs
+        /// asking is refused and pointed at the command - better than leaving a second door
+        /// around a rule the room just agreed to.
+        /// </summary>
+        public Task<IResult> SkipAsync(ClaimsPrincipal principal, ulong guildId, int count)
+        {
+            var userId = principal.GetDiscordId();
+
+            return AnswerAsync(principal, guildId, async (player, user) =>
+            {
+                var item = player.CurrentItem;
+
+                if (item == null || item.RequestedBy?.Id == userId)
+                {
+                    await player.SkipAsync(count);
+                    return null;
+                }
+
+                var channel = await user.Guild.GetVoiceChannelAsync(player.VoiceChannelId);
+                var listeners = await SkipVoteService.ListenersAsync(channel);
+
+                if (SkipVotes.Required(listeners))
+                    return WebApiErrors.NeedsAVote(
+                        $"Posloucháte {listeners} — o přeskočení se hlasuje. " +
+                        "Spusť hlasování příkazem /audio skip na Discordu.");
+
+                await player.SkipAsync(count);
+                return null;
+            }, AudioPrecondition.Playing);
         }
 
         /// <summary>
         /// Runs <paramref name="action"/> against the guild's existing player and pushes
         /// the new state to everyone watching.
         /// </summary>
-        public async Task<IResult> ControlAsync(
+        public Task<IResult> ControlAsync(
             ClaimsPrincipal principal,
             ulong guildId,
             Func<IAudioPlayer, ValueTask> action,
+            params AudioPrecondition[] preconditions)
+        {
+            return AnswerAsync(principal, guildId, async (player, _) =>
+            {
+                await action(player);
+                return null;
+            }, preconditions);
+        }
+
+        /// <summary>
+        /// The same, for an action which may decide the answer itself. Returning a result
+        /// from it says the change did not happen, so nothing is broadcast either.
+        /// </summary>
+        private async Task<IResult> AnswerAsync(
+            ClaimsPrincipal principal,
+            ulong guildId,
+            Func<IAudioPlayer, IGuildUser, ValueTask<IResult>> action,
             params AudioPrecondition[] preconditions)
         {
             var user = await Access.GetGuildUserAsync(guildId, principal.GetDiscordId());
@@ -67,7 +124,11 @@ namespace NOVAxis.Web
             if (result.Status != AudioPlayerRetrieveStatus.Success)
                 return WebApiErrors.From(result);
 
-            await action(result.Player);
+            var refusal = await action(result.Player, user);
+
+            if (refusal != null)
+                return refusal;
+
             await Broadcaster.PushAsync(guildId);
 
             return Results.NoContent();

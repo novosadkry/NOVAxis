@@ -11,11 +11,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using NOVAxis.Core;
+using NOVAxis.Database;
 using NOVAxis.Modules;
 using NOVAxis.Utilities;
 using NOVAxis.Services.Audio;
 using NOVAxis.Services.Audio.Lavalink;
 using NOVAxis.Services.Audio.YtDlp;
+using NOVAxis.Services.Playlists;
 using NOVAxis.Services.Polls;
 using NOVAxis.Services.Discord;
 using NOVAxis.Services.Download;
@@ -271,7 +273,25 @@ namespace NOVAxis.Extensions
         public static IServiceCollection AddPolls(this IServiceCollection collection, IConfiguration config)
         {
             collection.AddSingleton<PollService>();
+            collection.AddSingleton<SkipVoteService>();
             collection.AddHostedService<PollHostService>();
+
+            return collection;
+        }
+
+        /// <summary>
+        /// The context configures its own connection in OnConfiguring, so it is registered
+        /// plainly rather than through AddDbContext - which insists on a constructor taking
+        /// DbContextOptions this one does not have. Scoped, and reached from the singletons
+        /// which need it through IServiceScopeFactory.
+        /// </summary>
+        public static IServiceCollection AddDatabase(this IServiceCollection collection, IConfiguration config)
+        {
+            collection.Configure<PlaylistOptions>(config.GetSection(PlaylistOptions.Key));
+
+            collection.AddScoped<NOVAxisDbContext>();
+            collection.AddSingleton<PlaylistService>();
+            collection.AddHostedService<DatabaseHostService>();
 
             return collection;
         }

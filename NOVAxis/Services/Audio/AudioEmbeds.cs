@@ -39,6 +39,55 @@ namespace NOVAxis.Services.Audio
                 .Build();
         }
 
+        /// <summary>
+        /// Why a player could not be had, or null when it could. Lives here rather than in
+        /// a module because more than one of them needs a player before it can do anything.
+        /// </summary>
+        public static Embed Retrieval(AudioPlayerRetrieveResult result)
+        {
+            switch (result.Status)
+            {
+                case AudioPlayerRetrieveStatus.Success:
+                    return null;
+
+                case AudioPlayerRetrieveStatus.UserNotInVoiceChannel:
+                    return Error(
+                        "Mému jádru se nepodařilo naladit na stejnou zvukovou frekvenci",
+                        "(Neplatný kanál)");
+
+                case AudioPlayerRetrieveStatus.VoiceChannelMismatch:
+                    return Error(
+                        "Pro komunikaci s jádrem musíš být naladěn na stejnou frekvenci",
+                        "(Neplatný příkaz)");
+
+                case AudioPlayerRetrieveStatus.PreconditionFailed when result.Precondition is AudioPrecondition.Paused or AudioPrecondition.NotPlaying:
+                    return Warning(
+                        "Stream audia již běží",
+                        "(Neplatný příkaz)");
+
+                case AudioPlayerRetrieveStatus.BotNotConnected:
+                case AudioPlayerRetrieveStatus.PreconditionFailed when result.Precondition is AudioPrecondition.Playing:
+                    return Warning(
+                        "Právě teď není streamováno na serveru žádné audio",
+                        "(Neplatný příkaz)");
+
+                case AudioPlayerRetrieveStatus.PreconditionFailed when result.Precondition is AudioPrecondition.NotPaused:
+                    return Warning(
+                        "Stream audia již byl pozastaven",
+                        "(Neplatný příkaz)");
+
+                case AudioPlayerRetrieveStatus.PreconditionFailed when result.Precondition is AudioPrecondition.QueueNotEmpty:
+                    return Warning(
+                        "Právě teď se ve frontě nenachází žádná zvuková stopa",
+                        "(Neplatný příkaz)");
+
+                default:
+                    return Error(
+                        "Při komunikaci s jádrem nastala neznámá chyba",
+                        "(Neznámá chyba)");
+            }
+        }
+
         public static Embed Warning(string title, string description)
         {
             return new EmbedBuilder()

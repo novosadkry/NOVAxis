@@ -68,6 +68,7 @@ namespace NOVAxis.Core
         public bool SelfDeaf { get; set; } = true;
         public AudioBackend Backend { get; set; } = AudioBackend.YtDlp;
         public AudioTimeoutOptions Timeout { get; set; } = new();
+        public AudioVoteOptions Vote { get; set; } = new();
         public AudioLavalinkOptions Lavalink { get; set; } = new();
         public AudioYtDlpOptions YtDlp { get; set; } = new();
     }
@@ -78,6 +79,37 @@ namespace NOVAxis.Core
 
         public TimeSpan IdleInactivity { get; set; }
         public TimeSpan UsersInactivity { get; set; }
+    }
+
+    /// <summary>
+    /// When skipping stops being one person's decision. Nobody is outvoted while the
+    /// channel is small enough that asking out loud would have done.
+    /// </summary>
+    public class AudioVoteOptions
+    {
+        public const string Key = "Audio:Vote";
+
+        public bool Active { get; set; } = true;
+
+        /// <summary>Listeners up to and including this many may skip on their own.</summary>
+        public int MinListeners { get; set; } = 2;
+
+        /// <summary>The share of the listeners a skip needs, rounded up.</summary>
+        public double Ratio { get; set; } = 0.5;
+
+        /// <summary>How long a vote stands before it lapses.</summary>
+        public TimeSpan Timeout { get; set; } = TimeSpan.FromMinutes(2);
+    }
+
+    public class PlaylistOptions
+    {
+        public const string Key = "Playlist";
+
+        public bool Active { get; set; } = true;
+
+        public int MaxPerUser { get; set; } = 25;
+        public int MaxTracks { get; set; } = 500;
+        public int MaxNameLength { get; set; } = 60;
     }
 
     public class AudioLavalinkOptions

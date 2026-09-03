@@ -72,6 +72,7 @@ namespace NOVAxis.Core
             services
                 .AddMemoryCache()
                 .AddConfiguration(host.Configuration)
+                .AddDatabase(host.Configuration)
                 .AddDiscord(host.Configuration)
                 .AddInteractions(host.Configuration)
                 .AddAudio(host.Configuration)

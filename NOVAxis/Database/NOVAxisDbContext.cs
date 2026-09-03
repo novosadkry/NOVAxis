@@ -3,17 +3,21 @@ using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
 
 using NOVAxis.Core;
+using NOVAxis.Database.Guild;
+using NOVAxis.Database.Playlists;
 
-namespace NOVAxis.Database.Guild
+namespace NOVAxis.Database
 {
-    public class GuildDbContext : DbContext
+    public class NOVAxisDbContext : DbContext
     {
         public virtual DbSet<GuildInfo> Guilds { get; set; }
         public virtual DbSet<GuildRole> GuildRoles { get; set; }
+        public virtual DbSet<Playlist> Playlists { get; set; }
+        public virtual DbSet<PlaylistTrack> PlaylistTracks { get; set; }
 
         private DatabaseOptions Options { get; }
 
-        public GuildDbContext(IOptions<DatabaseOptions> options)
+        public NOVAxisDbContext(IOptions<DatabaseOptions> options)
         {
             Options = options.Value;
         }
@@ -65,6 +69,27 @@ namespace NOVAxis.Database.Guild
             modelBuilder.Entity<GuildRole>()
                 .Property(x => x.Id)
                 .ValueGeneratedNever();
+
+            modelBuilder.Entity<Playlist>(playlist =>
+            {
+                playlist.Property(x => x.Id).ValueGeneratedNever();
+
+                playlist
+                    .HasMany(x => x.Tracks)
+                    .WithOne(x => x.Playlist)
+                    .HasForeignKey(x => x.PlaylistId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Every lookup is either "mine" or "this guild's", so both are indexed
+                playlist.HasIndex(x => x.OwnerId);
+                playlist.HasIndex(x => x.GuildId);
+            });
+
+            modelBuilder.Entity<PlaylistTrack>(track =>
+            {
+                track.Property(x => x.Id).ValueGeneratedNever();
+                track.HasIndex(x => new { x.PlaylistId, x.Position });
+            });
         }
     }
 }

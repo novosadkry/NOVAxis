@@ -32,8 +32,10 @@ namespace NOVAxis.Services.Polls
 
         public ValueTask<bool> ShouldClose()
         {
+            // The comparison used to read '>', which is true for the whole of the window
+            // rather than after it - so every poll closed on the first sweep that saw it
             var result = Poll.State == PollState.Opened &&
-                         Poll.StartTime + Timeout > DateTime.Now;
+                         Poll.StartTime + Timeout <= DateTime.Now;
 
             return new ValueTask<bool>(result);
         }
