@@ -13,6 +13,8 @@ using NOVAxis.Services.Playlists;
 using NOVAxis.Web.Auth;
 using NOVAxis.Web.Contracts;
 
+using Discord.WebSocket;
+
 namespace NOVAxis.Web.Api
 {
     public static class PlaylistEndpoints
@@ -26,6 +28,9 @@ namespace NOVAxis.Web.Api
             group.MapGet("/", List);
             group.MapGet("/{id}", GetOne);
             group.MapPost("/", Save);
+            group.MapPost("/new", Create);
+            group.MapPost("/{id}/tracks", AddTrack);
+            group.MapDelete("/{id}/tracks/{trackId}", RemoveTrack);
             group.MapPost("/{id}/load", Load);
             group.MapPost("/{id}/share", Share);
             group.MapDelete("/{id}", Delete);
@@ -74,9 +79,9 @@ namespace NOVAxis.Web.Api
         }
 
         /// <summary>
-        /// Saves what the guild's player currently holds. The queue is the thing people
-        /// curate, so it is the only thing this takes - a playlist assembled track by
-        /// track over the wire would be a different feature.
+        /// Saves what the guild's player currently holds, under a name - replacing a
+        /// playlist of the caller's own by that name. Building one up a track at a time
+        /// goes through Create and AddTrack instead.
         /// </summary>
         private static async Task<IResult> Save(
             SavePlaylistRequest request,
@@ -115,6 +120,73 @@ namespace NOVAxis.Web.Api
 
                     return Results.Ok(PlaylistDto.FromPlaylist(saved, userId, tracks: false));
                 });
+            });
+        }
+
+        /// <summary>
+        /// An empty playlist to fill by searching. Saving takes the queue and refuses an
+        /// empty one; this is the other way in.
+        /// </summary>
+        private static async Task<IResult> Create(
+            CreatePlaylistRequest request,
+            ClaimsPrincipal principal,
+            PlaylistService playlists,
+            DiscordShardedClient client)
+        {
+            if (!playlists.Active)
+                return WebApiErrors.ServiceUnavailable();
+
+            var userId = principal.GetDiscordId();
+            var name = client.GetUser(userId)?.GlobalName ?? client.GetUser(userId)?.Username;
+
+            return await Run(async () =>
+            {
+                var created = await playlists.CreateAsync(userId, name, request?.Name);
+                return Results.Ok(PlaylistDto.FromPlaylist(created, userId, tracks: true));
+            });
+        }
+
+        private static async Task<IResult> AddTrack(
+            string id,
+            AddTrackRequest request,
+            ClaimsPrincipal principal,
+            PlaylistService playlists)
+        {
+            if (!playlists.Active)
+                return WebApiErrors.ServiceUnavailable();
+
+            if (!ulong.TryParse(id, out var playlistId))
+                return WebApiErrors.NotFound("Takový playlist neznám");
+
+            var track = request?.ToTrack();
+
+            if (track == null)
+                return WebApiErrors.BadRequest("Skladbě chybí jméno nebo odkaz");
+
+            var userId = principal.GetDiscordId();
+
+            return await Run(async () =>
+            {
+                var updated = await playlists.AddTrackAsync(playlistId, userId, track);
+                return Results.Ok(PlaylistDto.FromPlaylist(updated, userId, tracks: true));
+            });
+        }
+
+        private static async Task<IResult> RemoveTrack(
+            string id, string trackId, ClaimsPrincipal principal, PlaylistService playlists)
+        {
+            if (!playlists.Active)
+                return WebApiErrors.ServiceUnavailable();
+
+            if (!ulong.TryParse(id, out var playlistId) || !ulong.TryParse(trackId, out var track))
+                return WebApiErrors.NotFound("Takovou skladbu tam nemám");
+
+            var userId = principal.GetDiscordId();
+
+            return await Run(async () =>
+            {
+                var updated = await playlists.RemoveTrackAsync(playlistId, userId, track);
+                return Results.Ok(PlaylistDto.FromPlaylist(updated, userId, tracks: true));
             });
         }
 

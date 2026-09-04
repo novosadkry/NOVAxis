@@ -1437,10 +1437,21 @@ button:disabled {
   flex-shrink: 0;
 }
 
+.playlist-detail {
+  margin-top: 14px;
+  padding-left: 48px;
+}
+
+/* The add box is the page's own search, so it drops the topbar's width cap */
+.playlist-detail .search {
+  flex: 1 1 auto;
+  max-width: none;
+  margin-bottom: 6px;
+}
+
 .playlist-tracks {
   list-style: none;
   margin-top: 12px;
-  padding-left: 48px;
   display: grid;
   gap: 7px;
 }
@@ -1449,6 +1460,11 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+/* The remove button holds its place rather than appearing under the pointer */
+.playlist-tracks .queue-duration {
+  margin-left: auto;
 }
 
 /* ---------- player bar ---------- */
@@ -1734,7 +1750,7 @@ button:disabled {
     flex: 1 0 100%;
   }
 
-  .playlist-tracks {
+  .playlist-detail {
     padding-left: 0;
   }
 }

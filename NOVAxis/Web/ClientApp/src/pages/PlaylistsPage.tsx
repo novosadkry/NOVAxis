@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { api, ApiError, PlaylistDto } from '../api'
-import { formatTotal } from '../format'
+import { api, ApiError, PlaylistDto, TrackDto } from '../api'
 import { useGuilds } from '../guilds'
 import { usePlayerState } from '../player'
 import { useToast } from '../Toast'
 import { AppShell } from '../components/AppShell'
 import { PlayerBar } from '../components/PlayerBar'
+import { SearchBox } from '../components/SearchBox'
 import { Close, Note, Play, Plus } from '../Icons'
+import { formatDuration, formatTotal } from '../format'
 
 function describeFailure(error: unknown): string {
   if (error instanceof ApiError) return error.message
@@ -69,6 +70,45 @@ export function PlaylistsPage() {
     } finally {
       setBusy(false)
     }
+  }
+
+  const create = async () => {
+    if (!name.trim() || busy) return
+
+    setBusy(true)
+
+    try {
+      const created = await api.createPlaylist(name.trim())
+      setName('')
+      reload()
+      setOpen(created)
+      toast(`Playlist „${created.name}“ založen — hledej, čím ho naplnit`)
+    } catch (problem) {
+      toast(describeFailure(problem))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** Every track change answers with the whole playlist, so both views follow one value. */
+  const settle = (updated: PlaylistDto) => {
+    setOpen(updated)
+    setPlaylists(current =>
+      current?.map(x => (x.id === updated.id ? { ...updated, tracks: [] } : x)) ?? null,
+    )
+  }
+
+  const addTrack = (playlist: PlaylistDto, track: TrackDto) => {
+    run(
+      api.addPlaylistTrack(playlist.id, track).then(updated => {
+        settle(updated)
+        toast(`Přidáno: „${track.title}“`)
+      }),
+    )
+  }
+
+  const removeTrack = (playlist: PlaylistDto, trackId: string) => {
+    run(api.removePlaylistTrack(playlist.id, trackId).then(settle))
   }
 
   const load = (playlist: PlaylistDto, replace: boolean) => {
@@ -156,12 +196,23 @@ export function PlaylistsPage() {
             />
             <button type="submit" className="btn-ghost" disabled={!name.trim() || queued === 0 || busy}>
               {busy ? <span className="btn-spinner" aria-hidden="true" /> : <Plus size={16} />}
-              Uložit
+              Uložit frontu
+            </button>
+
+            <button
+              type="button"
+              className="text-btn"
+              disabled={!name.trim() || busy}
+              onClick={() => void create()}
+            >
+              Založit prázdný
             </button>
           </form>
 
           {queued === 0 && (
-            <p className="empty-note">Fronta je prázdná — není co uložit.</p>
+            <p className="empty-note">
+              Fronta je prázdná — založ prázdný playlist a naplň ho hledáním.
+            </p>
           )}
         </section>
       )}
@@ -237,17 +288,48 @@ export function PlaylistsPage() {
                 </div>
 
                 {open?.id === playlist.id && (
-                  <ol className="playlist-tracks">
-                    {open.tracks.map((track, index) => (
-                      <li key={`${track.uri ?? track.title}-${index}`}>
-                        <span className="queue-index">{String(index + 1).padStart(2, '0')}</span>
-                        <span className="queue-titles">
-                          <span className="queue-title">{track.title}</span>
-                          {track.author && <span className="queue-author">{track.author}</span>}
-                        </span>
-                      </li>
-                    ))}
-                  </ol>
+                  <div className="playlist-detail">
+                    {open.mine && guildId && (
+                      <SearchBox
+                        guildId={guildId}
+                        placeholder="Přidat skladbu — hledej, nebo vlož odkaz…"
+                        onPick={track => addTrack(open, track)}
+                      />
+                    )}
+
+                    {open.tracks.length === 0 && (
+                      <p className="empty-note">
+                        {open.mine
+                          ? 'Zatím prázdný — vyhledej první skladbu.'
+                          : 'Tenhle playlist je prázdný.'}
+                      </p>
+                    )}
+
+                    <ol className="playlist-tracks">
+                      {open.tracks.map((track, index) => (
+                        <li key={track.id}>
+                          <span className="queue-index">{String(index + 1).padStart(2, '0')}</span>
+                          <span className="queue-titles">
+                            <span className="queue-title">{track.title}</span>
+                            {track.author && <span className="queue-author">{track.author}</span>}
+                          </span>
+                          <span className="queue-duration">
+                            {formatDuration(track.durationMs)}
+                          </span>
+                          {open.mine && (
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              aria-label={`Odebrat ${track.title}`}
+                              onClick={() => removeTrack(open, track.id)}
+                            >
+                              <Close size={14} />
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
                 )}
               </li>
             ))}

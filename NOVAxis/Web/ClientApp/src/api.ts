@@ -62,6 +62,7 @@ export interface GuildDto {
 }
 
 export interface PlaylistTrackDto {
+  id: string
   title: string
   author: string | null
   uri: string | null
@@ -248,6 +249,22 @@ export const api = {
 
   savePlaylist: (guildId: string, name: string, share: boolean) =>
     post<PlaylistDto>('/api/playlists', { guildId, name, share }),
+
+  /** An empty one, to fill by searching. */
+  createPlaylist: (name: string) => post<PlaylistDto>('/api/playlists/new', { name }),
+
+  addPlaylistTrack: (id: string, track: TrackDto) =>
+    post<PlaylistDto>(`/api/playlists/${id}/tracks`, {
+      title: track.title,
+      author: track.author,
+      uri: track.uri,
+      artworkUri: track.artworkUri,
+      durationMs: track.durationMs,
+      sourceName: track.sourceName,
+    }),
+
+  removePlaylistTrack: (id: string, trackId: string) =>
+    request<PlaylistDto>(`/api/playlists/${id}/tracks/${trackId}`, { method: 'DELETE' }),
 
   loadPlaylist: (id: string, guildId: string, replace: boolean) =>
     post<PlayResponse>(`/api/playlists/${id}/load`, { guildId, replace }),

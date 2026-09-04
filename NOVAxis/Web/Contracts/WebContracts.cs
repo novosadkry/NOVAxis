@@ -131,6 +131,7 @@ namespace NOVAxis.Web.Contracts
     public record PlayResponse(int Enqueued, TrackDto Track, string PlaylistName);
 
     public record PlaylistTrackDto(
+        string Id,
         string Title,
         string Author,
         string Uri,
@@ -140,6 +141,7 @@ namespace NOVAxis.Web.Contracts
         public static PlaylistTrackDto FromTrack(PlaylistTrack track)
         {
             return new PlaylistTrackDto(
+                track.Id.ToString(),
                 track.Title,
                 track.Author,
                 track.Url,
@@ -184,6 +186,60 @@ namespace NOVAxis.Web.Contracts
     }
 
     public record SavePlaylistRequest(string Name, string GuildId, bool Share);
+    public record CreatePlaylistRequest(string Name);
+
+    /// <summary>
+    /// A track the caller picked out of a search. Its fields come back rather than the
+    /// link alone: re-resolving would be an extractor run per add, and the search which
+    /// produced them has already been through the same lookup the queue uses. They are
+    /// clamped on arrival all the same - nothing stops a client posting its own.
+    /// </summary>
+    public record AddTrackRequest(
+        string Title,
+        string Author,
+        string Uri,
+        string ArtworkUri,
+        long DurationMs,
+        string SourceName)
+    {
+        private const int MaxText = 300;
+
+        public AudioTrack ToTrack()
+        {
+            var uri = Read(Uri);
+
+            if (uri == null || string.IsNullOrWhiteSpace(Title))
+                return null;
+
+            return new AudioTrack
+            {
+                Title = Clamp(Title),
+                Author = Clamp(Author),
+                Uri = uri,
+                ArtworkUri = Read(ArtworkUri),
+                Duration = TimeSpan.FromMilliseconds(Math.Clamp(DurationMs, 0, (long)TimeSpan.FromDays(1).TotalMilliseconds)),
+                SourceName = Clamp(SourceName)
+            };
+        }
+
+        private static string Clamp(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return null;
+
+            value = value.Trim();
+
+            return value.Length > MaxText ? value[..MaxText] : value;
+        }
+
+        private static Uri Read(string value)
+        {
+            return System.Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+                   uri.Scheme is "http" or "https"
+                ? uri
+                : null;
+        }
+    }
     public record LoadPlaylistRequest(string GuildId, bool Replace);
     public record SharePlaylistRequest(string GuildId, bool Shared);
 

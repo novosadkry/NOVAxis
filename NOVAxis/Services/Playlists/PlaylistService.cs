@@ -25,7 +25,9 @@ namespace NOVAxis.Services.Playlists
         TooMany,
         TooLong,
         NotFound,
-        NotYours
+        NotYours,
+        NoTrack,
+        NameTaken
     }
 
     public class PlaylistException : Exception
@@ -131,14 +133,7 @@ namespace NOVAxis.Services.Playlists
 
             var options = Options.Value;
 
-            name = name?.Trim();
-
-            if (string.IsNullOrEmpty(name))
-                throw new PlaylistException(PlaylistFailure.NoName, "Playlist potřebuje jméno");
-
-            if (name.Length > options.MaxNameLength)
-                throw new PlaylistException(PlaylistFailure.NameTooLong,
-                    $"Jméno smí mít nejvýš {options.MaxNameLength} znaků");
+            name = Name(name, options);
 
             if (tracks == null || tracks.Count == 0)
                 throw new PlaylistException(PlaylistFailure.Empty, "Není co uložit");
@@ -194,6 +189,138 @@ namespace NOVAxis.Services.Playlists
             await db.SaveChangesAsync(cancellationToken);
 
             return existing;
+        }
+
+        /// <summary>
+        /// An empty playlist, to be filled a track at a time. Saving refuses an empty
+        /// queue on purpose - there is nothing to save - but starting from nothing and
+        /// searching your way through it is a different intent entirely.
+        /// </summary>
+        public async Task<Playlist> CreateAsync(
+            ulong ownerId, string ownerName, string name, CancellationToken cancellationToken = default)
+        {
+            Require();
+
+            var options = Options.Value;
+
+            name = Name(name, options);
+
+            await using var scope = Scopes.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<NOVAxisDbContext>();
+
+            var taken = await db.Playlists
+                .AnyAsync(x => x.OwnerId == ownerId && x.Name == name, cancellationToken);
+
+            if (taken)
+                throw new PlaylistException(PlaylistFailure.NameTaken,
+                    $"Playlist „{name}“ už máš");
+
+            var held = await db.Playlists.CountAsync(x => x.OwnerId == ownerId, cancellationToken);
+
+            if (held >= options.MaxPerUser)
+                throw new PlaylistException(PlaylistFailure.TooMany,
+                    $"Máš uložených {held} playlistů, víc než {options.MaxPerUser} jich mít nemůžeš");
+
+            var playlist = new Playlist
+            {
+                Id = Snowflake.Next(),
+                OwnerId = ownerId,
+                OwnerName = ownerName,
+                Name = name,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            db.Playlists.Add(playlist);
+            await db.SaveChangesAsync(cancellationToken);
+
+            return playlist;
+        }
+
+        /// <summary>
+        /// Appends one track. Only the owner may - a playlist shared with a guild is on
+        /// offer to it, not open to it.
+        /// </summary>
+        public async Task<Playlist> AddTrackAsync(
+            ulong id, ulong ownerId, AudioTrack track, CancellationToken cancellationToken = default)
+        {
+            Require();
+
+            if (track == null || string.IsNullOrWhiteSpace(track.Title))
+                throw new PlaylistException(PlaylistFailure.NoTrack, "Není co přidat");
+
+            await using var scope = Scopes.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<NOVAxisDbContext>();
+
+            var playlist = await Owned(db, id, ownerId, cancellationToken);
+
+            if (playlist.Tracks.Count >= Options.Value.MaxTracks)
+                throw new PlaylistException(PlaylistFailure.TooLong,
+                    $"Playlist pojme nejvýš {Options.Value.MaxTracks} skladeb");
+
+            var entry = PlaylistTrack.FromTrack(track, playlist.Tracks.Count);
+            entry.Id = Snowflake.Next();
+            entry.PlaylistId = playlist.Id;
+
+            playlist.Tracks.Add(entry);
+            playlist.UpdatedAt = DateTime.UtcNow;
+
+            await db.SaveChangesAsync(cancellationToken);
+
+            Sort(playlist);
+
+            return playlist;
+        }
+
+        /// <summary>
+        /// Drops one track and closes the gap, so the stored positions stay a run from
+        /// zero rather than a sequence with holes in it.
+        /// </summary>
+        public async Task<Playlist> RemoveTrackAsync(
+            ulong id, ulong ownerId, ulong trackId, CancellationToken cancellationToken = default)
+        {
+            Require();
+
+            await using var scope = Scopes.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<NOVAxisDbContext>();
+
+            var playlist = await Owned(db, id, ownerId, cancellationToken);
+            var track = playlist.Tracks.FirstOrDefault(x => x.Id == trackId);
+
+            if (track == null)
+                throw new PlaylistException(PlaylistFailure.NotFound, "Takovou skladbu tam nemám");
+
+            playlist.Tracks.Remove(track);
+            db.PlaylistTracks.Remove(track);
+
+            Sort(playlist);
+
+            for (var i = 0; i < playlist.Tracks.Count; i++)
+                playlist.Tracks[i].Position = i;
+
+            playlist.UpdatedAt = DateTime.UtcNow;
+
+            await db.SaveChangesAsync(cancellationToken);
+
+            return playlist;
+        }
+
+        private static async Task<Playlist> Owned(
+            NOVAxisDbContext db, ulong id, ulong ownerId, CancellationToken cancellationToken)
+        {
+            var playlist = await db.Playlists
+                .Include(x => x.Tracks)
+                .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+            if (playlist == null)
+                throw new PlaylistException(PlaylistFailure.NotFound, "Takový playlist neznám");
+
+            if (playlist.OwnerId != ownerId)
+                throw new PlaylistException(PlaylistFailure.NotYours, "Měnit ho může jen jeho autor");
+
+            Sort(playlist);
+
+            return playlist;
         }
 
         /// <summary>Only the owner may throw one away, sharing or not.</summary>
@@ -271,6 +398,20 @@ namespace NOVAxis.Services.Playlists
                 .Where(x => x.Contains(prefix, StringComparison.OrdinalIgnoreCase))
                 .Take(limit)
                 .ToList();
+        }
+
+        private static string Name(string name, PlaylistOptions options)
+        {
+            name = name?.Trim();
+
+            if (string.IsNullOrEmpty(name))
+                throw new PlaylistException(PlaylistFailure.NoName, "Playlist potřebuje jméno");
+
+            if (name.Length > options.MaxNameLength)
+                throw new PlaylistException(PlaylistFailure.NameTooLong,
+                    $"Jméno smí mít nejvýš {options.MaxNameLength} znaků");
+
+            return name;
         }
 
         private static IQueryable<Playlist> Visible(NOVAxisDbContext db, ulong ownerId, ulong? guildId)

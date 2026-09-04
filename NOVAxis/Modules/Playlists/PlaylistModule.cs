@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 
 using NOVAxis.Database.Playlists;
 using NOVAxis.Preconditions;
 using NOVAxis.Services.Audio;
+using NOVAxis.Services.Audio.YtDlp;
 using NOVAxis.Services.Playlists;
 using NOVAxis.Utilities;
 
@@ -49,6 +51,7 @@ namespace NOVAxis.Modules.Playlists
     {
         public PlaylistService Playlists { get; set; }
         public IAudioPlayerManager PlayerManager { get; set; }
+        public IAudioSearchService SearchService { get; set; }
 
         private const int Preview = 10;
 
@@ -154,6 +157,119 @@ namespace NOVAxis.Modules.Playlists
 
             if (items.Count > 1)
                 await player.Queue.AddRangeAsync(items.Skip(1));
+        }
+
+        [SlashCommand("new", "Starts an empty playlist to fill by searching")]
+        public async Task CmdNew(string name)
+        {
+            if (!await ReadyAsync()) return;
+
+            var created = await Run(() => Playlists.CreateAsync(
+                Context.User.Id,
+                (Context.User as IGuildUser)?.DisplayName ?? Context.User.Username,
+                name));
+
+            if (created == null) return;
+
+            await RespondAsync(embed: AudioEmbeds.Info(
+                $"Playlist „{created.Name}“ založen — plň ho přes /playlist add",
+                Context.User));
+        }
+
+        /// <summary>
+        /// Appends whatever the query resolves to, through the same lookup playback uses,
+        /// so a phrase, a link or a Spotify page all land the same way they would in the
+        /// queue. A playlist expands to its first track rather than all of it - adding
+        /// a hundred at once is what /playlist save is for.
+        /// </summary>
+        [SlashCommand("add", "Searches for a track and appends it to a playlist")]
+        public async Task CmdAdd(
+            [Autocomplete(typeof(PlaylistNameHandler))] string playlist,
+            string query)
+        {
+            if (!await ReadyAsync()) return;
+
+            var found = await Playlists.FindAsync(playlist, Context.User.Id, Context.Guild.Id);
+
+            if (found == null)
+            {
+                await RespondAsync(ephemeral: true, embed: AudioEmbeds.Warning(
+                    "Takový playlist neznám", $"(„{playlist}“)"));
+
+                return;
+            }
+
+            // The extractor is the slow half, and Discord stops waiting after three seconds
+            await DeferAsync();
+
+            AudioLoadResult result;
+
+            try
+            {
+                result = await SearchService.LoadAsync(query);
+            }
+            catch (Exception e) when (e is ProcessException or HttpRequestException)
+            {
+                await FollowupAsync(ephemeral: true, embed: AudioEmbeds.Error(
+                    "Mé jádro nedokázalo navázat spojení se serverem",
+                    "(Neznámá chyba)"));
+
+                return;
+            }
+
+            if (result.IsFailed || result.Track == null)
+            {
+                await FollowupAsync(ephemeral: true, embed: AudioEmbeds.Warning(
+                    "Nic jsem nenašel", $"(„{query}“)"));
+
+                return;
+            }
+
+            var updated = await Run(() => Playlists.AddTrackAsync(
+                found.Id, Context.User.Id, result.Track), followup: true);
+
+            if (updated == null) return;
+
+            await FollowupAsync(embed: Describe(updated,
+                $"Přidáno do „{updated.Name}“",
+                result.Track.Title));
+        }
+
+        [SlashCommand("remove", "Removes one track from a playlist of yours")]
+        public async Task CmdRemove(
+            [Autocomplete(typeof(PlaylistNameHandler))] string playlist,
+            [Summary(description: "Position in the playlist, from one")] int position)
+        {
+            if (!await ReadyAsync()) return;
+
+            var found = await Playlists.FindAsync(playlist, Context.User.Id, Context.Guild.Id);
+
+            if (found == null)
+            {
+                await RespondAsync(ephemeral: true, embed: AudioEmbeds.Warning(
+                    "Takový playlist neznám", $"(„{playlist}“)"));
+
+                return;
+            }
+
+            var track = found.Tracks.FirstOrDefault(x => x.Position == position - 1);
+
+            if (track == null)
+            {
+                await RespondAsync(ephemeral: true, embed: AudioEmbeds.Warning(
+                    "Na téhle pozici nic nemám",
+                    $"(Playlist má {found.Tracks.Count} {Tracks(found.Tracks.Count)})"));
+
+                return;
+            }
+
+            var updated = await Run(() => Playlists.RemoveTrackAsync(
+                found.Id, Context.User.Id, track.Id));
+
+            if (updated == null) return;
+
+            await RespondAsync(embed: AudioEmbeds.Info(
+                $"„{track.Title}“ odebráno z playlistu „{updated.Name}“", Context.User));
         }
 
         [SlashCommand("list", "Shows the playlists you can open here")]
@@ -265,7 +381,7 @@ namespace NOVAxis.Modules.Playlists
         /// Runs a store call, turning its refusal into an answer. Every command here does
         /// the same thing with a failure, and none of them can carry on past one.
         /// </summary>
-        private async Task<T> Run<T>(Func<Task<T>> action) where T : class
+        private async Task<T> Run<T>(Func<Task<T>> action, bool followup = false) where T : class
         {
             try
             {
@@ -273,8 +389,12 @@ namespace NOVAxis.Modules.Playlists
             }
             catch (PlaylistException e)
             {
-                await RespondAsync(ephemeral: true, embed: AudioEmbeds.Warning(
-                    e.Message, "(Playlist nebyl uložen)"));
+                var embed = AudioEmbeds.Warning(e.Message, "(Playlist se nezměnil)");
+
+                if (followup)
+                    await FollowupAsync(ephemeral: true, embed: embed);
+                else
+                    await RespondAsync(ephemeral: true, embed: embed);
 
                 return null;
             }

@@ -18,6 +18,12 @@ function describeFailure(error: unknown): string {
 interface SearchBoxProps {
   guildId: string
   /**
+   * Takes the picked track instead of queueing it. The lookup is the same either way -
+   * only what happens to the answer differs - so the box is shared rather than copied.
+   */
+  onPick?: (track: TrackDto) => void
+  placeholder?: string
+  /**
    * Handed the request as it goes out, so the page can stand a row in for the track
    * while the extractor works. A picked result comes with everything it knew; a typed
    * phrase or a pasted link comes with nothing but itself.
@@ -29,7 +35,7 @@ interface SearchBoxProps {
  * Search-as-you-type over the bot's own lookup. Picking a result queues it;
  * Enter queues whatever the query resolves to - a pasted link included.
  */
-export function SearchBox({ guildId, onEnqueue }: SearchBoxProps) {
+export function SearchBox({ guildId, onEnqueue, onPick, placeholder }: SearchBoxProps) {
   const { run, toast } = useToast()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<TrackDto[] | null>(null)
@@ -114,13 +120,16 @@ export function SearchBox({ guildId, onEnqueue }: SearchBoxProps) {
         className="search-field"
         onSubmit={e => {
           e.preventDefault()
-          if (query.trim()) enqueue(query.trim())
+
+          // With a picker there is nothing to submit: a track has to be chosen, and a
+          // pasted link comes back as the single result of searching for it
+          if (!onPick && query.trim()) enqueue(query.trim())
         }}
       >
         <Search size={16} />
         <input
           value={query}
-          placeholder="Hledej skladbu, nebo vlož odkaz…"
+          placeholder={placeholder ?? 'Hledej skladbu, nebo vlož odkaz…'}
           aria-label="Vyhledat skladbu"
           onChange={e => setQuery(e.target.value)}
           onFocus={() => results && setOpen(true)}
@@ -141,7 +150,17 @@ export function SearchBox({ guildId, onEnqueue }: SearchBoxProps) {
               type="button"
               key={`${track.uri ?? track.title}-${index}`}
               className="search-row"
-              onClick={() => enqueue(track.uri ?? track.title, track)}
+              onClick={() => {
+                if (onPick) {
+                  setOpen(false)
+                  setQuery('')
+                  setResults(null)
+                  onPick(track)
+                  return
+                }
+
+                enqueue(track.uri ?? track.title, track)
+              }}
             >
               {track.artworkUri ? (
                 <img src={track.artworkUri} alt="" />
