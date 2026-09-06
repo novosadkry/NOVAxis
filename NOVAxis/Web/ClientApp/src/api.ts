@@ -52,6 +52,8 @@ export interface PlayerStateDto {
   current: QueueItemDto | null
   queue: QueueItemDto[]
   skipVote: SkipVoteDto | null
+  /** Whether this backend can produce a spectrum at all. Lavalink cannot. */
+  spectrum: boolean
 }
 
 export interface GuildDto {
