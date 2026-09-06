@@ -27,6 +27,7 @@ namespace NOVAxis.Services.Audio.YtDlp
         private YtDlpClient Client { get; }
         private AudioNotifier Notifier { get; }
         private IOptions<AudioOptions> Options { get; }
+        private SpectrumAnalyzer Spectrum { get; }
         private ILoggerFactory LoggerFactory { get; }
         private ILogger<YtDlpAudioPlayerManager> Logger { get; }
 
@@ -34,12 +35,14 @@ namespace NOVAxis.Services.Audio.YtDlp
             YtDlpClient client,
             AudioNotifier notifier,
             IOptions<AudioOptions> options,
+            SpectrumAnalyzer spectrum,
             ILoggerFactory loggerFactory,
             ILogger<YtDlpAudioPlayerManager> logger)
         {
             Client = client;
             Notifier = notifier;
             Options = options;
+            Spectrum = spectrum;
             LoggerFactory = loggerFactory;
             Logger = logger;
         }
@@ -148,6 +151,7 @@ namespace NOVAxis.Services.Audio.YtDlp
                 Client,
                 Notifier,
                 Options,
+                Spectrum,
                 LoggerFactory.CreateLogger<YtDlpAudioPlayer>(),
                 Destroy);
 

@@ -62,6 +62,7 @@ namespace NOVAxis.Services.Audio.YtDlp
         private readonly AudioNotifier _notifier;
         private readonly AudioOptions _options;
         private readonly ILogger _logger;
+        private readonly SpectrumAnalyzer _spectrum;
         private readonly Func<YtDlpAudioPlayer, ValueTask> _onDestroyed;
 
         private IAudioClient _audioClient;
@@ -96,6 +97,7 @@ namespace NOVAxis.Services.Audio.YtDlp
             YtDlpClient client,
             AudioNotifier notifier,
             IOptions<AudioOptions> options,
+            SpectrumAnalyzer spectrum,
             ILogger logger,
             Func<YtDlpAudioPlayer, ValueTask> onDestroyed)
         {
@@ -103,6 +105,7 @@ namespace NOVAxis.Services.Audio.YtDlp
             _textChannel = textChannel;
             _client = client;
             _notifier = notifier;
+            _spectrum = spectrum;
             _options = options.Value;
             _logger = logger;
             _onDestroyed = onDestroyed;
@@ -538,6 +541,11 @@ namespace NOVAxis.Services.Audio.YtDlp
                         break;
 
                     ApplyVolume(buffer.AsSpan(0, read), _volume);
+
+                    // Whatever actually goes to Discord is what anybody watching should see.
+                    // This is the audio hot path, so it is a copy and nothing more - the tap
+                    // does no work of its own, and costs a dictionary miss when unwatched
+                    _spectrum?.Write(GuildId, buffer.AsSpan(0, read));
 
                     var started = Stopwatch.GetTimestamp();
                     await _outStream.WriteAsync(buffer.AsMemory(0, read), trackToken);

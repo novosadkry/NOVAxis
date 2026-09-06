@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 
 using NOVAxis.Services.Audio;
+using NOVAxis.Services.Audio.YtDlp;
 using NOVAxis.Services.Polls;
 using NOVAxis.Web.Contracts;
 
@@ -19,24 +20,35 @@ namespace NOVAxis.Web
         private DiscordShardedClient Client { get; }
         private IAudioPlayerManager PlayerManager { get; }
         private SkipVoteService SkipVotes { get; }
+        private SpectrumAnalyzer Spectrum { get; }
 
         public PlayerStateService(
             DiscordShardedClient client,
             IAudioPlayerManager playerManager,
-            SkipVoteService skipVotes)
+            SkipVoteService skipVotes,
+            SpectrumAnalyzer spectrum)
         {
             Client = client;
             PlayerManager = playerManager;
             SkipVotes = skipVotes;
+            Spectrum = spectrum;
         }
+
+        /// <summary>
+        /// Whether a spectrum can be had here at all. It is the backend that decides, not
+        /// the track: under Lavalink the audio is decoded on the node and this process
+        /// never sees a sample, so the page must be told rather than left to infer it from
+        /// frames that never arrive - silence looks the same.
+        /// </summary>
+        private bool CanAnalyze => Spectrum.Active && PlayerManager is YtDlpAudioPlayerManager;
 
         public PlayerStateDto GetState(ulong guildId)
         {
             if (!PlayerManager.TryGetPlayer(guildId, out var player))
-                return PlayerStateDto.Disconnected(guildId);
+                return PlayerStateDto.Disconnected(guildId, CanAnalyze);
 
             if (player.State == AudioPlayerState.Destroyed)
-                return PlayerStateDto.Disconnected(guildId);
+                return PlayerStateDto.Disconnected(guildId, CanAnalyze);
 
             var current = player.CurrentItem;
             var queue = player.Queue.Select(QueueItemDto.FromItem).ToList();
@@ -54,7 +66,8 @@ namespace NOVAxis.Web
                 channel == null ? null : new VoiceChannelDto(channel.Id.ToString(), channel.Name),
                 QueueItemDto.FromItem(current),
                 queue,
-                SkipVoteDto.FromVote(SkipVotes.Peek(guildId, current?.RequestId)));
+                SkipVoteDto.FromVote(SkipVotes.Peek(guildId, current?.RequestId)),
+                CanAnalyze);
         }
     }
 }
