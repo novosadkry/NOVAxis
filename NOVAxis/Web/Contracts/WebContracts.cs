@@ -65,9 +65,15 @@ namespace NOVAxis.Web.Contracts
         VoiceChannelDto VoiceChannel,
         QueueItemDto Current,
         IReadOnlyList<QueueItemDto> Queue,
-        SkipVoteDto SkipVote)
+        SkipVoteDto SkipVote,
+        bool Spectrum)
     {
-        public static PlayerStateDto Disconnected(ulong guildId) => new(
+        /// <summary>
+        /// <paramref name="spectrum"/> is a property of the backend rather than of the
+        /// moment, so it is answered even here: a flag which went false whenever the bot
+        /// happened to be idle would mean two different things at once.
+        /// </summary>
+        public static PlayerStateDto Disconnected(ulong guildId, bool spectrum) => new(
             guildId.ToString(),
             false,
             nameof(AudioPlayerState.Destroyed),
@@ -79,7 +85,8 @@ namespace NOVAxis.Web.Contracts
             null,
             null,
             Array.Empty<QueueItemDto>(),
-            null);
+            null,
+            spectrum);
     }
 
     /// <summary>

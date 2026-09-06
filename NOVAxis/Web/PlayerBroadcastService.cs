@@ -31,11 +31,25 @@ namespace NOVAxis.Web
             State = state;
         }
 
+        public const string SpectrumMethod = "spectrum";
+
         public Task PushAsync(ulong guildId, CancellationToken cancellationToken = default)
         {
             return Hub.Clients
                 .Group(PlayerHub.GroupName(guildId))
                 .SendAsync(StateMethod, State.GetState(guildId), cancellationToken);
+        }
+
+        /// <summary>
+        /// The bands go out as two plain arguments rather than wrapped in a record: at
+        /// thirty a second the property names would be most of the message. A byte array
+        /// travels as base64, which halves it again.
+        /// </summary>
+        public Task PushSpectrumAsync(string guildId, byte[] bands, CancellationToken cancellationToken = default)
+        {
+            return Hub.Clients
+                .Group(PlayerHub.GroupName(ulong.Parse(guildId)))
+                .SendAsync(SpectrumMethod, guildId, bands, cancellationToken);
         }
     }
 

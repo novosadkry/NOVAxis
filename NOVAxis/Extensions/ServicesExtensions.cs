@@ -129,6 +129,7 @@ namespace NOVAxis.Extensions
             collection.TryAddSingleton<AudioSearchCache>();
             collection.TryAddSingleton<AudioMediaCache>();
             collection.TryAddSingleton<YtDlpAudioSearchService>();
+            collection.TryAddSingleton<SpectrumAnalyzer>();
             collection.AddSingleton<IAudioSearchService>(p => p.GetRequiredService<YtDlpAudioSearchService>());
             collection.AddSingleton<YtDlpAudioPlayerManager>();
             collection.AddSingleton<IAudioPlayerManager>(p => p.GetRequiredService<YtDlpAudioPlayerManager>());
@@ -222,12 +223,14 @@ namespace NOVAxis.Extensions
             collection.AddWebRateLimits();
             collection.AddSignalR();
 
+            collection.TryAddSingleton<SpectrumAnalyzer>();
             collection.AddSingleton<GuildAccessService>();
             collection.AddSingleton<PlayerStateService>();
             collection.AddSingleton<PlayerHubTracker>();
             collection.AddSingleton<PlayerBroadcaster>();
             collection.AddSingleton<WebPlayerService>();
             collection.AddHostedService<PlayerBroadcastService>();
+            collection.AddHostedService<SpectrumBroadcastService>();
 
             return collection;
         }
