@@ -1330,6 +1330,65 @@ button:disabled {
   margin-top: 14px;
 }
 
+/* ---------- spectrum ---------- */
+
+.spectrum {
+  display: block;
+  width: 100%;
+}
+
+.spectrum-card .spectrum {
+  margin-top: 12px;
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.spectrum-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.spectrum-switch .text-btn.active {
+  color: var(--accent);
+}
+
+.spectrum-switch-sep {
+  width: 1px;
+  height: 12px;
+  background: var(--line);
+}
+
+/* Behind the artwork and under its scrim, so the title keeps its contrast. Held back
+   further than the backdrop is: this one moves, and movement pulls the eye harder than
+   colour does */
+.hero-spectrum {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 0;
+  opacity: 0.5;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to top, black, transparent);
+  mask-image: linear-gradient(to top, black, transparent);
+}
+
+/* The transport is a fixed height, so the strip sits over its top edge beside the
+   progress line rather than adding to it */
+.playerbar .spectrum-bar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* An animated spectrum is the plainest possible case of what this asks about */
+  .spectrum {
+    display: none;
+  }
+}
+
 /* ---------- skip vote ---------- */
 
 /* Amber rather than the usual cyan: it is asking for something, not reporting it */
@@ -1744,6 +1803,10 @@ button:disabled {
 
   .skipvote-actions {
     flex-wrap: wrap;
+  }
+
+  .spectrum-switch {
+    gap: 8px;
   }
 
   .skipvote-note {

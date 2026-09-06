@@ -3,6 +3,7 @@ import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr'
 
 import { api, PlayerStateDto } from './api'
 import { LiveState } from './live'
+import { receiveSpectrum, startSpectrumDemo } from './spectrum'
 
 const Idle: LiveState = { state: null, receivedAt: 0, error: null }
 
@@ -20,6 +21,8 @@ interface PlayerLive extends LiveState {
   transport: Transport
   /** The guild actually being followed right now, for callers with no live state of their own. */
   guildId: string | null
+  /** Turns the spectrum feed on or off for a guild already being watched. */
+  requestSpectrum: (guildId: string, wanted: boolean) => void
 }
 
 const PlayerContext = createContext<PlayerLive>({
@@ -27,6 +30,7 @@ const PlayerContext = createContext<PlayerLive>({
   watch: () => undefined,
   transport: 'connecting',
   guildId: null,
+  requestSpectrum: () => undefined,
 })
 
 /**
@@ -50,6 +54,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // outlives every subscription made over it
   const watched = useRef<string | null>(null)
 
+  // What the spectrum was last asked for, so a reconnect can ask again
+  const spectrum = useRef(new Set<string>())
+
+  const requestSpectrum = useCallback((guildId: string, wanted: boolean) => {
+    if (wanted) spectrum.current.add(guildId)
+    else spectrum.current.delete(guildId)
+
+    void hub.current?.invoke('SetSpectrum', guildId, wanted).catch(() => undefined)
+  }, [])
+
   const watch = useCallback((next: string | null) => {
     setGuildId(current => (current === next ? current : next))
   }, [])
@@ -71,6 +85,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     connection.on('state', receive)
 
+    // Frames go straight to the store rather than through state: at thirty a second this
+    // is the difference between a smooth canvas and re-rendering the page thirty times
+    connection.on('spectrum', (guild: string, bands: string) => receiveSpectrum(guild, bands))
+
     // Not a verdict yet - SignalR is retrying on its own schedule. Only onreconnected
     // or onclose settle what actually happened
     connection.onreconnecting(() => {
@@ -84,8 +102,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       const following = watched.current
 
-      if (following)
-        void connection.invoke<PlayerStateDto>('Subscribe', following).then(receive).catch(() => undefined)
+      if (!following) return
+
+      void connection
+        .invoke<PlayerStateDto>('Subscribe', following)
+        .then(state => {
+          receive(state)
+
+          // A new socket knows nothing of what the old one was asked for, and a spectrum
+          // which quietly stops after a blip is the sort of bug only a reload explains
+          if (spectrum.current.has(following))
+            void connection.invoke('SetSpectrum', following, true).catch(() => undefined)
+        })
+        .catch(() => undefined)
     })
 
     // Automatic reconnect exhausted its attempts - polling is what keeps the position
@@ -111,6 +140,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       connection.stop().catch(() => undefined)
     }
   }, [receive])
+
+  // Only ever reached deliberately, and only useful without a bot to hand
+  useEffect(() => {
+    if (!guildId || new URLSearchParams(window.location.search).get('spectrum') !== 'demo')
+      return
+
+    return startSpectrumDemo(guildId)
+  }, [guildId])
 
   useEffect(() => {
     watched.current = guildId
@@ -153,7 +190,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [guildId, transport, receive])
 
   return (
-    <PlayerContext.Provider value={{ ...live, watch, transport, guildId }}>
+    <PlayerContext.Provider value={{ ...live, watch, transport, guildId, requestSpectrum }}>
       {children}
     </PlayerContext.Provider>
   )
@@ -182,4 +219,13 @@ export function usePlayerState(guildId: string | null): LiveState {
 export function usePlayerTransport(): { transport: Transport; guildId: string | null } {
   const { transport, guildId } = useContext(PlayerContext)
   return { transport, guildId }
+}
+
+/**
+ * How a canvas asks for frames. Separate from usePlayerState because wanting to watch a
+ * guild and wanting to draw its sound are different questions.
+ */
+export function useSpectrumRequest() {
+  const { requestSpectrum, transport } = useContext(PlayerContext)
+  return { requestSpectrum, live: transport === 'hub' }
 }

@@ -12,6 +12,7 @@ import { NowPlaying } from '../components/NowPlaying'
 import { PlayerBar } from '../components/PlayerBar'
 import { QueueList } from '../components/QueueList'
 import { SkipVote } from '../components/SkipVote'
+import { SpectrumPanel } from '../components/SpectrumPanel'
 import { SearchBox } from '../components/SearchBox'
 
 /**
@@ -89,6 +90,7 @@ export function PlayerPage() {
             pending={heroPending}
           />
           <SkipVote guildId={guildId} vote={state?.skipVote ?? null} />
+          <SpectrumPanel guildId={guildId} available={state?.spectrum === true} />
           <QueueList
             guildId={guildId}
             state={state}

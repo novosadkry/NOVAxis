@@ -1,6 +1,8 @@
 import { TrackDto } from '../api'
 import { LiveState } from '../live'
 import { PendingTrack } from '../pending'
+import { useSpectrumPrefs } from '../spectrum'
+import { Spectrum } from './Spectrum'
 import { Download, Note } from '../Icons'
 
 /**
@@ -16,6 +18,7 @@ interface NowPlayingProps {
 }
 
 export function NowPlaying({ live, onDownload, startingUri, pending }: NowPlayingProps) {
+  const { mode, variant } = useSpectrumPrefs()
   const state = live.state
   const item = state?.connected ? state.current : null
 
@@ -23,7 +26,7 @@ export function NowPlaying({ live, onDownload, startingUri, pending }: NowPlayin
   if (!item && pending) {
     return (
       <section className="hero hero-waiting">
-        <div className="hero-art">
+      <div className="hero-art">
           {pending.known?.artworkUri ? (
             <img src={pending.known.artworkUri} alt="" />
           ) : (
@@ -77,6 +80,15 @@ export function NowPlaying({ live, onDownload, startingUri, pending }: NowPlayin
           draggable={false}
         />
       )}
+
+      {variant === 'ambient' && state?.spectrum && (
+        // After the artwork on purpose: under the backdrop and its scrim it was drawn and
+        // then hidden. Still below the text, which owns z-index 1
+        <div className="hero-spectrum" aria-hidden="true">
+          <Spectrum guildId={state.guildId} mode={mode} variant="ambient" available />
+        </div>
+      )}
+
       <div className="hero-art">
         {track.artworkUri ? (
           <img src={track.artworkUri} alt="" />
