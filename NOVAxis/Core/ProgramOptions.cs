@@ -69,6 +69,7 @@ namespace NOVAxis.Core
         public AudioBackend Backend { get; set; } = AudioBackend.YtDlp;
         public AudioTimeoutOptions Timeout { get; set; } = new();
         public AudioVoteOptions Vote { get; set; } = new();
+        public AudioSpectrumOptions Spectrum { get; set; } = new();
         public AudioLavalinkOptions Lavalink { get; set; } = new();
         public AudioYtDlpOptions YtDlp { get; set; } = new();
     }
@@ -99,6 +100,28 @@ namespace NOVAxis.Core
 
         /// <summary>How long a vote stands before it lapses.</summary>
         public TimeSpan Timeout { get; set; } = TimeSpan.FromMinutes(2);
+    }
+
+    /// <summary>
+    /// The live spectrum shown in the web player. Only the yt-dlp backend can produce one:
+    /// under Lavalink the audio is decoded on the node and this process never sees a sample.
+    ///
+    /// Only what it costs is settable. How the picture is shaped - the range, the tilt, how
+    /// far a beat is exaggerated - was arrived at by measuring against real material, and
+    /// the parts of it interlock: see SpectrumAnalyzer, where those numbers now live.
+    /// </summary>
+    public class AudioSpectrumOptions
+    {
+        public const string Key = "Audio:Spectrum";
+
+        public bool Active { get; set; } = true;
+
+        /// <summary>
+        /// How often a frame of bands is pushed to whoever is watching. The one thing worth
+        /// turning down on a host paying for its traffic: a watcher costs this many bands a
+        /// second and nothing else.
+        /// </summary>
+        public int Fps { get; set; } = 30;
     }
 
     public class PlaylistOptions
