@@ -69,6 +69,7 @@ namespace NOVAxis.Core
         public AudioBackend Backend { get; set; } = AudioBackend.YtDlp;
         public AudioTimeoutOptions Timeout { get; set; } = new();
         public AudioVoteOptions Vote { get; set; } = new();
+        public AudioSpectrumOptions Spectrum { get; set; } = new();
         public AudioLavalinkOptions Lavalink { get; set; } = new();
         public AudioYtDlpOptions YtDlp { get; set; } = new();
     }
@@ -99,6 +100,61 @@ namespace NOVAxis.Core
 
         /// <summary>How long a vote stands before it lapses.</summary>
         public TimeSpan Timeout { get; set; } = TimeSpan.FromMinutes(2);
+    }
+
+    /// <summary>
+    /// The live spectrum shown in the web player. Only the yt-dlp backend can produce one:
+    /// under Lavalink the audio is decoded on the node and this process never sees a sample.
+    /// </summary>
+    public class AudioSpectrumOptions
+    {
+        public const string Key = "Audio:Spectrum";
+
+        public bool Active { get; set; } = true;
+
+        /// <summary>How often a frame of bands is pushed to whoever is watching.</summary>
+        public int Fps { get; set; } = 30;
+
+        /// <summary>How many bars the spectrum is folded into.</summary>
+        public int Bands { get; set; } = 48;
+
+        /// <summary>
+        /// Points per transform, which must be a power of two, and must cover at least the
+        /// gap between two pushes or audio falls between the windows unanalysed. At 48 kHz
+        /// and 30 a second the gap is 1600 samples, so 2048 is the first size that fits -
+        /// 43 ms, and 23 Hz per bin, which is what makes the bottom two octaves more than
+        /// one smear.
+        /// </summary>
+        public int FftSize { get; set; } = 2048;
+
+        /// <summary>Lowest frequency given a band of its own.</summary>
+        public float MinHz { get; set; } = 40f;
+
+        /// <summary>
+        /// Highest. Deliberately short of Nyquist: what yt-dlp fetches is usually Opus or
+        /// AAC around 128 kbps, which is filtered off near 16 kHz, and bands above that
+        /// would sit at the floor for ever and read as broken bars.
+        /// </summary>
+        public float MaxHz { get; set; } = 16000f;
+
+        /// <summary>
+        /// Quietest level worth drawing, in dB relative to full scale. Anything below reads
+        /// as nothing: without a floor, the noise between notes fills the bottom of every bar.
+        /// </summary>
+        public float FloorDb { get; set; } = -70f;
+
+        /// <summary>
+        /// Loudest. Not 0 dBFS: spread across bands, real music rarely puts one above about
+        /// -12, so scaling to full scale would leave the whole picture in the bottom quarter.
+        /// </summary>
+        public float CeilingDb { get; set; } = -12f;
+
+        /// <summary>
+        /// Lift applied per octave. Music rolls off with frequency, so without this the
+        /// treble looks dead and everything piles into the bass. Three is the value that
+        /// renders pink noise flat, which is the usual reference for a music visualiser.
+        /// </summary>
+        public float TiltDbPerOctave { get; set; } = 3f;
     }
 
     public class PlaylistOptions
