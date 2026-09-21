@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
+import { useEffect, useRef } from 'react'
 
 /** How long a frame stands before the picture is treated as dead. */
 const StaleMs = 700
@@ -119,57 +119,4 @@ export function startSpectrumDemo(guildId: string, bands = 48, fps = 30): () => 
   }, 1000 / fps)
 
   return () => window.clearInterval(timer)
-}
-
-export type SpectrumMode = 'waterfall' | 'bars'
-export type SpectrumVariant = 'panel' | 'ambient' | 'bar'
-
-export interface SpectrumPrefs {
-  mode: SpectrumMode
-  variant: SpectrumVariant
-}
-
-const PrefsKey = 'novaxis.spectrum'
-const Defaults: SpectrumPrefs = { mode: 'waterfall', variant: 'panel' }
-
-function load(): SpectrumPrefs {
-  try {
-    const saved = window.localStorage.getItem(PrefsKey)
-    return saved ? { ...Defaults, ...JSON.parse(saved) } : Defaults
-  } catch {
-    return Defaults
-  }
-}
-
-let prefs = load()
-const listeners = new Set<() => void>()
-
-/**
- * Which rendering, and where it sits. Held outside React so the hero, the queue and the
- * transport bar all follow one answer, and kept per viewer so choosing is a matter of
- * looking rather than of rebuilding.
- */
-export function useSpectrumPrefs() {
-  const value = useSyncExternalStore(
-    listener => {
-      listeners.add(listener)
-      return () => listeners.delete(listener)
-    },
-    () => prefs,
-    () => Defaults,
-  )
-
-  const set = useCallback((next: Partial<SpectrumPrefs>) => {
-    prefs = { ...prefs, ...next }
-
-    try {
-      window.localStorage.setItem(PrefsKey, JSON.stringify(prefs))
-    } catch {
-      // A viewer who blocks storage still gets to change it for this visit
-    }
-
-    listeners.forEach(listener => listener())
-  }, [])
-
-  return { ...value, set }
 }

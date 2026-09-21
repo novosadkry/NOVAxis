@@ -466,6 +466,17 @@ button:disabled {
   min-height: 0;
 }
 
+/*
+ * Nothing in a column which scrolls should be squeezed to make room - that is what the
+ * scrolling is for. Flex items shrink by default, and a card which sets overflow on
+ * itself loses the automatic minimum size that would otherwise stop it, so the hero was
+ * being crushed under its own artwork clip: 116 pixels of a 168 pixel cover, and far
+ * worse once the queue grew long enough to fight it for room.
+ */
+.main > * {
+  flex-shrink: 0;
+}
+
 .topbar {
   display: flex;
   align-items: center;
@@ -1337,29 +1348,6 @@ button:disabled {
   width: 100%;
 }
 
-.spectrum-card .spectrum {
-  margin-top: 12px;
-  border-radius: 8px;
-  background: var(--bg);
-}
-
-.spectrum-switch {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.spectrum-switch .text-btn.active {
-  color: var(--accent);
-}
-
-.spectrum-switch-sep {
-  width: 1px;
-  height: 12px;
-  background: var(--line);
-}
-
 /* Behind the artwork and under its scrim, so the title keeps its contrast. Held back
    further than the backdrop is: this one moves, and movement pulls the eye harder than
    colour does */
@@ -1371,15 +1359,6 @@ button:disabled {
   pointer-events: none;
   -webkit-mask-image: linear-gradient(to top, black, transparent);
   mask-image: linear-gradient(to top, black, transparent);
-}
-
-/* The transport is a fixed height, so the strip sits over its top edge beside the
-   progress line rather than adding to it */
-.playerbar .spectrum-bar {
-  position: absolute;
-  inset: 0 0 auto 0;
-  opacity: 0.5;
-  pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1805,9 +1784,6 @@ button:disabled {
     flex-wrap: wrap;
   }
 
-  .spectrum-switch {
-    gap: 8px;
-  }
 
   .skipvote-note {
     flex: 1 0 100%;

@@ -5,8 +5,6 @@ import { formatDuration } from '../format'
 import { LiveState, usePosition } from '../live'
 import { Pause, Play, Power, Repeat, RepeatOne, Skip, Stop, Volume, VolumeMuted } from '../Icons'
 import { useToast } from '../Toast'
-import { useSpectrumPrefs } from '../spectrum'
-import { Spectrum } from './Spectrum'
 
 interface PlayerBarProps {
   guildId: string
@@ -142,7 +140,6 @@ export function PlayerBar({ guildId, live }: PlayerBarProps) {
   // is better than a press that appears to do nothing
   const voting = state?.skipVote != null
 
-  const { mode, variant } = useSpectrumPrefs()
   const [stopping, stopAll] = useSingleFlight(() => api.stop(guildId))
 
   const track = state?.current?.track
@@ -186,10 +183,6 @@ export function PlayerBar({ guildId, live }: PlayerBarProps) {
       >
         <div className="progress-fill" style={{ width: `${progress * 100}%` }} />
       </div>
-
-      {variant === 'bar' && state?.spectrum && (
-        <Spectrum guildId={guildId} mode={mode} variant="bar" available />
-      )}
 
       <div className="playerbar-inner">
         <div className="playerbar-times">
