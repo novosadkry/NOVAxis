@@ -98,8 +98,9 @@ export function Spectrum({ guildId, available }: SpectrumProps) {
       for (let i = 0; i < count; i++) {
         const value = bands[i] / 255
 
-        // Straight up, slow down: a bar which fell as fast as it rose would flicker
-        bars[i] = Math.max(value, bars[i] * 0.86)
+        // Straight up, quickly down: instant attack is what makes a hit land, and the
+        // release only has to be slow enough to bridge the gap between two frames of data
+        bars[i] = Math.max(value, bars[i] * 0.8)
         peaks[i] = Math.max(bars[i], peaks[i] - 0.008)
 
         const tall = bars[i] * Height

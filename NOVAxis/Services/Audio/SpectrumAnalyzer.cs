@@ -51,10 +51,12 @@ namespace NOVAxis.Services.Audio
         private const float FloorDb = -70f;
 
         /// <summary>
-        /// Loudest. Not 0 dBFS: spread across bands, real music rarely puts one above about
-        /// -12, so scaling to full scale would leave the whole picture in the bottom quarter.
+        /// Loudest. Above full scale on purpose: what is drawn is not a level any more but
+        /// a level with its movement stretched by <see cref="Expand"/>, and a loud band
+        /// overshoots. Headroom here is what a kick has to grow into - without it the bass
+        /// simply sits against the top and the beat cannot be seen at all.
         /// </summary>
-        private const float CeilingDb = -12f;
+        private const float CeilingDb = 6f;
 
         /// <summary>
         /// Lift applied per octave. Music rolls off with frequency, so without this the
@@ -62,6 +64,32 @@ namespace NOVAxis.Services.Audio
         /// renders pink noise flat, which is the usual reference for a music visualiser.
         /// </summary>
         private const float TiltDbPerOctave = 3f;
+
+        /// <summary>
+        /// How far each band's movement is exaggerated around its own recent average.
+        ///
+        /// A true reading looks dead, and no choice of floor and ceiling fixes it: over a
+        /// bass line that never stops, a kick is perhaps six decibels louder, and six of
+        /// the sixty on show is a bar twitching by a tenth of its height. Stretching what
+        /// moves while leaving what does not where it is keeps the shape of the spectrum
+        /// honest and lets the beat actually read.
+        /// </summary>
+        private const float Expand = 3.2f;
+
+        /// <summary>
+        /// How long a band takes to accept a new level as its normal. Long enough not to
+        /// swallow the beat it is there to reveal, short enough to follow a track change.
+        /// </summary>
+        private const float AdaptSeconds = 1.5f;
+
+        /// <summary>
+        /// Shapes the height once the level has been scaled. Above one it pushes the middle
+        /// of the range down, which leaves the loudest moments standing further clear of
+        /// everything around them - at the price of the quiet ones, which is the whole
+        /// trade: past about 1.5 the beat is unmissable and a sustained pad has all but
+        /// gone. Measured against real material, this is where both still read.
+        /// </summary>
+        private const float Gamma = 1.3f;
 
         /// <summary>
         /// Beyond this a tap is treated as silent. Comfortably longer than the gap between
@@ -115,7 +143,7 @@ namespace NOVAxis.Services.Audio
             var wanted = guildIds as ISet<ulong> ?? guildIds.ToHashSet();
 
             foreach (var guildId in wanted)
-                _taps.TryAdd(guildId, new Tap());
+                _taps.TryAdd(guildId, new Tap(Options.Fps));
 
             foreach (var open in _taps.Keys)
             {
@@ -140,6 +168,15 @@ namespace NOVAxis.Services.Audio
             private readonly float[] _tilt;
 
             /// <summary>
+            /// Each band's own idea of normal, in dB, which is what its movement is
+            /// measured against. Null until the first reading gives it somewhere to start -
+            /// beginning at zero would make the opening second one enormous spike.
+            /// </summary>
+            private float[] _normal;
+
+            private readonly float _adapt;
+
+            /// <summary>
             /// Turns a bin's magnitude into the amplitude of the tone that produced it. Without
             /// it the numbers scale with the transform size and the window, so a dB floor
             /// would mean nothing and every band would sit clamped at the top.
@@ -155,7 +192,7 @@ namespace NOVAxis.Services.Audio
 
             private long _writtenAt;
 
-            public Tap()
+            public Tap(int fps)
             {
                 // Room for several windows, so the writer needs a good fraction of a second
                 // to lap a reader which copies in microseconds
@@ -175,6 +212,11 @@ namespace NOVAxis.Services.Audio
                 // Two, because a real signal splits its energy between the positive and
                 // negative halves of the spectrum and only one half is read back
                 _scale = 2f / gain;
+
+                // One step of an exponential average, sized so a band forgets an old level
+                // over roughly AdaptSeconds - which depends on how often it is read
+                var steps = AdaptSeconds * Math.Clamp(fps, 1, 60);
+                _adapt = 1f - MathF.Exp(-1f / steps);
             }
 
             /// <summary>Stereo 16 bit: four bytes carry one moment of sound.</summary>
@@ -262,6 +304,11 @@ namespace NOVAxis.Services.Audio
 
                 const float span = CeilingDb - FloorDb;
 
+                var first = _normal == null;
+
+                if (first)
+                    _normal = new float[_bands.Length];
+
                 for (var band = 0; band < _bands.Length; band++)
                 {
                     var from = _edges[band];
@@ -277,7 +324,16 @@ namespace NOVAxis.Services.Audio
 
                     // Power, so ten log ten - the same as twenty log of the magnitude
                     var db = 10f * MathF.Log10(power + 1e-12f) + _tilt[band];
-                    var scaled = (db - FloorDb) / span;
+
+                    if (first)
+                        _normal[band] = db;
+                    else
+                        _normal[band] += (db - _normal[band]) * _adapt;
+
+                    // Where the band usually sits stays put; how far it has moved from
+                    // there is what gets stretched
+                    var shown = _normal[band] + (db - _normal[band]) * Expand;
+                    var scaled = MathF.Pow(Math.Clamp((shown - FloorDb) / span, 0f, 1f), Gamma);
 
                     _bands[band] = (byte)Math.Clamp(scaled * 255f, 0f, 255f);
                 }
